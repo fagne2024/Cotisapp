@@ -1,0 +1,544 @@
+<div class="depense-banque-page">
+  <div class="page-header">
+    <div>
+      <div class="pt">Trésorerie</div>
+      <div class="ps">Caisse, dépenses et opérations bancaires de l'organisation</div>
+    </div>
+  </div>
+
+  <div class="page-tabs">
+    <button type="button" class="ptab" [class.on-cais]="pageUi() === 'cais'" (click)="setPage('cais')" title="Caisse (Ctrl+1)">
+      💵 Caisse
+    </button>
+    <button type="button" class="ptab" [class.on-dep]="pageUi() === 'dep'" (click)="setPage('dep')" title="Dépense (Ctrl+2)">
+      📤 Dépense
+    </button>
+    <button type="button" class="ptab" [class.on-bk]="pageUi() === 'bk'" (click)="setPage('bk')" title="Banque (Ctrl+3)">
+      🏦 Banque
+    </button>
+  </div>
+
+  @if (pageUi() === 'cais') {
+    <div class="caisse-panel">
+      <div class="solde-row">
+        <div class="solde-bk-card caisse hero">
+          <div class="sbk-ico" aria-hidden="true">💵</div>
+          <div class="sbk-label">Solde caisse</div>
+          <div class="sbk-val">{{ formatFcfa(soldeCaisse()) }}</div>
+          <div class="sbk-sub">Compte principal · {{ auth.currentOrgNom() ?? 'Organisation' }}</div>
+        </div>
+        <div class="solde-bk-card banque">
+          <div class="sbk-ico" aria-hidden="true">🏛</div>
+          <div class="sbk-label">Solde banque</div>
+          <div class="sbk-val">{{ formatFcfa(soldeBanque()) }}</div>
+          <div class="sbk-sub">Référence trésorerie</div>
+        </div>
+      </div>
+
+      <div class="caisse-stats">
+        <div class="caisse-stat">
+          <div class="cs-lbl">Entrées ce mois</div>
+          <div class="cs-val cr-c">{{ formatFcfa(entreesCaisseMois()) }}</div>
+        </div>
+        <div class="caisse-stat">
+          <div class="cs-lbl">Sorties ce mois</div>
+          <div class="cs-val db-c">{{ formatFcfa(sortiesCaisseMois()) }}</div>
+        </div>
+        <div class="caisse-stat">
+          <div class="cs-lbl">Dépenses ce mois</div>
+          <div class="cs-val">{{ formatFcfa(totalDepensesMois()) }}</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h">
+            <span class="card-title">📜 Journal caisse</span>
+            <div class="caisse-actions">
+              <button type="button" class="btn-s" (click)="setPage('dep')">+ Dépense</button>
+              <button type="button" class="btn-s" (click)="setPage('bk')">Opération banque</button>
+            </div>
+          </div>
+          <div class="filters-row">
+            <select class="filter-select" [value]="filtreCaisSens()" (change)="onFiltreCaisSens($event)">
+              <option value="tous">Tous les mouvements</option>
+              <option value="credit">Entrées</option>
+              <option value="debit">Sorties</option>
+            </select>
+            <span class="filtre-count">{{ mouvementsCaisseFiltres().length }} ligne(s)</span>
+          </div>
+          <div class="table-wrap">
+            <table class="hist-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Type</th>
+                  <th>Libellé</th>
+                  <th>Montant</th>
+                  <th>Solde caisse</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (m of mouvementsCaissePaged(); track m.id) {
+                  <tr>
+                    <td class="date-lbl">{{ m.dateLabel }}</td>
+                    <td>
+                      <span class="badge" [class]="m.sens === 'credit' ? 'b-green' : 'b-red'">{{ m.typeOperation }}</span>
+                    </td>
+                    <td>{{ m.libelle }}</td>
+                    <td [class]="m.sens === 'credit' ? 'cr-c amt' : 'db-c amt'">
+                      {{ m.sens === 'credit' ? '+' : '−' }}{{ formatFcfa(m.montant) }}
+                    </td>
+                    <td class="solde-cell">{{ formatFcfa(m.soldeApres) }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="5">Aucun mouvement sur la caisse pour cette période.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <app-list-pagination
+            [page]="pageCaisse()"
+            [total]="mouvementsCaisseFiltres().length"
+            [pageSize]="pageSizeListe"
+            unit="mouvement(s)"
+            (pageChange)="pageCaisse.set($event)"
+          />
+        </div>
+      </div>
+    </div>
+  } @else if (pageUi() === 'dep') {
+    <form [formGroup]="formDep" (ngSubmit)="$event.preventDefault()">
+      <div class="main-grid">
+        <div>
+          <div class="card">
+            <div class="card-pad">
+              <div class="sect-title">📂 Catégorie de dépense</div>
+              <div class="cat-grid">
+                @for (c of categories; track c.id) {
+                  <button
+                    type="button"
+                    class="cat-card"
+                    [class.on]="isCategorieOn(c)"
+                    (click)="selectCategorie(c)"
+                  >
+                    <div class="cat-icon">{{ c.icon }}</div>
+                    <div class="cat-label">{{ c.label }}</div>
+                  </button>
+                }
+              </div>
+
+              <div class="sect-title">💵 Détails de la dépense</div>
+              <div class="form-grid">
+                <div class="fl">
+                  <label for="dep-montant">Montant (FCFA)</label>
+                  <input id="dep-montant" type="number" formControlName="montant" min="1" />
+                </div>
+                <div class="fl">
+                  <label for="dep-compte">Compte débité</label>
+                  <select id="dep-compte" formControlName="compteDebite">
+                    <option value="caisse">Caisse principale</option>
+                    <option value="banque">Compte bancaire</option>
+                  </select>
+                </div>
+                <div class="fl">
+                  <label for="dep-benef">Bénéficiaire / Fournisseur</label>
+                  <input id="dep-benef" type="text" formControlName="beneficiaire" />
+                </div>
+                <div class="fl">
+                  <label for="dep-date">Date dépense</label>
+                  <input id="dep-date" type="date" formControlName="dateDepense" />
+                </div>
+                <div class="fl span2">
+                  <label for="dep-desc">Description détaillée</label>
+                  <textarea id="dep-desc" formControlName="description" rows="3"></textarea>
+                </div>
+                <div class="fl">
+                  <label for="dep-pj">Pièce justificative</label>
+                  <input id="dep-pj" type="file" class="file-inp" />
+                </div>
+                <div class="fl">
+                  <label for="dep-saisi">Saisi par</label>
+                  <input id="dep-saisi" type="text" formControlName="saisiPar" readonly />
+                </div>
+              </div>
+
+              <div class="sim dep">
+                <div class="sim-title">🔍 Prévisualisation — Règle : Dépense</div>
+                @if (chargement() && !soldesCharges()) {
+                  <div class="sim-row sim-note-row">
+                    <span>Chargement des soldes en cours…</span>
+                  </div>
+                } @else {
+                  <div class="sim-row">
+                    <span>Solde Caisse actuel</span>
+                    <span>{{ formatFcfa(depPreview().caisseActuelle) }}</span>
+                  </div>
+                  <div class="sim-row">
+                    <span>Solde Banque actuel</span>
+                    <span>{{ formatFcfa(depPreview().banqueActuelle) }}</span>
+                  </div>
+                  <div class="sim-row">
+                    <span>{{ depPreview().debiteLabel }}</span>
+                    <span class="db-c">− {{ formatFcfa(depPreview().montant) }}</span>
+                  </div>
+                  <div class="sim-row sim-note-row">
+                    <span>Aucun compte membre impacté</span>
+                    <span></span>
+                  </div>
+                  <div class="sim-row">
+                    <span
+                      >Solde
+                      {{ depPreview().debiteBanque ? 'Banque' : 'Caisse' }} après</span
+                    >
+                    <span class="caisse-after">{{
+                      formatFcfa(depPreview().soldeDebiteApres)
+                    }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="form-actions">
+                <button type="button" class="btn-s" (click)="annulerDep()">Annuler</button>
+                <button type="button" class="btn-p" [disabled]="enregistrement()" (click)="validerDep()">✅ Enregistrer la dépense</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="right-panel">
+          <div class="card">
+            <div class="card-inner">
+              <div class="card-h"><span class="card-title">📊 Dépenses mai 2026</span></div>
+              <div class="total-dep">{{ formatFcfa(totalDepensesMois()) }}</div>
+              <div class="total-dep-lbl">Total dépensé ce mois</div>
+              <div class="cat-breakdown">
+                @for (d of depensesParCat(); track d.label) {
+                  <div class="cat-line">
+                    <span>{{ d.icon }} {{ d.label }}</span>
+                    <span class="db-c">{{ formatFcfa(d.montant) }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-inner">
+              <div class="card-h"><span class="card-title">🕐 Dernières dépenses</span></div>
+              <div class="filters-row">
+                <select class="filter-select" [value]="filtreDepCategorie()" (change)="onFiltreDepCategorie($event)">
+                  <option value="tous">Toutes catégories</option>
+                  @for (c of categories; track c.id) {
+                    <option [value]="c.id">{{ c.icon }} {{ c.label }}</option>
+                  }
+                </select>
+                <input
+                  type="search"
+                  class="filter-search"
+                  placeholder="Rechercher…"
+                  [value]="filtreDepRecherche()"
+                  (input)="onFiltreDepRecherche($event)"
+                  aria-label="Filtrer les dépenses"
+                />
+                <span class="filtre-count">{{ depensesRecentesFiltrees().length }} ligne(s)</span>
+              </div>
+              <table class="hist-table">
+                <thead>
+                  <tr>
+                    <th>Catégorie</th>
+                    <th>Montant</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (d of depensesRecentesPaged(); track d.categorie + d.dateLabel) {
+                    <tr>
+                      <td>{{ d.categorie }}</td>
+                      <td class="db-c amt">{{ formatFcfa(d.montant) }}</td>
+                      <td class="date-lbl">{{ d.dateLabel }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+              <app-list-pagination
+                [page]="pageDep()"
+                [total]="depensesRecentesFiltrees().length"
+                [pageSize]="pageSizeListe"
+                unit="dépense(s)"
+                (pageChange)="pageDep.set($event)"
+              />
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  } @else if (pageUi() === 'bk') {
+    <form [formGroup]="formBk" (ngSubmit)="$event.preventDefault()">
+      <div class="main-grid">
+        <div>
+          <div class="card">
+            <div class="card-pad">
+              <div class="solde-row">
+                <div class="solde-bk-card caisse">
+                  <div class="sbk-ico" aria-hidden="true">💵</div>
+                  <div class="sbk-label">Solde Caisse</div>
+                  <div class="sbk-val">{{ formatFcfa(soldeCaisse()) }}</div>
+                  <div class="sbk-sub">Compte principal GIE</div>
+                </div>
+                <div class="solde-bk-card banque">
+                  <div class="sbk-ico" aria-hidden="true">🏛</div>
+                  <div class="sbk-label">Solde Banque</div>
+                  <div class="sbk-val">{{ formatFcfa(soldeBanque()) }}</div>
+                  <div class="sbk-sub">CBAO · ****4872</div>
+                </div>
+              </div>
+
+              <div class="sect-title">🏦 Type d'opération bancaire</div>
+              <div class="bk-sw">
+                <button
+                  type="button"
+                  class="bk-opt"
+                  [class.on-vers]="bkType() === 'vers'"
+                  (click)="setBkType('vers')"
+                >
+                  ↑ Versement Caisse → Banque
+                </button>
+                <button
+                  type="button"
+                  class="bk-opt"
+                  [class.on-ret]="bkType() === 'ret'"
+                  (click)="setBkType('ret')"
+                >
+                  ↓ Retrait Banque → Caisse
+                </button>
+              </div>
+
+              <div class="form-grid">
+                <div class="fl">
+                  <label for="bk-montant">
+                    {{ bkType() === 'vers' ? 'Montant à verser (FCFA)' : 'Montant à retirer (FCFA)' }}
+                  </label>
+                  <input id="bk-montant" type="number" formControlName="montant" min="1" />
+                </div>
+                <div class="fl">
+                  <label for="bk-date">Date opération</label>
+                  <input id="bk-date" type="date" formControlName="dateOperation" />
+                </div>
+                <div class="fl">
+                  <label for="bk-ref">Référence bordereau</label>
+                  <input id="bk-ref" type="text" formControlName="reference" placeholder="N° bordereau ou ordre de virement" />
+                </div>
+                <div class="fl">
+                  <label for="bk-agence">Banque / Agence</label>
+                  <input id="bk-agence" type="text" formControlName="banqueAgence" />
+                </div>
+                <div class="fl span2 bk-releve-block">
+                  <label for="bk-releve">
+                    @if (afficherCaptureBordereau()) {
+                      Bordereau de versement (photo ou fichier — max 10 Mo)
+                    } @else {
+                      Relevé bancaire / bordereau (PDF, PNG, JPEG — max 10 Mo)
+                    }
+                  </label>
+                  @if (afficherCaptureBordereau()) {
+                    <div class="bk-releve-actions">
+                      <button
+                        type="button"
+                        class="btn-capture-bordereau"
+                        (click)="declencherCaptureBordereau()"
+                      >
+                        📷 Photographier le bordereau
+                      </button>
+                      <button type="button" class="btn-s btn-releve-fichier" (click)="declencherFichierBordereau()">
+                        📁 Choisir un fichier
+                      </button>
+                    </div>
+                    <input
+                      id="bk-releve-camera"
+                      type="file"
+                      class="file-inp-hidden"
+                      accept="image/*"
+                      capture="environment"
+                      (change)="onReleveBancaireSelected($event)"
+                    />
+                  }
+                  <input
+                    id="bk-releve"
+                    type="file"
+                    class="file-inp"
+                    [class.file-inp-hidden]="afficherCaptureBordereau()"
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.heic,.heif,application/pdf,image/*"
+                    (change)="onReleveBancaireSelected($event)"
+                  />
+                  @if (releveApercuUrl(); as src) {
+                    <div class="releve-apercu-wrap">
+                      <img class="releve-apercu" [src]="src" alt="Aperçu du bordereau photographié" />
+                      <button type="button" class="btn-s btn-releve-retirer" (click)="retirerReleveBordereau()">
+                        Retirer la photo
+                      </button>
+                    </div>
+                  } @else if (releveFichierNom()) {
+                    <div class="file-selected">
+                      📎 {{ releveFichierNom() }}
+                      <button type="button" class="link-releve-inline" (click)="retirerReleveBordereau()">Retirer</button>
+                    </div>
+                  }
+                </div>
+                <div class="fl span2">
+                  <label for="bk-desc">Description</label>
+                  <input id="bk-desc" type="text" formControlName="description" />
+                </div>
+                <div class="fl">
+                  <label for="bk-valide">Validé par</label>
+                  <input id="bk-valide" type="text" formControlName="validePar" readonly />
+                </div>
+                <div class="fl">
+                  <label for="bk-contre">Contre-signé par</label>
+                  <select id="bk-contre" formControlName="contreSigne">
+                    <option>Mariama Bah (Trésorière)</option>
+                    <option>Fatou Diallo (Présidente)</option>
+                    <option>Ibrahima Sarr (Superviseur)</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="sim bk">
+                <div class="sim-title">
+                  @if (bkType() === 'vers') {
+                    🔍 Prévisualisation — Versement Caisse → Banque
+                  } @else {
+                    🔍 Prévisualisation — Retrait Banque → Caisse
+                  }
+                </div>
+                @if (chargement() && !soldesCharges()) {
+                  <div class="sim-row sim-note-row">
+                    <span>Chargement des soldes en cours…</span>
+                  </div>
+                } @else {
+                  <div class="sim-row">
+                    <span>Solde Caisse actuel</span>
+                    <span>{{ formatFcfa(bkPreview().caisseActuelle) }}</span>
+                  </div>
+                  <div class="sim-row">
+                    <span>Solde Banque actuel</span>
+                    <span>{{ formatFcfa(bkPreview().banqueActuelle) }}</span>
+                  </div>
+                  <div class="sim-row">
+                    <span>{{ bkPreview().debitLabel }}</span>
+                    <span class="db-c">− {{ formatFcfa(bkPreview().montant) }}</span>
+                  </div>
+                  <div class="sim-row">
+                    <span>{{ bkPreview().creditLabel }}</span>
+                    <span class="cr-c">+ {{ formatFcfa(bkPreview().montant) }}</span>
+                  </div>
+                  <div class="sim-row">
+                    <span>Solde Caisse après</span>
+                    <span class="caisse-after">{{ formatFcfa(bkPreview().caisseApres) }}</span>
+                  </div>
+                  <div class="sim-row">
+                    <span>Solde Banque après</span>
+                    <span class="banque-after">{{ formatFcfa(bkPreview().banqueApres) }}</span>
+                  </div>
+                }
+              </div>
+
+              <div class="form-actions">
+                <button type="button" class="btn-s" (click)="annulerBk()">Annuler</button>
+                @if (bkType() === 'vers') {
+                  <button type="button" class="btn-bl" [disabled]="enregistrement()" (click)="validerBk()">✅ Confirmer le versement</button>
+                } @else {
+                  <button type="button" class="btn-p" [disabled]="enregistrement()" (click)="validerBk()">✅ Confirmer le retrait</button>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="right-panel">
+          <div class="card">
+            <div class="card-inner">
+              <div class="card-h"><span class="card-title">📊 Mouvements bancaires</span></div>
+              <div class="filters-row">
+                <select class="filter-select" [value]="filtreBkMvtType()" (change)="onFiltreBkMvtType($event)">
+                  <option value="tous">Tous les types</option>
+                  <option value="vers">Versements</option>
+                  <option value="ret">Retraits</option>
+                </select>
+                <span class="filtre-count">{{ mouvementsBanqueFiltres().length }} mouvement(s)</span>
+              </div>
+              <table class="hist-table">
+                <thead>
+                  <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Montant</th>
+                    <th>Solde</th>
+                    <th>Relevé</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (m of mouvementsBanquePaged(); track m.dateLabel + m.montant) {
+                    <tr>
+                      <td class="date-lbl">{{ m.dateLabel }}</td>
+                      <td>
+                        @if (m.type === 'vers') {
+                          <span class="badge b-green">Versement</span>
+                        } @else {
+                          <span class="badge b-red">Retrait</span>
+                        }
+                      </td>
+                      <td [class]="m.type === 'vers' ? 'cr-c amt' : 'db-c amt'">
+                        {{ mouvementSigne(m) }}{{ formatFcfa(m.montant) }}
+                      </td>
+                      <td class="solde-cell">{{ formatFcfa(m.soldeApres) }}</td>
+                      <td>
+                        @if (m.releveId) {
+                          <button
+                            type="button"
+                            class="link-releve"
+                            (click)="telechargerReleve(m.releveId!, m.releveNomFichier)"
+                          >
+                            📥 {{ m.releveNomFichier || 'Relevé' }}
+                          </button>
+                        } @else {
+                          <span class="text-muted">—</span>
+                        }
+                      </td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+              <app-list-pagination
+                [page]="pageBanque()"
+                [total]="mouvementsBanqueFiltres().length"
+                [pageSize]="pageSizeListe"
+                unit="mouvement(s)"
+                (pageChange)="pageBanque.set($event)"
+              />
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-inner">
+              <div class="card-h"><span class="card-title">ℹ Règle Banque</span></div>
+              <div class="regle-bk">
+                <div class="regle-bk-title">Opérations bancaires manuelles</div>
+                <p>
+                  Les opérations bancaires sont saisies <strong>manuellement</strong> et nécessitent une
+                  <strong>double validation</strong> (Admin + Trésorier ou Superviseur).
+                </p>
+                <div class="regle-bk-list">• Versement : Caisse → Banque</div>
+                <div class="regle-bk-list">• Retrait : Banque → Caisse</div>
+                <div class="regle-bk-note">Aucune opération bancaire ne crédite directement un compte membre.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </form>
+  }
+</div>
+

@@ -1,0 +1,184 @@
+import { Component, computed, inject, OnInit } from '@angular/core';
+import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { filter } from 'rxjs/operators';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { AuthService } from '../../core/services/auth.service';
+import { AppNotificationsService } from '../../core/services/app-notifications.service';
+import { DroitAccesService } from '../../core/services/droit-acces.service';
+import { organisationCouranteId } from '../../core/util/org-route.util';
+import { landingBureau } from '../../core/util/landing-route.util';
+import { MENU_MODULES_GIE, MenuModuleId, moduleVisible } from '../../core/util/modules-menu.util';
+
+@Component({
+  selector: 'app-shell',
+  standalone: true,
+  imports: [RouterOutlet, RouterLink, RouterLinkActive],
+  templateUrl: './app-shell.component.html',
+  styleUrl: './app-shell.component.scss',
+})
+export class AppShellComponent implements OnInit {
+  readonly auth = inject(AuthService);
+  readonly route = inject(ActivatedRoute);
+  private readonly router = inject(Router);
+  readonly notifs = inject(AppNotificationsService);
+  private readonly droits = inject(DroitAccesService);
+
+  readonly cotisationLinkActiveOpts = {
+    paths: 'exact' as const,
+    queryParams: 'exact' as const,
+    matrixParams: 'ignored' as const,
+    fragment: 'ignored' as const,
+  };
+
+  readonly remboursementLinkActiveOpts = {
+    paths: 'subset' as const,
+    queryParams: 'ignored' as const,
+    matrixParams: 'ignored' as const,
+    fragment: 'ignored' as const,
+  };
+
+  orgShell(): number | null {
+    return organisationCouranteId(this.route, this.auth);
+  }
+
+  readonly initials = computed(() => {
+    const name = this.auth.nomComplet();
+    return name
+      .split(' ')
+      .map((p) => p[0])
+      .join('')
+      .slice(0, 2)
+      .toUpperCase();
+  });
+
+  readonly roleLabel = computed(() => {
+    const r = this.auth.currentRole();
+    if (r === 'ADMIN_GIE') return 'Admin GIE';
+    if (r === 'SUPERADMIN') return 'Superadmin';
+    return 'Membre';
+  });
+
+  /** Membre simple : fiche membre liée, espace personnel uniquement. */
+  readonly estMembreSimple = computed(
+    () => this.auth.currentRole() === 'MEMBRE' && this.auth.currentMembreId() != null
+  );
+
+  /** Membre de bureau (SG, SGA, trésorier…) : pas de fiche membre, menu gestion. */
+  readonly estMembreBureau = computed(
+    () => this.auth.currentRole() === 'MEMBRE' && this.auth.currentMembreId() == null
+  );
+
+  readonly notifUnreadCount = this.notifs.unreadCount;
+
+  readonly notificationsLink = computed((): (string | number)[] => {
+    const org = this.orgShell();
+    return org != null ? ['/organisations', org, 'notifications'] : [];
+  });
+
+  /** Lien d’accueil : tableau de bord (admin) ou première page autorisée (bureau). */
+  readonly accueilLink = computed((): (string | number)[] => {
+    const org = this.orgShell();
+    if (org == null) return [];
+    if (this.estMembreBureau()) {
+      return landingBureau(org, this.droits.droits());
+    }
+    return ['/organisations', org, 'dashboard'];
+  });
+
+  peutMenu(moduleId: MenuModuleId): boolean {
+    if (!this.estMembreBureau()) {
+      return true;
+    }
+    const orgId = this.orgShell();
+    if (orgId == null) {
+      return false;
+    }
+    const def = MENU_MODULES_GIE.find((m) => m.id === moduleId);
+    if (!def) {
+      return false;
+    }
+    if (moduleId === 'notifications') {
+      return (
+        this.droits.peutGestion(orgId) ||
+        moduleVisible((code) => this.droits.peutAction(orgId, code), def)
+      );
+    }
+    return moduleVisible((code) => this.droits.peutAction(orgId, code), def);
+  }
+
+  constructor() {
+    this.router.events
+      .pipe(
+        filter((e): e is NavigationEnd => e instanceof NavigationEnd),
+        takeUntilDestroyed()
+      )
+      .subscribe(() => this.rafraichirNotifications());
+  }
+
+  ngOnInit(): void {
+    this.rafraichirNotifications();
+    const orgId = this.orgShell();
+    if (this.estMembreBureau() && orgId != null && !this.droits.droits()) {
+      this.droits.chargerEtMemoriser(orgId).subscribe({
+        next: (d) => this.droits.setDroits(d),
+      });
+    }
+  }
+
+  private rafraichirNotifications(): void {
+    const orgId = this.orgShell();
+    if (orgId != null) {
+      this.notifs.charger(orgId).subscribe();
+    }
+  }
+
+  isParametrageRoute(): boolean {
+    return this.router.url.includes('/parametrage/');
+  }
+
+  isTresorerieRoute(): boolean {
+    return (
+      this.router.url.includes('/gestion/tresorerie') || this.router.url.includes('/operations/depense-banque')
+    );
+  }
+
+  logout(): void {
+    this.auth.logout();
+  }
+
+  pageTitle(): string {
+    const url = this.router.url;
+    if (url.includes('dashboard')) return 'Tableau de bord';
+    if (url.includes('mon-compte')) return 'Mon compte';
+    if (url.includes('/membres/') && /\/membres\/\d+/.test(url)) return 'Fiche membre';
+    if (url.includes('membres')) return 'Membres';
+    if (url.includes('gestion/comptes')) return 'Comptes & Relevés';
+    if (url.includes('cotisation-mois')) {
+      if (url.includes('t=mois')) return 'Cotisation mensuelle (Mois)';
+      return 'Cotisation hebdomadaire';
+    }
+    if (url.includes('operations/emprunts/suivi')) {
+      return this.estMembreSimple() ? 'Mes emprunts' : 'Suivi des emprunts';
+    }
+    if (url.includes('operations/emprunts')) return 'Emprunts';
+    if (url.includes('operations/remboursements') || url.includes('/remboursements/')) {
+      if (url.includes('solidarite') || url.includes('t=solidarite')) return 'Remboursement — Solidarité';
+      if (url.includes('caisse') || url.includes('t=caisse')) return 'Remboursement — Caisse';
+      return 'Remboursement — Étalé';
+    }
+    if (url.includes('penalite-amende')) {
+      return url.includes('t=am') ? 'Amende' : 'Pénalité & Amende';
+    }
+    if (url.includes('gestion/tresorerie') || url.includes('depense-banque')) {
+      return 'Trésorerie';
+    }
+    if (url.includes('/rapports')) return 'Rapports';
+    if (url.includes('parametrage/')) return 'Paramétrage';
+    if (url.includes('gestion/exercices')) return 'Exercices & PLANAD';
+    if (url.includes('gestion/utilisateurs')) return "Utilisateurs & Droits d'accès";
+    if (url.includes('notifications')) return 'Notifications';
+    if (url.includes('mon-profil')) return 'Mon profil';
+    if (url.includes('suivi-mensuel')) return 'Suivi mensuel';
+    return 'CotisApp';
+  }
+}

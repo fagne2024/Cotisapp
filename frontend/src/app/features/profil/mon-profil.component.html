@@ -1,0 +1,337 @@
+<div class="profil-page">
+  @if (loading()) {
+    <p class="profil-loading">Chargement du profil…</p>
+  } @else if (profil()) {
+    <div class="profil-hero">
+      <div class="ph-cover"></div>
+      <div class="ph-body">
+        <div class="ph-avatar-wrap">
+          <div class="ph-av">{{ initials() }}</div>
+          <button type="button" class="ph-av-edit" (click)="modifierPhoto()" aria-label="Modifier la photo">✏</button>
+        </div>
+        <div class="ph-info">
+          <div>
+            <div class="ph-name">{{ profil()!.nomComplet }}</div>
+            <div class="ph-meta">
+              <span class="ph-badge ph-b-admin">⚙ {{ profil()!.typeProfilLibelle || profil()!.roleLabel }}</span>
+              @if (profil()!.codeMembre) {
+                <span class="ph-badge ph-b-num">{{ profil()!.codeMembre }}</span>
+              }
+              @if (profil()!.organisationNom) {
+                <span class="ph-badge ph-b-num">{{ profil()!.organisationNom }}</span>
+              }
+              <span class="ph-badge ph-b-online">🟢 Connecté</span>
+              @if (membreDepuisLabel(); as dep) {
+                <span class="badge b-or">📅 Compte depuis {{ dep }}</span>
+              }
+            </div>
+          </div>
+          <div class="ph-actions">
+            @if (rapportLink(); as rl) {
+              <a class="btn-s" [routerLink]="rl">📋 Mon activité</a>
+            }
+            <button type="button" class="btn-p" [disabled]="savingInfo()" (click)="sauvegarderInfos()">
+              💾 Sauvegarder
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="profil-layout">
+      <div class="profil-col">
+        <div class="card">
+          <div class="card-inner">
+            <div class="sect-t">👤 Informations personnelles</div>
+            <form [formGroup]="formInfo" (ngSubmit)="$event.preventDefault(); sauvegarderInfos()">
+              <div class="form-grid">
+                <div class="fl">
+                  <label for="prof-prenom">Prénom</label>
+                  <input id="prof-prenom" type="text" formControlName="prenom" />
+                </div>
+                <div class="fl">
+                  <label for="prof-nom">Nom</label>
+                  <input id="prof-nom" type="text" formControlName="nom" />
+                </div>
+                <div class="fl span2">
+                  <label for="prof-email">Email {{ emailLectureSeule() ? '(compte)' : '(identifiant de connexion)' }}</label>
+                  <input id="prof-email" type="email" formControlName="email" [readonly]="emailLectureSeule()" />
+                </div>
+                <div class="fl">
+                  <label for="prof-tel">Téléphone {{ connexionParEmail() ? '' : '(connexion)' }}</label>
+                  <input id="prof-tel" type="text" formControlName="telephone" />
+                </div>
+                <div class="fl">
+                  <label for="prof-tel2">Téléphone secondaire</label>
+                  <input id="prof-tel2" type="text" formControlName="telephoneSecondaire" placeholder="Optionnel" />
+                </div>
+                <div class="fl span2">
+                  <label for="prof-adresse">Adresse</label>
+                  <input id="prof-adresse" type="text" formControlName="adresse" />
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn-s" (click)="annulerInfos()">Annuler</button>
+                <button type="submit" class="btn-p" [disabled]="savingInfo()">
+                  @if (savingInfo()) { Enregistrement… } @else { 💾 Sauvegarder }
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-inner">
+            <div class="sect-t">🔑 Modifier le mot de passe</div>
+            <form [formGroup]="formPwd" (ngSubmit)="$event.preventDefault(); changerMotDePasse()">
+              <div class="pwd-stack">
+                <div class="fl">
+                  <label for="pwd-current">Mot de passe actuel</label>
+                  <div class="pwd-wrap">
+                    <input
+                      id="pwd-current"
+                      [type]="pwdInputType('current')"
+                      formControlName="motDePasseActuel"
+                      autocomplete="current-password"
+                    />
+                    <button type="button" class="pwd-eye" (click)="togglePwdVisible('current')">👁</button>
+                  </div>
+                </div>
+                <div class="fl">
+                  <label for="pwd-new">Nouveau mot de passe</label>
+                  <div class="pwd-wrap">
+                    <input
+                      id="pwd-new"
+                      [type]="pwdInputType('next')"
+                      formControlName="nouveauMotDePasse"
+                      placeholder="Minimum 8 caractères"
+                      autocomplete="new-password"
+                      (input)="onPwdNewInput($event)"
+                    />
+                    <button type="button" class="pwd-eye" (click)="togglePwdVisible('next')">👁</button>
+                  </div>
+                  <div class="strength-bar">
+                    @for (i of [0, 1, 2, 3]; track i) {
+                      <div [class]="strengthSegClass(i)"></div>
+                    }
+                  </div>
+                  <div class="strength-label" [class]="pwdStrength().level">{{ pwdStrength().label }}</div>
+                </div>
+                <div class="fl">
+                  <label for="pwd-confirm">Confirmer le nouveau mot de passe</label>
+                  <div class="pwd-wrap">
+                    <input
+                      id="pwd-confirm"
+                      [type]="pwdInputType('confirm')"
+                      formControlName="confirmationMotDePasse"
+                      autocomplete="new-password"
+                    />
+                    <button type="button" class="pwd-eye" (click)="togglePwdVisible('confirm')">👁</button>
+                  </div>
+                </div>
+                <div class="pwd-hint">
+                  💡 <strong>Conseils :</strong> au moins 8 caractères, une majuscule, un chiffre et un symbole.
+                </div>
+              </div>
+              <div class="form-actions">
+                <button type="button" class="btn-s" (click)="annulerPwd()">Annuler</button>
+                <button type="submit" class="btn-p" [disabled]="savingPwd()">
+                  @if (savingPwd()) { Modification… } @else { 🔑 Changer le mot de passe }
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+
+        <div class="danger-zone">
+          <div class="dz-title">⚠ Zone sensible</div>
+          <div class="dz-row">
+            <div>
+              <div class="dz-label">Déconnexion de toutes les sessions</div>
+              <div class="dz-desc">Ferme les autres sessions actives (démo)</div>
+            </div>
+            <button type="button" class="btn-re" (click)="deconnecterTout()">Déconnecter tout</button>
+          </div>
+          <div class="dz-row">
+            <div>
+              <div class="dz-label">Télécharger mes données</div>
+              <div class="dz-desc">Export de vos données personnelles (JSON)</div>
+            </div>
+            <button type="button" class="btn-s btn-dz" (click)="exporterDonnees()">Exporter</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="profil-col">
+        <div class="card">
+          <div class="card-inner">
+            <div class="sect-t">🔐 Sécurité du compte</div>
+            <div class="notif-list">
+              <div class="notif-row">
+                <div class="nr-info">
+                  <div class="nr-title">Double authentification (2FA)</div>
+                  <div class="nr-sub">
+                    Google Authenticator — code à 6 chiffres à chaque connexion
+                    @if (twoFaObligatoire()) {
+                      <span class="nr-mandatory"> (obligatoire pour les administrateurs)</span>
+                    }
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  class="toggle"
+                  [class.on]="twoFa()"
+                  [disabled]="twoFaLoading()"
+                  (click)="activer2fa()"
+                  aria-label="2FA"
+                ></button>
+              </div>
+              @if (twoFaPanel() === 'setup' && twoFaSetup(); as setup) {
+                <div class="twofa-setup-panel">
+                  <p class="twofa-setup-hint">Installez <strong>Google Authenticator</strong>, scannez le QR code puis confirmez.</p>
+                  <img class="twofa-qr" [src]="setup.qrCodeDataUrl" width="180" height="180" alt="QR code" />
+                  <p class="twofa-secret"><code>{{ setup.secret }}</code></p>
+                  <div class="fl">
+                    <label for="prof-2fa-code">Code de vérification</label>
+                    <input id="prof-2fa-code" type="text" inputmode="numeric" maxlength="6" placeholder="000000" [value]="twoFaCode()" (input)="onTwoFaCodeInput($event)" />
+                  </div>
+                  <div class="form-actions twofa-setup-actions">
+                    <button type="button" class="btn-s" (click)="annuler2fa()">Annuler</button>
+                    <button type="button" class="btn-p" [disabled]="twoFaLoading()" (click)="confirmer2fa()">Activer la 2FA</button>
+                  </div>
+                </div>
+              }
+              @if (twoFaPanel() === 'disable') {
+                <div class="twofa-setup-panel">
+                  <p class="twofa-setup-hint">Mot de passe et code Authenticator requis.</p>
+                  <div class="fl">
+                    <label for="prof-2fa-pwd">Mot de passe</label>
+                    <input id="prof-2fa-pwd" type="password" autocomplete="current-password" [value]="twoFaDisablePwd()" (input)="twoFaDisablePwd.set($any($event.target).value)" />
+                  </div>
+                  <div class="fl">
+                    <label for="prof-2fa-disable-code">Code Authenticator</label>
+                    <input id="prof-2fa-disable-code" type="text" inputmode="numeric" maxlength="6" placeholder="000000" [value]="twoFaDisableCode()" (input)="onDisableCodeInput($event)" />
+                  </div>
+                  <div class="form-actions twofa-setup-actions">
+                    <button type="button" class="btn-s" (click)="annuler2fa()">Annuler</button>
+                    <button type="button" class="btn-re" [disabled]="twoFaLoading()" (click)="desactiver2fa()">Désactiver la 2FA</button>
+                  </div>
+                </div>
+              }
+              <div class="notif-row">
+                <div class="nr-info">
+                  <div class="nr-title">Alertes de connexion</div>
+                  <div class="nr-sub">Notification si nouvel appareil</div>
+                </div>
+                <button
+                  type="button"
+                  class="toggle"
+                  [class.on]="alertesConnexion()"
+                  (click)="alertesConnexion.set(!alertesConnexion())"
+                ></button>
+              </div>
+              <div class="notif-row">
+                <div class="nr-info">
+                  <div class="nr-title">Expiration de session</div>
+                  <div class="nr-sub">Déconnexion automatique après 8h</div>
+                </div>
+                <button
+                  type="button"
+                  class="toggle"
+                  [class.on]="expirationSession()"
+                  (click)="expirationSession.set(!expirationSession())"
+                ></button>
+              </div>
+            </div>
+            <div class="sec-score">
+              <div class="sec-score-top">
+                <span>Score de sécurité</span>
+                <span>{{ scoreSecurite() }}%</span>
+              </div>
+              <div class="sec-score-bar">
+                <div class="sec-score-fill" [style.width.%]="scoreSecurite()"></div>
+              </div>
+              <div class="sec-score-hint">Activez le 2FA pour atteindre 100%</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-inner">
+            <div class="card-h">
+              <span class="card-title">📱 Sessions actives</span>
+              <button type="button" class="link-danger" (click)="fermerAutresSessions()">Fermer toutes</button>
+            </div>
+            <div class="session-list">
+              @for (s of sessions(); track s.id) {
+                <div class="session-row" [class.current]="s.current">
+                  <div class="sess-ico" [style.background]="s.iconBg">{{ s.icon }}</div>
+                  <div class="sess-info">
+                    <div class="sess-device">{{ s.device }}</div>
+                    <div class="sess-meta">{{ s.meta }}</div>
+                  </div>
+                  @if (s.current) {
+                    <div class="sess-status ss-online"><div class="ss-dot"></div><span>En ligne</span></div>
+                  } @else {
+                    <div class="sess-actions">
+                      <div class="sess-status ss-offline"><div class="ss-dot"></div><span>Inactif</span></div>
+                      <button type="button" class="sess-close" (click)="fermerSession(s.id)">✕</button>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-inner">
+            <div class="sect-t">🔔 Préférences de notifications</div>
+            <div class="notif-list">
+              <div class="notif-row">
+                <div class="nr-info"><div class="nr-title">Notifications par email</div><div class="nr-sub">Nouvelles opérations, alertes</div></div>
+                <button type="button" class="toggle" [class.on]="notifEmail()" (click)="notifEmail.set(!notifEmail())"></button>
+              </div>
+              <div class="notif-row">
+                <div class="nr-info"><div class="nr-title">Notifications push</div><div class="nr-sub">Alertes en temps réel (démo)</div></div>
+                <button type="button" class="toggle" [class.on]="notifPush()" (click)="notifPush.set(!notifPush())"></button>
+              </div>
+              <div class="notif-row">
+                <div class="nr-info"><div class="nr-title">Rapport hebdomadaire</div><div class="nr-sub">Résumé chaque lundi</div></div>
+                <button type="button" class="toggle" [class.on]="notifRapport()" (click)="notifRapport.set(!notifRapport())"></button>
+              </div>
+              <div class="notif-row">
+                <div class="nr-info"><div class="nr-title">Alertes emprunts en retard</div><div class="nr-sub">Notification immédiate</div></div>
+                <button type="button" class="toggle" [class.on]="notifEmprunts()" (click)="notifEmprunts.set(!notifEmprunts())"></button>
+              </div>
+              <div class="notif-row">
+                <div class="nr-info"><div class="nr-title">Chaque nouvelle cotisation</div><div class="nr-sub">Peut être fréquent</div></div>
+                <button type="button" class="toggle" [class.on]="notifCotisations()" (click)="notifCotisations.set(!notifCotisations())"></button>
+              </div>
+            </div>
+            <div class="form-actions">
+              <button type="button" class="btn-p btn-full" (click)="sauvegarderPreferences()">💾 Enregistrer les préférences</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-inner">
+            <div class="card-h"><span class="card-title">🕐 Mon activité récente</span></div>
+            <div class="act-list">
+              @for (a of activite(); track a.title) {
+                <div class="act-row">
+                  <div class="act-ico" [style.background]="a.iconBg">{{ a.icon }}</div>
+                  <div class="act-info">
+                    <div class="act-title">{{ a.title }}</div>
+                    <div class="act-date">{{ a.date }}</div>
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

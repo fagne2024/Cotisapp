@@ -1,0 +1,71 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.twofa-page {
+  animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+
+  .twofa-qr {
+    display: block;
+    margin: 0 auto 12px;
+    border-radius: 10px;
+    background: #fff;
+    padding: 10px;
+    animation: fadeIn 0.7s cubic-bezier(0.4, 0, 0.2, 1) 0.1s both;
+  }
+}
+
+.twofa-secret {
+  text-align: center;
+  font-size: 12px;
+  color: var(--md, #4a5568);
+  margin: 0 0 16px;
+  word-break: break-all;
+
+  code {
+    font-family: ui-monospace, monospace;
+    background: var(--g3, #e8f5ee);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+}
+
+.code-wrap input {
+  letter-spacing: 0.3em;
+  font-size: 1.2rem;
+  font-weight: 700;
+  text-align: center;
+}
+
+.hint {
+  text-align: center;
+  color: var(--md);
+  font-size: 14px;
+}
+
+.link-logout {
+  display: block;
+  margin: 16px auto 0;
+  background: none;
+  border: none;
+  color: var(--md);
+  font-size: 13px;
+  cursor: pointer;
+  text-decoration: underline;
+}

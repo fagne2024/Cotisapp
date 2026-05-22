@@ -1,0 +1,63 @@
+<div class="param-page">
+  <div class="page-header">
+    <div>
+      <div class="pt">Paramétrage</div>
+      <div class="ps">
+        Libellés et activation des comptes caisse, solidarité, épargne hebdo et épargne mensuelle pour votre
+        organisation.
+      </div>
+    </div>
+    <div class="ph-actions">
+      <button type="button" class="btn-s" (click)="reinitialiser()" [disabled]="loading() || saving()">
+        Annuler les modifications
+      </button>
+      <button type="button" class="btn-p" (click)="enregistrer()" [disabled]="loading() || saving()">
+        @if (saving()) {
+          Enregistrement…
+        } @else {
+          Enregistrer
+        }
+      </button>
+    </div>
+  </div>
+
+  <app-parametrage-tabs />
+
+  @if (loading()) {
+    <p class="loading-msg">Chargement du paramétrage…</p>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="$event.preventDefault(); enregistrer()">
+      <div class="comptes-grid">
+        @for (f of familles; track f) {
+          @if (itemFor(f); as item) {
+            <div class="compte-card" [formGroupName]="f" [class.inactive]="!group(f).get('actif')?.value">
+              <div class="cc-head">
+                <span class="cc-ico" aria-hidden="true">{{ iconFor(f) }}</span>
+                <div class="cc-meta">
+                  <div class="cc-type">{{ item.proprietaire === 'ORGANISATION' ? 'Organisation' : 'Par membre' }}</div>
+                  <div class="cc-code">{{ item.typeCompte }}</div>
+                </div>
+                <label class="toggle">
+                  <input type="checkbox" formControlName="actif" />
+                  <span>Actif</span>
+                </label>
+              </div>
+              <div class="fl">
+                <label [for]="'lib-' + f">Libellé affiché</label>
+                <input [id]="'lib-' + f" type="text" formControlName="libelle" maxlength="255" />
+              </div>
+              <p class="cc-desc">{{ item.description }}</p>
+              @if (item.soldeOrganisation != null) {
+                <div class="cc-solde">
+                  <span>Solde actuel</span>
+                  <strong>{{ formatFcfa(item.soldeOrganisation) }}</strong>
+                </div>
+              }
+            </div>
+          }
+        }
+      </div>
+    </form>
+  }
+</div>
+

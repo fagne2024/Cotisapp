@@ -1,0 +1,49 @@
+<div class="login-page twofa-page">
+  <div class="bg-deco" aria-hidden="true">
+    <div class="bg-circle c1"></div>
+    <div class="bg-circle c2"></div>
+    <div class="bg-pattern"></div>
+  </div>
+
+  <div class="pwd-card">
+    <div class="brand-icon" aria-hidden="true">📱</div>
+    <h1>Configurer la double authentification</h1>
+    <p class="pwd-intro">
+      Pour les comptes <strong>administrateur</strong>, la 2FA via <strong>Google Authenticator</strong> est
+      obligatoire. Scannez le QR code ci-dessous, puis validez avec le code à 6 chiffres.
+    </p>
+
+    @if (loading()) {
+      <p class="hint">Préparation du QR code…</p>
+    } @else if (setup()) {
+      @if (error()) {
+        <div class="alert-demo" role="alert">⚠ {{ error() }}</div>
+      }
+
+      <img class="twofa-qr" [src]="setup()!.qrCodeDataUrl" width="200" height="200" alt="QR code Google Authenticator" />
+      <p class="twofa-secret">Clé manuelle : <code>{{ setup()!.secret }}</code></p>
+
+      <div class="form-group">
+        <label for="setup-code">Code de vérification</label>
+        <div class="input-wrap code-wrap">
+          <span class="ico" aria-hidden="true">🔐</span>
+          <input
+            id="setup-code"
+            type="text"
+            inputmode="numeric"
+            maxlength="6"
+            placeholder="000000"
+            [value]="code()"
+            (input)="onCodeInput($event)"
+          />
+        </div>
+      </div>
+
+      <button type="button" class="btn-login" [disabled]="saving() || code().length !== 6" (click)="confirmer()">
+        @if (saving()) { Activation… } @else { Activer et continuer → }
+      </button>
+    }
+
+    <button type="button" class="link-logout" (click)="deconnecter()">Se déconnecter</button>
+  </div>
+</div>

@@ -1,0 +1,265 @@
+<div class="param-cloture-page">
+  <app-parametrage-tabs />
+
+  <header class="page-head">
+    <h1>Clôture d'exercice — répartition</h1>
+    <p class="lead">
+      Les montants collectés (intérêts d'emprunt, pénalités, amendes, etc.) sont partagés entre les membres sur leurs
+      comptes <strong>Intérêts</strong>, <strong>Pénalité</strong> et <strong>Amende</strong>. Le compte organisation
+      <strong>Intérêts</strong> regroupe les frais et intérêts issus des emprunts. Des retenues peuvent être prélevées
+      avant le partage.
+    </p>
+  </header>
+
+  @if (chargement()) {
+    <p class="hint">Chargement…</p>
+  } @else {
+    <form [formGroup]="form" (ngSubmit)="$event.preventDefault()">
+      <section class="card">
+        <h2>Mode de partage</h2>
+        <div class="mode-row">
+          <label class="mode-opt">
+            <input type="radio" formControlName="modeRepartition" value="PRORATA" />
+            <span>
+              <strong>Prorata</strong>
+              <small>Parts de cotisation ou pourcentages définis par membre</small>
+            </span>
+          </label>
+          <label class="mode-opt">
+            <input type="radio" formControlName="modeRepartition" value="EQUITABLE" />
+            <span>
+              <strong>Équitable</strong>
+              <small>Montant nominal divisé entre les membres éligibles</small>
+            </span>
+          </label>
+        </div>
+        @if (form.controls.modeRepartition.value === 'EQUITABLE') {
+          <label class="chk excl-pret">
+            <input type="checkbox" formControlName="exclureMembresPretEnCours" />
+            Exclure les membres ayant un prêt en cours du partage
+          </label>
+        }
+      </section>
+
+      <section class="card">
+        <h2>Combinaison des montants</h2>
+        <p class="card-hint">
+          Répartir chaque type à part, additionner certains types entre eux (voir cases ci-dessous), ou former deux
+          groupes.
+        </p>
+        <div class="mode-row">
+          <label class="mode-opt">
+            <input type="radio" formControlName="modeAgregationPostes" value="SEPARER" />
+            <span><strong>Séparément</strong><small>Un partage par poste actif</small></span>
+          </label>
+          <label class="mode-opt">
+            <input type="radio" formControlName="modeAgregationPostes" value="ADDITIONNER" />
+            <span><strong>Additionner (au choix)</strong><small>Cocher les montants à sommer avant partage</small></span>
+          </label>
+          <label class="mode-opt">
+            <input type="radio" formControlName="modeAgregationPostes" value="GROUPES" />
+            <span><strong>Deux groupes</strong><small>Assigner chaque poste au groupe 1 ou 2</small></span>
+          </label>
+        </div>
+      </section>
+
+      @if (form.controls.modeRepartition.value === 'PRORATA') {
+        <section class="card">
+          <h2>Base du prorata</h2>
+          <div class="mode-row">
+            <label class="mode-opt">
+              <input type="radio" formControlName="modeCalculProrata" value="PARTS" />
+              <span><strong>Parts</strong><small>Dérivées des cotisations de l'exercice</small></span>
+            </label>
+            <label class="mode-opt">
+              <input type="radio" formControlName="modeCalculProrata" value="POURCENTAGE" />
+              <span><strong>Pourcentages</strong><small>% par membre (total 100 %)</small></span>
+            </label>
+          </div>
+          <label class="chk excl-pret">
+            <input type="checkbox" formControlName="exclureMembresPretEnCours" />
+            Exclure les membres avec prêt en cours
+          </label>
+        </section>
+      }
+
+      @if (form.controls.modeRepartition.value === 'PRORATA' && form.controls.modeCalculProrata.value === 'POURCENTAGE') {
+        <section class="card">
+          <h2>Pourcentages par membre</h2>
+          <p class="card-hint">Somme actuelle : {{ sommePourcentages() | number: '1.0-2' }} %</p>
+          <div class="pct-actions">
+            <button type="button" class="btn-s" (click)="orgCourante() && chargerPourcentagesMembres(orgCourante()!)">
+              Charger les membres actifs
+            </button>
+            <button type="button" class="btn-s" (click)="repartirPourcentagesEquitablement()">
+              Répartir à parts égales (100 %)
+            </button>
+          </div>
+          <div formArrayName="pourcentagesRepartition" class="pct-list">
+            @for (idx of pourcentageIndicesPage(); track pourcentages.at(idx).get('membreId')?.value) {
+              <div class="pct-row" [formGroupName]="idx">
+                <span class="pct-nom">{{ pourcentages.at(idx).get('nomComplet')?.value }}</span>
+                <span class="pct-code">{{ pourcentages.at(idx).get('codeMembre')?.value }}</span>
+                <input type="number" formControlName="pourcentage" min="0.01" max="100" step="0.01" />
+                <span>%</span>
+              </div>
+            }
+          </div>
+          <app-list-pagination
+            [page]="pctPage()"
+            [total]="pourcentages.length"
+            [pageSize]="pctPageSize"
+            unit="membre(s)"
+            (pageChange)="onPctPageChange($event)"
+          />
+        </section>
+      }
+
+      @if (form.controls.modeRepartition.value === 'PRORATA' && form.controls.modeCalculProrata.value === 'PARTS') {
+        <section class="card">
+          <h2>Parts (cotisation)</h2>
+          <p class="card-hint">Intervalle pour convertir la cotisation moyenne de l'exercice en nombre de parts.</p>
+          <div class="grid-2">
+            <label>
+              Montant cotisation min. (FCFA)
+              <input type="number" formControlName="cotisationMontantMin" min="1" />
+            </label>
+            <label>
+              Montant cotisation max. (FCFA)
+              <input type="number" formControlName="cotisationMontantMax" min="1" />
+            </label>
+            <label>
+              Parts min.
+              <input type="number" formControlName="partsMin" min="1" />
+            </label>
+            <label>
+              Parts max.
+              <input type="number" formControlName="partsMax" min="2" />
+            </label>
+          </div>
+        </section>
+      }
+
+      <section class="card">
+        <h2>Montants à partager</h2>
+        <p class="card-hint">
+          Activez les postes à inclure. En mode « Additionner », cochez ceux à sommer (intérêts, pénalités, amendes — tous
+          ou seulement certains) ; les autres postes actifs restent répartis séparément.
+        </p>
+        @if (form.controls.modeAgregationPostes.value === 'ADDITIONNER') {
+          <div class="pool-actions">
+            <button type="button" class="btn-s" (click)="toutAdditionnerAuPool()">
+              Tout additionner (intérêts + pénalités + amendes)
+            </button>
+            <button type="button" class="btn-s" (click)="rienAdditionnerAuPool()">Aucun dans le pool</button>
+          </div>
+        }
+        <div formArrayName="postesPartage" class="postes-list">
+          @for (ctrl of postesPartage.controls; track $index) {
+            <div class="poste-row" [formGroupName]="$index">
+              <label class="chk poste-actif">
+                <input type="checkbox" formControlName="actif" />
+              </label>
+              <div class="poste-main">
+                @if (posteEstBuiltin($index)) {
+                  <span class="poste-libelle-fixe">{{ ctrl.get('libelle')?.value }}</span>
+                } @else {
+                  <input formControlName="libelle" placeholder="Libellé du poste" class="poste-libelle-input" />
+                }
+                <div class="poste-comptes">
+                  <span class="compte-tag"
+                    >Membre : {{ libelleCompte(ctrl.get('compteMembre')?.value) }}</span
+                  >
+                  <span class="compte-tag"
+                    >Source org. : {{ libelleCompte(ctrl.get('compteSourceOrg')?.value) }}</span
+                  >
+                </div>
+                @if (!posteEstBuiltin($index)) {
+                  <label class="poste-type-op">
+                    Type d'opération (somme sur l'exercice)
+                    <select formControlName="typeOperation">
+                      @for (t of typesOperation; track t.value) {
+                        <option [value]="t.value">{{ t.label }}</option>
+                      }
+                    </select>
+                  </label>
+                }
+                @if (form.controls.modeAgregationPostes.value === 'GROUPES') {
+                  <label class="poste-groupe">
+                    Groupe
+                    <select formControlName="groupePartage">
+                      <option [ngValue]="1">Groupe 1</option>
+                      <option [ngValue]="2">Groupe 2</option>
+                    </select>
+                  </label>
+                }
+                @if (form.controls.modeAgregationPostes.value === 'ADDITIONNER' && ctrl.get('actif')?.value) {
+                  <label class="chk poste-pool">
+                    <input type="checkbox" formControlName="inclureDansPoolAdditionne" />
+                    Additionner au pool commun
+                  </label>
+                }
+              </div>
+              @if (!posteEstBuiltin($index)) {
+                <button type="button" class="btn-s" (click)="retirerPoste($index)">Retirer</button>
+              }
+            </div>
+          }
+        </div>
+        <button type="button" class="btn-s" (click)="ajouterPostePersonnalise()">+ Ajouter un poste à partager</button>
+      </section>
+
+      <section class="card">
+        <h2>Retenues avant partage</h2>
+        <p class="card-hint">Frais ou réserves prélevés sur le pool brut avant répartition (ex. frais de clôture, réserve sociale).</p>
+        <div class="grid-2 frais-globaux">
+          <label>
+            Frais de clôture (optionnel)
+            <select formControlName="fraisClotureType">
+              <option value="FIXE">Montant fixe</option>
+              <option value="POURCENTAGE">% du pool brut</option>
+            </select>
+          </label>
+          <label>
+            Valeur
+            <input type="number" formControlName="fraisClotureValeur" min="0" step="0.01" />
+          </label>
+        </div>
+        <h3 class="sub">Autres retenues</h3>
+        <div formArrayName="retenues">
+          @for (r of retenues.controls; track $index) {
+            <div class="retenue-row" [formGroupName]="$index">
+              <input formControlName="libelle" placeholder="Libellé (ex. réserve sociale)" />
+              <select formControlName="typeMode">
+                <option value="FIXE">Fixe</option>
+                <option value="POURCENTAGE">%</option>
+              </select>
+              <input type="number" formControlName="valeur" min="0" />
+              <button type="button" class="btn-s" (click)="retirerRetenue($index)">Retirer</button>
+            </div>
+          }
+          <button type="button" class="btn-s" (click)="ajouterRetenue()">+ Ajouter une retenue</button>
+        </div>
+      </section>
+
+      <section class="card card-preview">
+        <h2>Aperçu sur l'exercice courant</h2>
+        <p class="card-hint">
+          Même présentation que sur la page Exercices : postes actifs, retenues et tableau par membre selon le mode
+          prorata ou équitable.
+        </p>
+        <app-cloture-repartition-preview
+          [preview]="previewRepartition()"
+          [loading]="previewLoading()"
+          (refresh)="chargerPreviewRepartition()"
+        />
+      </section>
+
+      <footer class="actions">
+        <button type="button" class="btn-p" [disabled]="enregistrement()" (click)="enregistrer()">
+          {{ enregistrement() ? 'Enregistrement…' : 'Enregistrer le paramétrage' }}
+        </button>
+      </footer>
+    </form>
+  }
+</div>

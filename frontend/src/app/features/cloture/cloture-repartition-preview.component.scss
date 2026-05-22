@@ -1,0 +1,268 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.cloture-preview-toolbar {
+  margin-bottom: 12px;
+  animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.hint {
+  margin: 0;
+  font-size: 13px;
+  color: var(--lt, #94a3b8);
+}
+
+.preview-card {
+  background: #fff;
+  border: 1px solid #eef1ef;
+  border-radius: 12px;
+  box-shadow: 0 2px 16px rgba(0, 0, 0, 0.07);
+  animation: slideInLeft 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+
+  &:hover {
+    box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
+    transform: translateY(-2px);
+  }
+  padding: 18px 20px;
+}
+
+.preview-card-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.preview-card-title {
+  margin: 0;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--dk, #1c1c1e);
+}
+
+.preview-mode-tag--muted {
+  opacity: 0.85;
+  margin-left: 6px;
+}
+
+.row-exclu {
+  opacity: 0.55;
+}
+
+.exclu-tag {
+  display: block;
+  font-size: 0.72rem;
+  color: #c0392b;
+  margin-top: 2px;
+}
+
+.preview-mode-tag {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 5px 10px;
+  border-radius: 20px;
+  background: var(--g3, #e8f5ee);
+  color: var(--g1, #1a5c3a);
+}
+
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1px;
+  background: #f0f4f1;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid #f0f4f1;
+  margin-bottom: 16px;
+}
+
+@media (max-width: 720px) {
+  .kpi-strip {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+.kpi-cell {
+  background: #fff;
+  padding: 14px 16px;
+  text-align: center;
+}
+
+.kc-val {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--g1, #1a5c3a);
+  line-height: 1.1;
+
+  &--sm {
+    font-size: 17px;
+  }
+
+  &--warn {
+    color: #c9922a;
+  }
+}
+
+.kc-lbl {
+  font-size: 11px;
+  color: var(--lt, #94a3b8);
+  margin-top: 4px;
+  font-weight: 500;
+}
+
+.postes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.poste-card {
+  border: 1px solid #e8ede9;
+  border-radius: 10px;
+  padding: 12px 14px;
+  background: #fafcfb;
+
+  &--off {
+    opacity: 0.65;
+  }
+}
+
+.poste-card-title {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--dk, #1c1c1e);
+  margin-bottom: 4px;
+  line-height: 1.35;
+}
+
+.poste-card-amount {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--g1, #1a5c3a);
+}
+
+.poste-card-meta {
+  font-size: 11px;
+  color: var(--md, #4a5568);
+  margin-top: 4px;
+}
+
+.poste-card-comptes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.compte-pill {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  background: var(--g3, #e8f5ee);
+  color: var(--g2, #2d7a52);
+
+  &--org {
+    background: var(--or3, #fdf6e7);
+    color: #92680a;
+  }
+}
+
+.retenues-block {
+  margin-bottom: 14px;
+  padding: 10px 12px;
+  background: #f7f9f7;
+  border-radius: 8px;
+  font-size: 12px;
+}
+
+.retenues-title {
+  font-weight: 700;
+  color: var(--md, #4a5568);
+  margin-bottom: 6px;
+}
+
+.retenues-list {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--md, #4a5568);
+  line-height: 1.5;
+}
+
+.preview-table-wrap {
+  overflow-x: auto;
+
+  .pagination {
+    margin-top: 12px;
+  }
+}
+
+.preview-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+
+  th,
+  td {
+    padding: 9px 10px;
+    text-align: left;
+    border-bottom: 1px solid #eef1ef;
+  }
+
+  th {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--lt, #94a3b8);
+    background: #fafcfb;
+  }
+
+  td.num {
+    text-align: right;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+  }
+
+  td.total {
+    font-weight: 700;
+    color: var(--g1, #1a5c3a);
+  }
+}
+
+.membre-nom {
+  display: block;
+  font-weight: 600;
+  color: var(--dk, #1c1c1e);
+}
+
+.membre-code {
+  font-size: 10px;
+  color: var(--lt, #94a3b8);
+}

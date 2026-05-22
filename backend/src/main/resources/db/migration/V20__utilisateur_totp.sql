@@ -1,0 +1,3 @@
+ALTER TABLE utilisateur
+    ADD COLUMN totp_secret VARCHAR(256) NULL,
+    ADD COLUMN totp_enabled BOOLEAN NOT NULL DEFAULT FALSE;

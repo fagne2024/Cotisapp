@@ -1,0 +1,58 @@
+.membre-search-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 12px;
+  align-items: flex-end;
+  margin-bottom: 6px;
+
+  .membre-search-main {
+    flex: 1 1 200px;
+    min-width: 0;
+    margin-bottom: 0 !important;
+  }
+
+  .membre-search-code {
+    flex: 0 0 108px;
+    margin-bottom: 0 !important;
+
+    input,
+    .filter-code-num {
+      text-align: center;
+      font-variant-numeric: tabular-nums;
+      letter-spacing: 0.02em;
+    }
+  }
+
+  &.remb-filters {
+    align-items: center;
+
+    .membre-search-main {
+      flex: 1 1 160px;
+    }
+
+    .remb-code-lookup {
+      flex: 0 0 88px;
+
+      .filter-code-num {
+        width: 100%;
+        padding: 8px 10px;
+        border: 1px solid #d8e0da;
+        border-radius: 8px;
+        font-size: 13px;
+        background: #fff;
+      }
+    }
+  }
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}

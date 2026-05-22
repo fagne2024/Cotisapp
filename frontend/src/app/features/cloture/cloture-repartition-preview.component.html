@@ -1,0 +1,133 @@
+<div class="cloture-preview">
+  @if (showRefresh()) {
+    <div class="cloture-preview-toolbar">
+      <button type="button" class="btn-s" [disabled]="loading()" (click)="onRefresh()">
+        {{ loading() ? 'Calcul…' : 'Actualiser la prévisualisation' }}
+      </button>
+    </div>
+  }
+
+  @if (preview(); as prev) {
+    <div class="preview-card">
+      <div class="preview-card-head">
+        <h3 class="preview-card-title">Prévisualisation — exercice n°{{ prev.exerciceNumero }}</h3>
+        <span class="preview-mode-tag">{{ libelleModeRepartition(prev.modeRepartition) }}</span>
+        <span class="preview-mode-tag preview-mode-tag--muted">{{
+          libelleAgregationPostes(prev.modeAgregationPostes)
+        }}</span>
+      </div>
+
+      <div class="kpi-strip">
+        <div class="kpi-cell">
+          <div class="kc-val kc-val--sm">{{ formatFcfa(prev.poolBrut) }}</div>
+          <div class="kc-lbl">Pool brut</div>
+        </div>
+        <div class="kpi-cell">
+          <div class="kc-val kc-val--sm kc-val--warn">{{ formatFcfa(prev.totalRetenues) }}</div>
+          <div class="kc-lbl">Retenues + frais</div>
+        </div>
+        <div class="kpi-cell">
+          <div class="kc-val kc-val--sm">{{ formatFcfa(prev.netADistribuer) }}</div>
+          <div class="kc-lbl">Net à distribuer</div>
+        </div>
+        <div class="kpi-cell">
+          @if (prev.modeRepartition === 'PRORATA') {
+            <div class="kc-val">{{ prev.totalParts }}</div>
+            <div class="kc-lbl">Parts totales</div>
+          } @else {
+            <div class="kc-val">{{ membresEligibles(prev) }}</div>
+            <div class="kc-lbl">Membres éligibles</div>
+          }
+        </div>
+      </div>
+
+      @if (postesActifsPreview(prev).length) {
+        <div class="postes-grid">
+          @for (poste of postesActifsPreview(prev); track poste.code) {
+            <div class="poste-card" [class.poste-card--off]="posteSansMontant(poste)">
+              <div class="poste-card-title">{{ poste.libelle }}</div>
+              <div class="poste-card-amount">{{ formatFcfa(poste.montantPool ?? 0) }}</div>
+              <div class="poste-card-meta">
+                Pool → distribué {{ formatFcfa(poste.montantDistribue ?? 0) }}
+              </div>
+              <div class="poste-card-comptes">
+                <span class="compte-pill">Membre : {{ libelleCompteCourt(poste.compteMembre) }}</span>
+                <span class="compte-pill compte-pill--org">
+                  Org. : {{ libelleCompteCourt(poste.compteSourceOrg) }}
+                </span>
+              </div>
+            </div>
+          }
+        </div>
+      }
+
+      @if (aDesRetenues(prev)) {
+        <div class="retenues-block">
+          <div class="retenues-title">Détail des retenues</div>
+          <ul class="retenues-list">
+            @if (fraisCloturePositif(prev)) {
+              <li>Frais de clôture : {{ formatFcfa(prev.fraisCloture) }}</li>
+            }
+            @for (r of prev.retenues; track r.libelle + r.ordre) {
+              @if (montantRetenuePositif(r.montantCalcule)) {
+                <li>{{ r.libelle }} : {{ formatFcfa(r.montantCalcule ?? 0) }}</li>
+              }
+            }
+          </ul>
+        </div>
+      }
+
+      <div class="preview-table-wrap">
+        <table class="preview-table">
+          <thead>
+            <tr>
+              <th>Membre</th>
+              @if (prev.modeRepartition === 'PRORATA') {
+                <th>Parts</th>
+              }
+              @for (col of colonnesDistributionPreview(prev); track col.code) {
+                <th>{{ col.libelle }}</th>
+              }
+              <th>Total</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (m of membresPage(); track m.membreId) {
+              <tr [class.row-exclu]="m.excluDuPartage">
+                <td>
+                  <span class="membre-nom">{{ m.nomComplet }}</span>
+                  <span class="membre-code">{{ m.codeMembre }}</span>
+                  @if (m.excluDuPartage) {
+                    <span class="exclu-tag">{{ m.motifExclusion ?? 'Exclu' }}</span>
+                  }
+                </td>
+                @if (prev.modeRepartition === 'PRORATA') {
+                  <td class="num">
+                    @if (prev.modeCalculProrata === 'POURCENTAGE') {
+                      {{ m.pourcentageRepartition ?? 0 }} %
+                    } @else {
+                      {{ m.nombreParts }}
+                    }
+                  </td>
+                }
+                @for (col of colonnesDistributionPreview(prev); track col.code) {
+                  <td class="num">{{ formatFcfa(montantPosteMembre(m, col.code)) }}</td>
+                }
+                <td class="num total">{{ formatFcfa(m.montantPart) }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        <app-list-pagination
+          [page]="page()"
+          [total]="membresTotal()"
+          [pageSize]="pageSize"
+          unit="membre(s)"
+          (pageChange)="page.set($event)"
+        />
+      </div>
+    </div>
+  } @else if (loading()) {
+    <p class="hint">Calcul de la répartition…</p>
+  }
+</div>

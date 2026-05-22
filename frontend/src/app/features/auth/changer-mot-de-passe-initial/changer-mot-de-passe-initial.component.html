@@ -1,0 +1,76 @@
+<div class="login-page pwd-page">
+  <div class="bg-deco" aria-hidden="true">
+    <div class="bg-circle c1"></div>
+    <div class="bg-circle c2"></div>
+    <div class="bg-pattern"></div>
+  </div>
+
+  <div class="pwd-card">
+    <div class="brand-icon" aria-hidden="true">🔐</div>
+    <h1>Nouveau mot de passe</h1>
+    <p class="pwd-intro">
+      Pour des raisons de sécurité, remplacez le mot de passe temporaire reçu par email avant d’accéder à votre espace.
+    </p>
+
+    @if (error()) {
+      <div class="alert-demo" role="alert">⚠ {{ error() }}</div>
+    }
+
+    <form [formGroup]="form" (ngSubmit)="submit()">
+      <div class="form-group">
+        <label for="pwd">Nouveau mot de passe</label>
+        <div class="input-wrap">
+          <span class="ico" aria-hidden="true">🔒</span>
+          <input
+            id="pwd"
+            [type]="showPassword() ? 'text' : 'password'"
+            formControlName="nouveauMotDePasse"
+            autocomplete="new-password"
+            placeholder="8 caractères minimum"
+          />
+          <button
+            type="button"
+            class="eye-btn"
+            (click)="togglePassword()"
+            [attr.aria-label]="showPassword() ? 'Masquer' : 'Afficher'"
+          >
+            👁
+          </button>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label for="pwd2">Confirmer le mot de passe</label>
+        <div class="input-wrap">
+          <span class="ico" aria-hidden="true">🔒</span>
+          <input
+            id="pwd2"
+            [type]="showConfirm() ? 'text' : 'password'"
+            formControlName="confirmationMotDePasse"
+            autocomplete="new-password"
+            placeholder="Répétez le mot de passe"
+          />
+          <button
+            type="button"
+            class="eye-btn"
+            (click)="toggleConfirm()"
+            [attr.aria-label]="showConfirm() ? 'Masquer' : 'Afficher'"
+          >
+            👁
+          </button>
+        </div>
+        @if (form.hasError('mismatch') && form.touched) {
+          <p class="field-hint err">Les mots de passe ne correspondent pas.</p>
+        }
+      </div>
+
+      <button type="submit" class="btn-login" [disabled]="loading() || form.invalid">
+        @if (loading()) {
+          Enregistrement…
+        } @else {
+          Continuer →
+        }
+      </button>
+    </form>
+  </div>
+</div>

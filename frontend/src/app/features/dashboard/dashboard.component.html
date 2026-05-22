@@ -1,0 +1,315 @@
+<div class="dashboard">
+  <div class="page-header">
+    <div class="ph-left">
+      <div class="greeting">Bonjour, {{ greetingName() }} 👋</div>
+      <div class="sub">{{ subline() }}</div>
+    </div>
+    <div class="ph-right">
+      <div class="period-selector">
+        <button
+          type="button"
+          class="period-btn"
+          (click)="changeMonth(-1)"
+          title="Mois précédent">
+          ←
+        </button>
+        <span class="period-display">{{ monthLabel() }} {{ selectedYear() }}</span>
+        <button
+          type="button"
+          class="period-btn"
+          (click)="changeMonth(1)"
+          title="Mois suivant">
+          →
+        </button>
+        <button
+          type="button"
+          class="period-reset"
+          (click)="resetToToday()"
+          title="Revenir à aujourd'hui">
+          ⟲
+        </button>
+        <button
+          type="button"
+          [class.auto-refresh-on]="autoRefreshEnabled()"
+          class="auto-refresh-btn"
+          (click)="toggleAutoRefresh()"
+          [title]="autoRefreshEnabled() ? 'Auto-refresh activé (cliquer pour désactiver)' : 'Auto-refresh désactivé (cliquer pour activer)'">
+          ⟳
+        </button>
+      </div>
+      <a
+        class="btn-s btn-recap"
+        [routerLink]="['/organisations', auth.currentOrgId()!, 'recap-journee']"
+      >
+        📋 Récap journée
+      </a>
+      <button
+        type="button"
+        class="btn-s"
+        (click)="exportPDF()"
+        title="Télécharger le rapport en PDF">
+        📊 Rapport PDF
+      </button>
+      <a
+        class="btn-p"
+        [routerLink]="['/organisations', auth.currentOrgId()!, 'operations', 'cotisation-mois']"
+      >
+        + Cotisation
+      </a>
+    </div>
+  </div>
+
+  @if (overdueEmprunts().length > 0 && alertVisible()) {
+    <div class="alert">
+      <span class="alert-ico">⚠</span>
+      <div class="alert-body">
+        <strong>{{ overdueEmprunts().length }} emprunt(s) en retard</strong>
+        — {{ overdueSummary() }}
+        <a
+          class="alert-link"
+          [routerLink]="['/organisations', auth.currentOrgId()!, 'operations', 'remboursements']"
+          [queryParams]="{ t: 'etale' }"
+        >
+          Voir les emprunts →
+        </a>
+      </div>
+      <button type="button" class="alert-close" (click)="dismissAlert()" aria-label="Fermer">×</button>
+    </div>
+  }
+
+  @if (loading()) {
+    <p class="dash-loading">Chargement des soldes…</p>
+  } @else if (loadError()) {
+    <p class="dash-err">Impossible de charger les données du tableau de bord.</p>
+  }
+
+  <div class="kpi-grid">
+    <a
+      [routerLink]="['/organisations', auth.currentOrgId()!, 'gestion', 'comptes']"
+      class="kpi k1"
+      title="Voir les comptes et relevés">
+      <div class="kpi-glow"></div>
+      <span class="kpi-icon">🏦</span>
+      <div class="kpi-val">{{ formatFcfaUnit(soldeCaisse()) }} <span class="kpi-unit">FCFA</span></div>
+      <div class="kpi-label">Solde Caisse</div>
+      <div class="kpi-trend tr-up">Compte organisation</div>
+    </a>
+    <a
+      [routerLink]="['/organisations', auth.currentOrgId()!, 'membres']"
+      class="kpi k2"
+      title="Voir les membres et soldes">
+      <div class="kpi-glow"></div>
+      <span class="kpi-icon">🤝</span>
+      <div class="kpi-val">{{ formatFcfaUnit(soldeSolidarite()) }} <span class="kpi-unit">FCFA</span></div>
+      <div class="kpi-label">Fonds Solidarité</div>
+      <div class="kpi-trend tr-up">Compte organisation</div>
+    </a>
+    <a
+      [routerLink]="['/organisations', auth.currentOrgId()!, 'operations', 'remboursements']"
+      [queryParams]="{ t: 'etale' }"
+      class="kpi k3"
+      title="Voir les emprunts et remboursements">
+      <div class="kpi-glow"></div>
+      <span class="kpi-icon">📋</span>
+      <div class="kpi-val">{{ enCours().length }} <span class="kpi-unit">emprunts</span></div>
+      <div class="kpi-label">En cours</div>
+      @if (overdueEmprunts().length > 0) {
+        <div class="kpi-trend tr-warn">⚠ {{ overdueEmprunts().length }} en retard</div>
+      } @else {
+        <div class="kpi-trend tr-up">À jour</div>
+      }
+    </a>
+    <a
+      [routerLink]="['/organisations', auth.currentOrgId()!, 'membres']"
+      class="kpi k4"
+      title="Voir la liste des membres">
+      <div class="kpi-glow"></div>
+      <span class="kpi-icon">👥</span>
+      <div class="kpi-val">{{ nbMembresActifs() }} <span class="kpi-unit">membres</span></div>
+      <div class="kpi-label">Actifs · {{ nbMembresBureau() }} bureau</div>
+      <div class="kpi-trend tr-up">{{ nbMembresSimples() }} membre(s) simple(s)</div>
+    </a>
+  </div>
+
+  <div class="dash-grid">
+    <div class="card card-chart">
+      <div class="card-h">
+        <span class="card-title">📈 Évolution des cotisations {{ chartView().annee }}</span>
+        <div class="card-actions">
+          <a
+            class="card-action"
+            [routerLink]="['/organisations', auth.currentOrgId()!, 'rapports']"
+            title="Voir le rapport complet">
+            Rapport complet
+          </a>
+          <button type="button" class="card-action-btn" title="Télécharger les données">📥</button>
+        </div>
+      </div>
+      <div class="chart-panel">
+        <div class="chart-y-axis" aria-hidden="true">
+          @for (tick of chartView().yTicks; track tick.value) {
+            <span class="y-tick" [style.bottom.%]="tick.pct">{{ tick.label }}</span>
+          }
+        </div>
+        <div class="chart-main">
+          <div class="chart-grid-lines" aria-hidden="true">
+            @for (tick of chartView().yTicks; track tick.value) {
+              <div class="grid-line" [style.bottom.%]="tick.pct"></div>
+            }
+          </div>
+          <div class="chart-bars">
+            @for (col of chartView().columns; track col.mois) {
+              <div
+                class="bar-group"
+                [class.bar-group--hover]="hoveredBarMonth() === col.mois"
+                [title]="col.tooltip"
+                (mouseenter)="onChartBarHover(col.mois)"
+                (mouseleave)="onChartBarLeave()"
+                (click)="onChartBarClick(col.mois, chartView().annee)"
+                role="button"
+                tabindex="0">
+                <div class="bar-pair">
+                  <div
+                    class="bar bar-cotis"
+                    [class.bar-cotis--over]="col.atteintObjectif"
+                    [style.height.%]="col.cotisPct"
+                  ></div>
+                  <div class="bar bar-obj" [style.height.%]="col.objPct"></div>
+                </div>
+                <span class="bar-lbl" [class.bar-lbl--active]="hoveredBarMonth() === col.mois">{{ col.label }}</span>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="chart-legend">
+        <span class="leg-item"><span class="leg-dot g"></span>Cotisations</span>
+        <span class="leg-item"><span class="leg-dot o"></span>Objectif (moyenne mensuelle)</span>
+        <span class="chart-total">
+          Total {{ chartView().annee }} :
+          <strong>{{ formatFcfaCompact(chartView().totalCotisations) }}</strong>
+        </span>
+      </div>
+    </div>
+
+    <div class="card card-ops">
+      <div class="card-h">
+        <span class="card-title">🕐 Opérations récentes</span>
+        <div class="card-actions">
+          <a
+            class="card-action"
+            [routerLink]="['/organisations', auth.currentOrgId()!, 'recap-journee']"
+            title="Voir toutes les opérations">
+            Tout voir
+          </a>
+          <button type="button" class="card-action-btn" (click)="refreshData()" title="Rafraîchir">🔄</button>
+        </div>
+      </div>
+      <div class="op-list op-list--scroll">
+        @if (operationsRecentes().length === 0) {
+          <p class="emp-empty">Aucune opération enregistrée pour le moment.</p>
+        }
+        @for (op of operationsRecentes(); track $index) {
+          <div class="op-row">
+            <div class="op-ico" [class]="op.icoClass">{{ op.icon }}</div>
+            <div class="op-info">
+              <div class="op-name">{{ op.name }}</div>
+              <div class="op-meta">{{ op.meta }}</div>
+            </div>
+            <div class="op-amt" [class]="op.amtClass">{{ op.amt }}</div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="dash-grid2">
+    <div class="card">
+      <div class="card-h">
+        <span class="card-title">🏦 Soldes des comptes</span>
+        <a class="card-action" href="#">Détails</a>
+      </div>
+      <div class="soldes-grid mb">
+        <div class="solde-card caisse">
+          <div class="sc-icon">💵</div>
+          <div class="sc-label">Caisse</div>
+          <div class="sc-val">{{ formatFcfaUnit(soldeCaisse()) }}</div>
+        </div>
+        <div class="solde-card banque">
+          <div class="sc-icon">🏛</div>
+          <div class="sc-label">Banque</div>
+          <div class="sc-val">{{ formatFcfaUnit(soldeBanque()) }}</div>
+        </div>
+        <div class="solde-card solidarite">
+          <div class="sc-icon">🤝</div>
+          <div class="sc-label">Solidarité</div>
+          <div class="sc-val">{{ formatFcfaUnit(soldeSolidarite()) }}</div>
+        </div>
+      </div>
+      <div class="card-h card-h-tight">
+        <span class="card-title sm">📋 Emprunts actifs</span>
+        <a
+          class="card-action"
+          [routerLink]="['/organisations', auth.currentOrgId()!, 'operations', 'remboursements']"
+          [queryParams]="{ t: 'etale' }"
+          >Voir tout</a
+        >
+      </div>
+      @if (topEmpruntsForCard().length === 0) {
+        <p class="emp-empty">Aucun emprunt en cours pour cette organisation.</p>
+      }
+      @for (emp of topEmpruntsForCard(); track emp.id) {
+        <div class="emp-row">
+          <div class="emp-top">
+            <span class="emp-name">{{ emp.membreNom }}</span>
+            @if (empruntHasOverdue(emp)) {
+              <span class="badge-retard">⚠ Retard</span>
+            } @else {
+              <span class="badge-ok">En cours</span>
+            }
+          </div>
+          <div class="prog-lbl">
+            <span
+              >{{ typeLabel(emp.typeEmprunt) }} · {{ formatFcfaUnit(emp.montantRembourse) }} /
+              {{ formatFcfaUnit(emp.montantTotal) }} F</span
+            >
+            <span>{{ progressPct(emp) }}%</span>
+          </div>
+          <div class="prog-bar">
+            <div
+              class="prog-fill"
+              [class.red]="empruntHasOverdue(emp)"
+              [style.width.%]="progressPct(emp)"
+            ></div>
+          </div>
+        </div>
+      }
+    </div>
+
+    <div class="card">
+      <div class="card-h">
+        <span class="card-title">👑 Bureau du GIE</span>
+        <a class="card-action" [routerLink]="['/organisations', auth.currentOrgId()!, 'membres']">Voir membres</a>
+      </div>
+      <div class="bureau-list">
+        @if (bureau().length === 0) {
+          <p class="emp-empty">Aucun membre du bureau renseigné.</p>
+        }
+        @for (m of bureau(); track m.id) {
+          <div class="bureau-row">
+            <div class="bureau-av" [class]="ligneBureau(m).avClass">{{ ligneBureau(m).initiales }}</div>
+            <div class="bureau-info">
+              <div class="bureau-name">{{ m.nomComplet }}</div>
+              <div class="bureau-role">{{ ligneBureau(m).poste.label }}</div>
+            </div>
+            <span class="bureau-badge" [class]="ligneBureau(m).badgeClass">{{ ligneBureau(m).poste.label }}</span>
+          </div>
+        }
+      </div>
+      <div class="bureau-footer">
+        <span>👤 Membres simples</span>
+        <span class="bureau-stat">{{ nbMembresSimples() }} / {{ nbMembresActifs() }}</span>
+      </div>
+    </div>
+  </div>
+</div>

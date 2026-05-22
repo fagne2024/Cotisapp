@@ -1,0 +1,483 @@
+<div class="sa-dashboard">
+  <header class="topbar">
+    <div class="tb-title">👑 Vue Superadmin</div>
+    <div class="tb-search">
+      <span class="tb-search-ico" aria-hidden="true">🔍</span>
+      <input
+        type="search"
+        placeholder="Rechercher une organisation…"
+        [value]="searchQuery()"
+        (input)="onSearch($event)"
+        aria-label="Rechercher une organisation"
+      />
+    </div>
+    <div class="tb-actions">
+      <button type="button" class="tb-btn" title="Notifications" aria-label="Notifications">
+        🔔<span class="tb-dot"></span>
+      </button>
+    </div>
+  </header>
+
+  <div class="content">
+    @if (error()) {
+      <p class="err-banner">{{ error() }}</p>
+    }
+
+    @if (loading()) {
+      <p class="loading-msg">Chargement de la vue globale…</p>
+    } @else if (vue()) {
+      @if (vue(); as v) {
+        <div class="sa-banner">
+          <div class="sab-icon">👑</div>
+          <div class="sab-text">
+            <div class="sab-title">Vue Superadmin — Accès illimité</div>
+            <div class="sab-sub">Vous voyez toutes les organisations · Aucun cloisonnement · Données en temps réel</div>
+          </div>
+          <div class="sab-badge">✓ SUPERADMIN</div>
+        </div>
+
+        <div class="kpi-grid">
+          <div class="kpi">
+            <div class="kpi-glow" style="background: var(--pu)"></div>
+            <span class="kpi-icon">🌐</span>
+            <div class="kpi-val pu-c">{{ v.kpi.organisationsActives }}</div>
+            <div class="kpi-label">Organisations actives</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-glow" style="background: var(--g2)"></div>
+            <span class="kpi-icon">👥</span>
+            <div class="kpi-val cr-c">{{ v.kpi.totalMembres }}</div>
+            <div class="kpi-label">Membres total</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-glow" style="background: var(--or2)"></div>
+            <span class="kpi-icon">💰</span>
+            <div class="kpi-val or-c">{{ formatCompact(v.kpi.caisseTotale) }}</div>
+            <div class="kpi-label">Caisse totale FCFA</div>
+          </div>
+          <div class="kpi">
+            <div class="kpi-glow" style="background: var(--re)"></div>
+            <span class="kpi-icon">📋</span>
+            <div class="kpi-val db-c">{{ v.kpi.empruntsActifs }}</div>
+            <div class="kpi-label">Emprunts actifs</div>
+            @if (v.kpi.empruntsEnRetard > 0) {
+              <div class="kpi-trend tr-dn">⚠ {{ v.kpi.empruntsEnRetard }} en retard</div>
+            }
+          </div>
+          <div class="kpi">
+            <div class="kpi-glow" style="background: var(--bl)"></div>
+            <span class="kpi-icon">🤝</span>
+            <div class="kpi-val bl-c">{{ formatCompact(v.kpi.solidariteTotale) }}</div>
+            <div class="kpi-label">Solidarité totale</div>
+          </div>
+        </div>
+
+        <div class="dash-grid">
+          <div class="card">
+            <div class="card-inner">
+              <div class="card-h">
+                <span class="card-title">📈 Cotisations par organisation</span>
+              </div>
+              <div class="chart-area">
+                @for (bar of v.cotisationsParOrganisation; track bar.code; let i = $index) {
+                  <div class="bar-col">
+                    <div class="bar" [style.height.%]="barHeight(bar.montant)" [style.background]="barColor(i)"></div>
+                    <div class="bar-val" [style.color]="barValueColor(i)">{{ formatCompact(bar.montant) }}</div>
+                    <div class="bar-lbl">{{ bar.code }}</div>
+                  </div>
+                } @empty {
+                  <p class="chart-empty">Aucune donnée</p>
+                }
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-inner">
+              <div class="card-h">
+                <span class="card-title">🕐 Activité récente</span>
+              </div>
+              @for (act of v.activiteRecente; track act.meta + act.libelle) {
+                <div class="act-row">
+                  <div class="act-ico" [style.background]="act.fondCouleur || 'var(--g3)'">{{ act.icone }}</div>
+                  <div class="act-info">
+                    <div class="act-name">{{ act.libelle }}</div>
+                    <div class="act-meta">{{ act.meta }}</div>
+                  </div>
+                  <div class="act-amt" [class.cr-c]="act.credit" [class.db-c]="!act.credit">
+                    {{ act.credit ? '+' : '−' }}{{ formatFcfa(act.montant) }}
+                  </div>
+                </div>
+              } @empty {
+                <p class="chart-empty">Aucune activité récente</p>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-inner">
+            <div class="card-h">
+              <span class="card-title">🌐 Toutes les organisations</span>
+              <div class="card-actions">
+                <button type="button" class="btn-p" (click)="openCreateModal()">+ Créer un GIE</button>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="org-table">
+                <thead>
+                  <tr>
+                    <th>Organisation</th>
+                    <th>Admin GIE</th>
+                    <th>Membres</th>
+                    <th>Caisse</th>
+                    <th>Solidarité</th>
+                    <th>Banque</th>
+                    <th>Emprunts</th>
+                    <th>Règles</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (org of filteredOrgs(); track org.id; let i = $index) {
+                    <tr [class.row-muted]="!org.actif">
+                      <td>
+                        <div class="org-cell">
+                          @if (logoAffiche(org); as src) {
+                            <img class="org-logo org-logo-img" [src]="src" [alt]="'Logo ' + org.nom" />
+                          } @else {
+                            <div class="org-logo" [ngStyle]="orgLogoStyle(i)">{{ org.code }}</div>
+                          }
+                          <div>
+                            <div class="org-name">{{ org.nom }}</div>
+                            <div class="org-sigle">{{ org.code }} · {{ org.description || '—' }}</div>
+                          </div>
+                        </div>
+                      </td>
+                      <td>
+                        <div class="cell-main">{{ org.adminNom }}</div>
+                        <div class="cell-sub">{{ org.adminEmail }}</div>
+                      </td>
+                      <td>
+                        <div class="mini-kpi cr-c">{{ org.nbMembres }}</div>
+                        <div class="mini-sub">{{ org.nbMembresBureau }} bureau · {{ org.nbMembresSimples }} simples</div>
+                      </td>
+                      <td>
+                        <div class="mini-kpi" style="color: var(--g1)">{{ formatFcfa(org.soldeCaisse) }}</div>
+                      </td>
+                      <td>
+                        <div class="mini-kpi or-c">{{ formatFcfa(org.soldeSolidarite) }}</div>
+                      </td>
+                      <td>
+                        <div class="mini-kpi bl-c">{{ formatFcfa(org.soldeBanque) }}</div>
+                      </td>
+                      <td>
+                        <div class="mini-kpi or-c">{{ org.nbEmpruntsActifs }} actifs</div>
+                        @if (org.nbEmpruntsEnRetard > 0) {
+                          <div class="mini-sub db-c">⚠ {{ org.nbEmpruntsEnRetard }} retards</div>
+                        }
+                      </td>
+                      <td>
+                        <span class="badge b-green">{{ org.nbRegles }} règles</span>
+                      </td>
+                      <td>
+                        @if (org.actif) {
+                          <span class="badge b-green">✓ Actif</span>
+                        } @else {
+                          <span class="badge b-or">⏸ Suspendu</span>
+                        }
+                      </td>
+                      <td>
+                        <div class="row-actions">
+                          <button type="button" class="ra-btn view" (click)="openEditModal(org)" title="Modifier">✏</button>
+                          <a class="ra-btn manage" [routerLink]="['/organisations', org.id, 'dashboard']">Gérer</a>
+                          @if (org.actif) {
+                            <button type="button" class="ra-btn suspend" (click)="toggleActif(org)" title="Suspendre">⏸</button>
+                          } @else {
+                            <button type="button" class="ra-btn activate" (click)="toggleActif(org)" title="Activer">▶</button>
+                          }
+                          <button type="button" class="ra-btn del" (click)="confirmDelete(org)" title="Supprimer">🗑</button>
+                        </div>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="10" class="empty-cell">Aucune organisation trouvée.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      }
+    }
+  </div>
+</div>
+
+@if (createOpen()) {
+  <div class="modal-overlay show" (click)="overlayClick($event, 'create')">
+    <div class="modal modal-lg cotis-comptes-scope" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3>🌐 Créer une nouvelle organisation</h3>
+        <button type="button" class="modal-close" (click)="closeCreateModal()" aria-label="Fermer">×</button>
+      </div>
+      <form [formGroup]="createForm" class="modal-body">
+        <div class="sect-title-modal">🏢 Informations</div>
+        <div class="form-grid">
+          <div class="fl">
+            <label for="org-code">Sigle (code)</label>
+            <input id="org-code" formControlName="code" placeholder="Ex. GDR" maxlength="50" />
+          </div>
+          <div class="fl">
+            <label for="org-nom">Nom complet</label>
+            <input id="org-nom" formControlName="nom" placeholder="Ex. GIE Dakar Réussite" />
+          </div>
+          <div class="fl span2">
+            <label for="org-desc">Description</label>
+            <input id="org-desc" formControlName="description" placeholder="Description" />
+          </div>
+        </div>
+
+        <div class="sect-title-modal mt">🔐 Administrateur GIE</div>
+        <p class="logo-upload-hint">Compte qui gérera cette organisation (connexion par email, rôle Admin GIE).</p>
+        <div class="form-grid">
+          <div class="fl">
+            <label for="admin-prenom">Prénom</label>
+            <input id="admin-prenom" formControlName="adminPrenom" placeholder="Ex. Moussa" />
+          </div>
+          <div class="fl">
+            <label for="admin-nom">Nom</label>
+            <input id="admin-nom" formControlName="adminNom" placeholder="Ex. Diop" />
+          </div>
+          <div class="fl">
+            <label for="admin-email">Email</label>
+            <input id="admin-email" type="email" formControlName="adminEmail" placeholder="admin.gie@exemple.sn" />
+          </div>
+          <div class="fl">
+            <label for="admin-mdp">Mot de passe</label>
+            <input
+              id="admin-mdp"
+              type="password"
+              formControlName="adminMotDePasse"
+              placeholder="Laisser vide = Admin&#64;2026"
+              autocomplete="new-password"
+            />
+          </div>
+        </div>
+
+        <div class="logo-upload-block">
+          <div class="sect-title-modal">🖼 Logo de l'organisation</div>
+          <p class="logo-upload-hint">PNG, JPEG, WebP ou SVG — max. 2 Mo. Facultatif.</p>
+          <div class="logo-upload-row">
+            @if (logoApercuLocal(); as src) {
+              <img class="logo-preview" [src]="src" alt="Aperçu du logo" />
+            } @else {
+              <div class="logo-preview logo-preview-empty">?</div>
+            }
+            <div class="logo-upload-actions">
+              <label class="btn-s logo-file-label">
+                Choisir un fichier
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" (change)="onLogoSelect($event)" hidden />
+              </label>
+              @if (logoFichier()) {
+                <button type="button" class="btn-s" (click)="retirerLogoSelection()">Retirer</button>
+              }
+            </div>
+          </div>
+        </div>
+        <div class="sect-title-modal mt">🏦 Comptes de la structure</div>
+        <div class="comptes-auto comptes-select">
+          <div class="ca-item ca-fixed ca-muted on">
+            <div class="ca-ico">💵</div>
+            <div class="ca-lbl c-g1">Caisse</div>
+            <div class="ca-sub">Obligatoire</div>
+          </div>
+          
+          <div class="ca-item ca-fixed ca-muted on">
+            <div class="ca-ico">📈</div>
+            <div class="ca-lbl c-g1">Compte intérêts</div>
+            <div class="ca-sub">Obligatoire</div>
+          </div>
+          <label class="ca-item ca-check" [class.on]="createForm.controls.solidarite.value">
+            <input type="checkbox" formControlName="solidarite" class="ca-input" />
+            <div class="ca-ico">🤝</div>
+            <div class="ca-lbl c-or">Solidarité</div>
+          </label>
+          <label class="ca-item ca-check" [class.on]="createForm.controls.banque.value">
+            <input type="checkbox" formControlName="banque" class="ca-input" />
+            <div class="ca-ico">🏦</div>
+            <div class="ca-lbl c-g1">Banque</div>
+          </label>
+        </div>
+        <div class="sect-title-modal mt">👤 Comptes membres</div>
+        <div class="comptes-auto comptes-select">
+          <label class="ca-item ca-check" [class.on]="createForm.controls.epargneHebdo.value">
+            <input type="checkbox" formControlName="epargneHebdo" class="ca-input" />
+            <div class="ca-ico">📅</div>
+            <div class="ca-lbl c-g1">Épargne hebdo</div>
+          </label>
+          <label class="ca-item ca-check" [class.on]="createForm.controls.epargneMois.value">
+            <input type="checkbox" formControlName="epargneMois" class="ca-input" />
+            <div class="ca-ico">📆</div>
+            <div class="ca-lbl c-g1">Épargne mois</div>
+          </label>
+          <label class="ca-item ca-check ca-warn" [class.on]="createForm.controls.penalite.value">
+            <input type="checkbox" formControlName="penalite" class="ca-input" />
+            <div class="ca-ico">⚠</div>
+            <div class="ca-lbl c-re">Pénalité</div>
+          </label>
+          <label class="ca-item ca-check ca-warn" [class.on]="createForm.controls.amende.value">
+            <input type="checkbox" formControlName="amende" class="ca-input" />
+            <div class="ca-ico">🚫</div>
+            <div class="ca-lbl c-re">Amende</div>
+          </label>
+        </div>
+        <div class="sect-title-modal mt">Comptes personnalisés (membres)</div>
+        <div class="form-grid modele-add-row" formGroupName="nouveauModele">
+          <div class="fl">
+            <label for="modele-code">Code</label>
+            <input id="modele-code" formControlName="code" placeholder="Ex. FONDS" />
+          </div>
+          <div class="fl">
+            <label for="modele-libelle">Libellé</label>
+            <input id="modele-libelle" formControlName="libelle" placeholder="Ex. Fonds spécial" />
+          </div>
+          <div class="fl fl-actions">
+            <button type="button" class="btn-s" (click)="ajouterModeleDraft()">+ Ajouter</button>
+          </div>
+        </div>
+        @if (modelesDraft().length > 0) {
+          <ul class="modeles-draft-list">
+            @for (m of modelesDraft(); track m.code) {
+              <li>
+                <span>{{ m.libelle }} ({{ m.code }})</span>
+                <button type="button" class="btn-s btn-sm" (click)="removeModeleDraft(m.code)">Retirer</button>
+              </li>
+            }
+          </ul>
+        }
+        @if (formError()) {
+          <p class="err-msg mt">{{ formError() }}</p>
+        }
+      </form>
+      <div class="modal-foot">
+        <button type="button" class="btn-s" (click)="closeCreateModal()" [disabled]="saving()">Annuler</button>
+        <button type="button" class="btn-p" (click)="submitCreate()" [disabled]="saving() || uploadingLogo()">
+          {{ saving() ? 'Création…' : '🌐 Créer l\'organisation' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (editOpen()) {
+  <div class="modal-overlay show" (click)="overlayClick($event, 'edit')">
+    <div class="modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3>Modifier l'organisation</h3>
+        <button type="button" class="modal-close" (click)="closeEditModal()">×</button>
+      </div>
+      <form [formGroup]="editForm" class="modal-body">
+        <div class="fl">
+          <label>Code</label>
+          <input [value]="editingOrg()?.code" readonly class="input-readonly" />
+        </div>
+        <div class="fl">
+          <label for="edit-nom">Nom</label>
+          <input id="edit-nom" formControlName="nom" />
+        </div>
+        <div class="fl">
+          <label for="edit-desc">Description</label>
+          <textarea id="edit-desc" formControlName="description" rows="2"></textarea>
+        </div>
+
+        <div class="sect-title-modal mt">🔐 Administrateur GIE</div>
+        <div class="form-grid">
+          <div class="fl">
+            <label for="edit-admin-prenom">Prénom</label>
+            <input id="edit-admin-prenom" formControlName="adminPrenom" />
+          </div>
+          <div class="fl">
+            <label for="edit-admin-nom">Nom</label>
+            <input id="edit-admin-nom" formControlName="adminNom" />
+          </div>
+          <div class="fl">
+            <label for="edit-admin-email">Email</label>
+            <input id="edit-admin-email" type="email" formControlName="adminEmail" />
+          </div>
+          <div class="fl">
+            <label for="edit-admin-mdp">Nouveau mot de passe</label>
+            <input
+              id="edit-admin-mdp"
+              type="password"
+              formControlName="adminMotDePasse"
+              placeholder="Laisser vide pour ne pas changer"
+              autocomplete="new-password"
+            />
+          </div>
+        </div>
+        <label class="check-row">
+          <input type="checkbox" formControlName="adminActif" />
+          <span>Compte administrateur actif</span>
+        </label>
+
+        <div class="logo-upload-block">
+          <div class="sect-title-modal">🖼 Logo de l'organisation</div>
+          <p class="logo-upload-hint">PNG, JPEG, WebP ou SVG — max. 2 Mo.</p>
+          <div class="logo-upload-row">
+            @if (logoAfficheEdition(); as src) {
+              <img class="logo-preview" [src]="src" alt="Logo actuel ou aperçu" />
+            } @else {
+              <div class="logo-preview logo-preview-empty">{{ editingOrg()?.code }}</div>
+            }
+            <div class="logo-upload-actions">
+              <label class="btn-s logo-file-label">
+                {{ editingOrg()?.logoUrl ? 'Remplacer le logo' : 'Ajouter un logo' }}
+                <input type="file" accept="image/png,image/jpeg,image/webp,image/svg+xml" (change)="onLogoSelect($event)" hidden />
+              </label>
+              @if (logoFichier()) {
+                <button type="button" class="btn-s" (click)="retirerLogoSelection()">Annuler le nouveau</button>
+              }
+            </div>
+          </div>
+        </div>
+        <label class="check-row">
+          <input type="checkbox" formControlName="actif" />
+          <span>Organisation active</span>
+        </label>
+        @if (formError()) {
+          <p class="err-msg mt">{{ formError() }}</p>
+        }
+      </form>
+      <div class="modal-foot">
+        <button type="button" class="btn-s" (click)="closeEditModal()" [disabled]="saving()">Annuler</button>
+        <button type="button" class="btn-p" (click)="submitEdit()" [disabled]="saving() || uploadingLogo()">
+          {{ saving() ? 'Enregistrement…' : 'Enregistrer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (deleteTarget()) {
+  <div class="modal-overlay show" (click)="overlayClick($event, 'delete')">
+    <div class="modal modal-sm" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3>Supprimer l'organisation</h3>
+        <button type="button" class="modal-close" (click)="closeDeleteConfirm()">×</button>
+      </div>
+      <div class="modal-body">
+        <p>Confirmer la suppression de <strong>{{ deleteTarget()!.nom }}</strong> ?</p>
+        @if (formError()) {
+          <p class="err-msg mt">{{ formError() }}</p>
+        }
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn-s" (click)="closeDeleteConfirm()" [disabled]="saving()">Annuler</button>
+        <button type="button" class="btn-del-solid" (click)="submitDelete()" [disabled]="saving()">Supprimer</button>
+      </div>
+    </div>
+  </div>
+}

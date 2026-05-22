@@ -1,0 +1,27 @@
+# Backend
+backend/target/
+backend/.mvn/wrapper/maven-wrapper.jar
+
+# Frontend
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+
+# IDE / outils locaux
+.idea/
+.vscode/
+.cursor/
+.claude/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+*.log
+
+# Fichiers uploadés (relevés bancaires)
+uploads/
+backend/uploads/

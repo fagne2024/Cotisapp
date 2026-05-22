@@ -1,0 +1,352 @@
+<div class="fiche">
+  @if (loading()) {
+    <div class="fiche-loading-container">
+      <div class="fiche-spinner"></div>
+      <p class="fiche-loading">Chargement du profil…</p>
+    </div>
+  } @else if (loadError() || !membre()) {
+    <p class="fiche-err">Membre introuvable.</p>
+    @if (!vueMonCompte()) {
+      <a class="tb-back" [routerLink]="['/organisations', orgCourante()!, 'membres']">← Retour aux membres</a>
+    }
+  } @else {
+    @if (!vueMonCompte()) {
+      <div class="fiche-topbar">
+        <a class="tb-back" [routerLink]="['/organisations', orgCourante()!, 'membres']">← Membres</a>
+        <span class="tb-subtitle">Fiche membre</span>
+      </div>
+    }
+
+    <div class="hero">
+      <div class="hero-inner">
+        <div class="hero-av" [style.background]="heroAvColor()">{{ initials() }}</div>
+        <div class="hero-info">
+          <div class="hero-name">{{ membre()!.nomComplet }}</div>
+          <div class="hero-meta">
+            <span class="hero-badge">📋 {{ membre()!.codeMembre }}</span>
+            @if (poste(); as p) {
+              <span class="hero-badge {{ p.badgeClass }}">{{ p.icon }} {{ categorieBureau() }}</span>
+            }
+            <span class="hero-badge green">{{ membre()!.actif ? '✅ Actif' : '⚠ Inactif' }}</span>
+            <span class="hero-badge">📅 {{ depuis() }}</span>
+          </div>
+        </div>
+        <div class="hero-actions">
+          @if (!vueMonCompte()) {
+            <a
+              class="ha-btn"
+              [routerLink]="['/organisations', orgCourante()!, 'operations', 'cotisation-mois']"
+              >💰 Cotisation</a
+            >
+            <a class="ha-btn" [routerLink]="['/organisations', orgCourante()!, 'operations', 'emprunts']"
+              >📋 Emprunt</a
+            >
+          }
+          <a
+            class="ha-btn"
+            [routerLink]="
+              vueMonCompte()
+                ? ['/organisations', orgCourante()!, 'mon-compte', 'rapport']
+                : ['/organisations', orgCourante()!, 'membres', membre()!.id, 'rapport']
+            "
+            >📊 Rapport</a
+          >
+          <button class="ha-btn" (click)="exportMemberData()" title="Exporter (Ctrl+E)">
+            📥 Exporter
+          </button>
+        </div>
+      </div>
+      <div class="hero-stat-row">
+        <div class="hero-stat">
+          <div class="hs-val">{{ numFcfa(epargne()) }}</div>
+          <div class="hs-lbl">Mon épargne totale</div>
+          @if (tendanceEpargne(); as t) {
+            <div class="hs-trend">{{ t }}</div>
+          }
+        </div>
+        <div class="hero-stat">
+          <div class="hs-val">{{ semainesPayees() }} / {{ semainesTotal() || '—' }}</div>
+          <div class="hs-lbl">Semaines à jour</div>
+          @if (semainesTotal() > 0) {
+            <div class="hs-trend">✓ {{ participationPct() }}% participation</div>
+          }
+        </div>
+        <div class="hero-stat">
+          <div class="hs-val">{{ numFcfa(montantEmpruntsEnCours()) }}</div>
+          <div class="hs-lbl">Emprunt en cours</div>
+          <div class="hs-trend">{{ empruntsEnCours().length ? 'En cours' : '✓ Aucune dette' }}</div>
+        </div>
+      </div>
+    </div>
+
+    @if (vueMonCompte() && orgCourante(); as oid) {
+      <app-mon-compte-operations
+        [orgId]="oid"
+        [membreId]="membre()!.id"
+        [empruntsInit]="emprunts()"
+      />
+    }
+
+    @if (!vueMonCompte() && soldeMembre(); as s) {
+      <div class="solde-membre-section">
+        <div class="solde-membre-card">
+          <div class="sm-main">
+            <div class="sm-label">Solde membre</div>
+            <div class="sm-val" [class.neg]="s.solde < 0">{{ numFcfa(s.solde) }}</div>
+            <div class="sm-formula">
+              Épargne (hebdo + mois) + Solidarité + Remboursements + Frais remboursement
+            </div>
+          </div>
+          <div class="sm-breakdown">
+            <div class="sm-row" [class.plus]="epargne() > 0" [class.minus]="epargne() < 0">
+              <span>Épargne (hebdo + mois)</span><span>{{ formatMontantSolde(epargne()) }}</span>
+            </div>
+            <div class="sm-row sm-row-detail">
+              <span>↳ Hebdomadaire</span><span>{{ formatMontantSolde(epargneHebdo()) }}</span>
+            </div>
+            <div class="sm-row sm-row-detail">
+              <span>↳ Mensuelle</span><span>{{ formatMontantSolde(epargneMois()) }}</span>
+            </div>
+            <div class="sm-row" [class.plus]="solidarite() > 0" [class.minus]="solidarite() < 0">
+              <span>Solidarité</span><span>{{ formatMontantSolde(solidarite()) }}</span>
+            </div>
+            <div class="sm-row" [class.plus]="s.remboursements > 0" [class.minus]="s.remboursements < 0">
+              <span>Remboursements</span><span>{{ formatMontantSolde(s.remboursements) }}</span>
+            </div>
+            <div
+              class="sm-row"
+              [class.plus]="s.fraisRemboursement > 0"
+              [class.minus]="s.fraisRemboursement < 0"
+            >
+              <span>Frais remboursement</span><span>{{ formatMontantSolde(s.fraisRemboursement) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    }
+
+    <div class="comptes-section">
+      <div class="sect-title">🏦 Mes {{ comptesCartes().length }} comptes <span class="comptes-hint">(cumul des opérations)</span></div>
+      <div class="comptes-grid">
+        @for (c of comptesCartes(); track c.label) {
+          <div class="compte-card {{ c.classe }}">
+            <div class="cc-icon">{{ c.icon }}</div>
+            <div class="cc-label">{{ c.label }}</div>
+            <div class="cc-val" [class.neg]="c.valeur < 0">{{ formatMontantCompte(c.valeur) }}</div>
+            <div class="cc-sub">{{ c.sousTitre }}</div>
+          </div>
+        }
+      </div>
+    </div>
+
+    @if (vueMonCompte() && orgCourante(); as oid) {
+      <app-membre-recap-journee [orgId]="oid" />
+    }
+
+    <div class="body-wrap">
+      <div class="dash-grid">
+        <div class="col-left">
+          <div class="card">
+            <div class="card-inner">
+              <div class="card-h">
+                <span class="card-title">🕐 {{ vueMonCompte() ? 'Mon historique' : 'Historique des opérations' }}</span>
+                <div class="card-h-right">
+                  <select
+                    class="hist-filter"
+                    aria-label="Filtrer"
+                    [value]="filtreHistType()"
+                    (change)="onFiltreHistType($event)"
+                  >
+                    <option value="tous">Tous types</option>
+                    <option value="cotis">Cotisation</option>
+                    <option value="mois">Type Mois</option>
+                    <option value="remb">Remboursement</option>
+                    <option value="pen">Pénalité / Amende</option>
+                  </select>
+                  <button class="card-action-btn" (click)="exportOperations()" title="Exporter les opérations (Ctrl+Shift+E)">
+                    📥 Exporter
+                  </button>
+                </div>
+              </div>
+              <div class="op-list">
+                @if (operationsFiltres().length === 0) {
+                  <p class="op-empty">Aucune opération enregistrée.</p>
+                } @else {
+                  @for (op of operationsFiltres().slice(0, 8); track op.name + op.meta) {
+                    <div class="op-row">
+                      <div
+                        class="op-ico"
+                        [class.ico-g3]="op.icoClass === 'g3'"
+                        [class.ico-or3]="op.icoClass === 'or3'"
+                      >
+                        {{ op.icon }}
+                      </div>
+                      <div class="op-info">
+                        <div class="op-name">{{ op.name }}</div>
+                        <div class="op-meta">{{ op.meta }}</div>
+                      </div>
+                      <div class="op-amt" [class]="op.amtClass">{{ op.amt }}</div>
+                    </div>
+                  }
+                }
+              </div>
+              @if (operationsFiltres().length > 8) {
+                <div class="hist-more">
+                  <span class="card-action">Voir tout mon historique →</span>
+                </div>
+              }
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-inner">
+              <div class="card-h">
+                <span class="card-title">📅 Mes cotisations — {{ moisCourantLabel() }}</span>
+              </div>
+              <div class="cot-grid">
+                @for (s of semainesCotis(); track s.label) {
+                  <div class="cot-week">
+                    <div class="cot-num">{{ s.label }}</div>
+                    <div class="cot-dot" [class]="statutDotClass(s.statut)">{{ statutDotChar(s.statut) }}</div>
+                  </div>
+                }
+              </div>
+              <div class="cot-legend">
+                <span><span class="leg-dot cd-ok"></span>Payée</span>
+                <span><span class="leg-dot cd-miss"></span>Manquée</span>
+                <span><span class="leg-dot cd-mois"></span>Mensuelle</span>
+              </div>
+              @if (alerteCotis(); as alerte) {
+                <div class="cot-alert">⚠ {{ alerte }}</div>
+              }
+            </div>
+          </div>
+        </div>
+
+        <div class="col-right">
+          <div class="card">
+            <div class="card-inner">
+              <div class="card-h">
+                <span class="card-title">👤 {{ vueMonCompte() ? 'Mes informations' : 'Informations' }}</span>
+              </div>
+              <div class="info-list">
+                <div class="info-row">
+                  <span class="info-label">Nom complet</span>
+                  <span class="info-val">{{ membre()!.nomComplet }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Téléphone</span>
+                  <span class="info-val">{{ membre()!.telephone || '—' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Email</span>
+                  <span class="info-val small">{{ membre()!.email || '—' }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">N° membre</span>
+                  <span class="info-val mono">{{ membre()!.codeMembre }}</span>
+                </div>
+                <div class="info-row">
+                  <span class="info-label">Catégorie</span>
+                  <span class="info-val">
+                    <span class="badge b-gray">👤 {{ categorieBureau() }}</span>
+                  </span>
+                </div>
+                @if (auth.currentOrgNom()) {
+                  <div class="info-row">
+                    <span class="info-label">Organisation</span>
+                    <span class="info-val">{{ auth.currentOrgNom() }}</span>
+                  </div>
+                }
+                <div class="info-row">
+                  <span class="info-label">Adhésion</span>
+                  <span class="info-val">{{ adhesionCourt() }}</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-inner">
+              <div class="card-h">
+                <span class="card-title">📋 {{ vueMonCompte() ? 'Mes emprunts' : 'Emprunts' }}</span>
+                @if (vueMonCompte()) {
+                  <a
+                    class="card-action"
+                    [routerLink]="['/organisations', orgCourante()!, 'operations', 'emprunts', 'suivi']"
+                    >Voir le suivi</a
+                  >
+                } @else {
+                  <a
+                    class="card-action"
+                    [routerLink]="['/organisations', orgCourante()!, 'operations', 'emprunts']"
+                    >Nouveau</a
+                  >
+                }
+              </div>
+              @if (empruntsEnCours().length === 0) {
+                <div class="emp-empty">
+                  <div class="emp-empty-ico">✅</div>
+                  <div class="emp-empty-title">Aucun emprunt en cours</div>
+                  <div class="emp-empty-sub">Historique : {{ totalEmpruntsHistorique() }} emprunt(s)</div>
+                </div>
+                @if (vueMonCompte()) {
+                  <div class="emp-hint">
+                    💡 Pour faire une demande d'emprunt, contactez votre Admin GIE.
+                  </div>
+                }
+              } @else {
+                @for (emp of empruntsEnCours(); track emp.id) {
+                  <div class="emp-card">
+                    <div class="ec-top">
+                      <span class="ec-type">{{ typeLabel(emp.typeEmprunt) }}</span>
+                      @if (empruntRetard(emp)) {
+                        <span class="badge b-red">⚠ Retard</span>
+                      } @else {
+                        <span class="badge b-green">En cours</span>
+                      }
+                    </div>
+                    <div class="prog-lbl">
+                      <span>{{ formatFcfa(emp.montantRembourse) }} / {{ formatFcfa(emp.montantTotal) }} F</span>
+                      <span>{{ progressPct(emp) }}%</span>
+                    </div>
+                    <div class="prog-bar">
+                      <div
+                        class="prog-fill"
+                        [class.red]="empruntRetard(emp)"
+                        [style.width.%]="progressPct(emp)"
+                      ></div>
+                    </div>
+                  </div>
+                }
+                @if (!vueMonCompte()) {
+                  <a
+                    class="btn-p full"
+                    [routerLink]="['/organisations', orgCourante()!, 'operations', 'emprunts']"
+                    >+ Créer un emprunt</a
+                  >
+                }
+              }
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-inner">
+              <div class="card-h">
+                <span class="card-title">📊 Résumé — {{ moisCourantLabel() }}</span>
+              </div>
+              <div class="resume-list">
+                @for (l of resumeMois(); track l.label) {
+                  <div class="rs-row">
+                    <span class="rs-label">{{ l.label }}</span>
+                    <span class="rs-val" [class]="l.classe">{{ l.valeur }}</span>
+                  </div>
+                }
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>

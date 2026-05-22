@@ -1,0 +1,46 @@
+<div class="cd-root" role="presentation">
+  <div class="cd-overlay" (click)="onCancel()"></div>
+  <div
+    class="cd-popup"
+    [class.warn]="variant() === 'warn'"
+    [class.danger]="variant() === 'danger'"
+    [class.info]="variant() === 'info'"
+    role="alertdialog"
+    aria-modal="true"
+    [attr.aria-labelledby]="'cd-title'"
+    (click)="$event.stopPropagation()"
+  >
+    <div class="cd-icon" aria-hidden="true">{{ variant() === 'info' ? 'ℹ' : '?' }}</div>
+    <h2 id="cd-title" class="cd-title">{{ title() }}</h2>
+    @for (p of paragraphs(); track $index) {
+      <p class="cd-paragraph">{{ p }}</p>
+    }
+    @if (showMotifField()) {
+      <label class="cd-motif-lbl">
+        <span class="cd-motif-lbl-t">{{ motifLabel() }}</span>
+        <textarea
+          class="cd-motif-input"
+          rows="3"
+          maxlength="500"
+          [formControl]="motifCtrl"
+          [placeholder]="motifPlaceholder()"
+          [attr.aria-label]="motifLabel()"
+        ></textarea>
+      </label>
+    }
+    <div class="cd-actions">
+      @if (showCancel()) {
+        <button type="button" class="cd-btn cd-btn--cancel" [disabled]="loading()" (click)="onCancel()">
+          {{ cancelLabel() }}
+        </button>
+      }
+      <button type="button" class="cd-btn cd-btn--ok" [disabled]="loading()" (click)="onConfirm()">
+        @if (loading()) {
+          Traitement…
+        } @else {
+          {{ confirmLabel() }}
+        }
+      </button>
+    </div>
+  </div>
+</div>

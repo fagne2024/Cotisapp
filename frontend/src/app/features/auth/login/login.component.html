@@ -1,0 +1,296 @@
+<div class="login-page">
+  <div class="bg-deco" aria-hidden="true">
+    <div class="bg-circle c1"></div>
+    <div class="bg-circle c2"></div>
+    <div class="bg-circle c3"></div>
+    <div class="bg-pattern"></div>
+  </div>
+
+  <div class="login-wrap">
+    <aside class="login-left">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">🤝</div>
+        <div class="brand-name">CotisApp</div>
+        <p class="brand-tagline">
+          La plateforme de gestion de cotisation<br />et d'épargne pour vos GIE
+        </p>
+      </div>
+
+      <div class="features">
+        @for (f of features; track f.title) {
+          <div class="feat-item">
+            <div class="feat-icon">{{ f.icon }}</div>
+            <div class="feat-text">
+              <div class="ft">{{ f.title }}</div>
+              <div class="fs">{{ f.sub }}</div>
+            </div>
+          </div>
+        }
+      </div>
+
+      <p class="left-footer">© 2026 CotisApp · Tous droits réservés</p>
+    </aside>
+
+    <section class="login-right">
+      <h2>Bon retour 👋</h2>
+      <p class="login-sub">Connectez-vous à votre espace GIE</p>
+
+      @if (!afficherEtape2fa()) {
+      <div
+        class="roles-bar roles-bar--primary"
+        role="group"
+        aria-label="Famille de compte"
+        [class.roles-bar--required]="roleRequis() && !groupeSelectionne()"
+      >
+        <button
+          type="button"
+          class="role-chip role-chip--groupe"
+          [class.on]="isGroupeActive('admin')"
+          [attr.aria-pressed]="isGroupeActive('admin')"
+          (click)="setGroupe('admin')"
+        >
+          ADMIN
+        </button>
+        <button
+          type="button"
+          class="role-chip role-chip--groupe membre-on"
+          [class.membre-on]="isGroupeActive('membre')"
+          [attr.aria-pressed]="isGroupeActive('membre')"
+          (click)="setGroupe('membre')"
+        >
+          MEMBRE
+        </button>
+      </div>
+
+      @if (selectedGroupe() === 'admin') {
+        <div class="roles-bar roles-bar--sub" role="group" aria-label="Sous-type administrateur">
+          <button
+            type="button"
+            class="role-chip"
+            [class.on]="isRoleActive('adminGie')"
+            [attr.aria-pressed]="isRoleActive('adminGie')"
+            (click)="setRole('adminGie')"
+          >
+            Admin GIE
+          </button>
+          <button
+            type="button"
+            class="role-chip"
+            [class.or-on]="isRoleActive('super')"
+            [attr.aria-pressed]="isRoleActive('super')"
+            (click)="setRole('super')"
+          >
+            Superadmin
+          </button>
+        </div>
+      }
+      @if (selectedGroupe() === 'membre') {
+        <div class="roles-bar roles-bar--sub" role="group" aria-label="Sous-type membre">
+          <button
+            type="button"
+            class="role-chip membre-simple-on"
+            [class.membre-simple-on]="isRoleActive('membreSimple')"
+            [attr.aria-pressed]="isRoleActive('membreSimple')"
+            (click)="setRole('membreSimple')"
+          >
+            Membre simple
+          </button>
+          <button
+            type="button"
+            class="role-chip membre-bureau-on"
+            [class.membre-bureau-on]="isRoleActive('membreBureau')"
+            [attr.aria-pressed]="isRoleActive('membreBureau')"
+            (click)="setRole('membreBureau')"
+          >
+            Membre de bureau
+          </button>
+        </div>
+      }
+
+      <p class="roles-prompt" [class.roles-prompt--warn]="roleRequis() && !roleSelectionne()">
+        @if (roleSelectionne()) {
+          Type de compte : <strong>{{ libelleRoleSelectionne() }}</strong>
+        } @else if (groupeSelectionne()) {
+          Famille <strong>{{ libelleRoleSelectionne() }}</strong>
+        } @else {
+          Choisissez ADMIN ou MEMBRE, puis le sous-type pour accéder au formulaire.
+        }
+      </p>
+      }
+
+      @if (error()) {
+        <div class="alert-demo" role="alert">
+          ⚠ {{ errorMessage() || 'Identifiants incorrects.' }}
+        </div>
+      }
+
+      <form [formGroup]="form" (ngSubmit)="submit()">
+        @if (afficherEtape2fa()) {
+          <div class="twofa-panel">
+            <p class="twofa-title">Double authentification</p>
+            <p class="twofa-sub">
+              Ouvrez <strong>Google Authenticator</strong> et saisissez le code à 6 chiffres.
+            </p>
+            <div class="form-group">
+              <label for="code-2fa">Code de vérification</label>
+              <div class="input-wrap twofa-input-wrap">
+                <span class="ico" aria-hidden="true">🔐</span>
+                <input
+                  id="code-2fa"
+                  type="text"
+                  inputmode="numeric"
+                  autocomplete="one-time-code"
+                  maxlength="6"
+                  placeholder="000000"
+                  [value]="code2fa()"
+                  (input)="onCode2faInput($event)"
+                />
+              </div>
+            </div>
+            <button type="button" class="link-back twofa-back" (click)="retourIdentifiants()">
+              ← Retour à la connexion
+            </button>
+            @if (afficherBouton2fa()) {
+              <button type="submit" class="btn-login" [disabled]="loading() || !code2faValide()">
+                {{ libelleBoutonPrincipal() }}
+              </button>
+            }
+          </div>
+        } @else if (afficherChampsIdentifiants()) {
+        <div class="form-group">
+          <label for="identifiant">{{ identifiantLabel() }}</label>
+          <div
+            class="input-wrap"
+            [class.input-wrap--invalid]="erreurIdentifiant() != null"
+          >
+            <span class="ico" aria-hidden="true">{{ selectedRole() === 'membreSimple' ? '📱' : '✉' }}</span>
+            <input
+              id="identifiant"
+              [type]="identifiantInputType()"
+              formControlName="identifiant"
+              [attr.autocomplete]="identifiantAutocomplete()"
+              [placeholder]="identifiantPlaceholder()"
+              [readonly]="selectedRole() === 'membreSimple' && etapeMembre() === 'motdepasse'"
+              [attr.aria-invalid]="erreurIdentifiant() != null"
+              [attr.aria-describedby]="erreurIdentifiant() ? 'identifiant-error' : null"
+            />
+          </div>
+          @if (erreurIdentifiant(); as errId) {
+            <p id="identifiant-error" class="field-error" role="alert">{{ errId }}</p>
+          } @else if (selectedRole() !== 'membreSimple' || etapeMembre() === 'telephone') {
+            <p class="field-hint">{{ roleHint() }}</p>
+          }
+        </div>
+
+        @if (afficherListeComptes()) {
+          <div class="comptes-choix">
+            <p class="choix-title">
+              Plusieurs comptes sont liés à ce numéro. Cochez celui avec lequel vous souhaitez vous connecter.
+            </p>
+            <div class="comptes-radio-group" role="radiogroup" aria-label="Choisir un compte membre">
+              @for (c of comptesMembre(); track trackCompte(c)) {
+                <label class="compte-card" [class.selected]="estCompteSelectionne(c)">
+                  <input
+                    type="radio"
+                    name="compteMembre"
+                    class="compte-radio"
+                    [value]="trackCompte(c)"
+                    [checked]="estCompteSelectionne(c)"
+                    (change)="selectionnerCompte(c)"
+                  />
+                  <span class="compte-radio-ui" aria-hidden="true"></span>
+                  <span class="compte-card-body">
+                    <span class="compte-nom">{{ c.nomComplet }}</span>
+                    <span class="compte-meta">{{ c.codeMembre }} · {{ c.organisationNom }}</span>
+                  </span>
+                </label>
+              }
+            </div>
+            @if (etapeMembre() === 'motdepasse') {
+              <button type="button" class="link-back" (click)="retourChoixCompte()">Modifier le choix</button>
+            }
+          </div>
+        }
+
+        @if (afficherCompteUnique()) {
+          @if (compteSelectionne(); as compte) {
+            <div class="compte-selectionne">
+              <span class="sel-lbl">Compte sélectionné</span>
+              <strong>{{ compte.nomComplet }}</strong>
+              <span class="sel-meta">{{ compte.codeMembre }} · {{ compte.organisationNom }}</span>
+              <button type="button" class="link-back" (click)="retourTelephone()">Changer de numéro</button>
+            </div>
+          }
+        }
+
+        @if (afficherMotDePasse()) {
+          <div class="form-group">
+            <label for="password">Mot de passe</label>
+            <div class="input-wrap">
+              <span class="ico" aria-hidden="true">🔒</span>
+              <input
+                id="password"
+                [type]="showPassword() ? 'text' : 'password'"
+                formControlName="motDePasse"
+                autocomplete="current-password"
+                placeholder="••••••••"
+              />
+              <button
+                type="button"
+                class="eye-btn"
+                (click)="togglePassword()"
+                [attr.aria-label]="showPassword() ? 'Masquer' : 'Afficher'"
+              >
+                👁
+              </button>
+            </div>
+          </div>
+          <a href="#" class="forgot" (click)="$event.preventDefault()">Mot de passe oublié ?</a>
+        }
+
+        @if (afficherBoutonConnexion()) {
+          <button
+            type="submit"
+            class="btn-login"
+            [disabled]="loading() || lookupLoading() || form.invalid || (plusieursComptes() && compteSelectionne() == null)"
+          >
+            {{ libelleBoutonPrincipal() }}
+          </button>
+        }
+        @if (afficherBoutonContinuer()) {
+          <button
+            type="submit"
+            class="btn-login"
+            [disabled]="loading() || lookupLoading() || form.controls.identifiant.invalid"
+          >
+            {{ libelleBoutonPrincipal() }}
+          </button>
+        }
+        @if (afficherBoutonContinuerChoix()) {
+          <button type="submit" class="btn-login" [disabled]="loading() || lookupLoading() || boutonChoixDesactive()">
+            {{ libelleBoutonPrincipal() }}
+          </button>
+        }
+        } @else if (!afficherEtape2fa()) {
+          <p class="roles-prompt roles-prompt--block">
+            Le formulaire s’affiche après avoir choisi un type de compte ci-dessus.
+          </p>
+        }
+      </form>
+
+      @if (!afficherEtape2fa() && roleSelectionne()) {
+      <div class="divider">ou</div>
+
+      <div class="social-login">
+        <button type="button" class="btn-social">📱 Mobile Money</button>
+        <button type="button" class="btn-social">🪪 CNI / Code PIN</button>
+      </div>
+      }
+
+      <p class="login-footer">
+        Problème de connexion ?
+        <a href="#" (click)="$event.preventDefault()">Contacter l'administrateur</a>
+      </p>
+    </section>
+  </div>
+</div>

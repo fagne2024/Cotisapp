@@ -1,0 +1,217 @@
+<div class="rapport-page">
+  @if (chargement() && !rapport()) {
+    <p class="fiche-loading">Chargement du rapport…</p>
+  } @else if (!rapport()) {
+    <p class="fiche-err">Rapport indisponible.</p>
+    <a class="tb-back" [routerLink]="ficheLink()">← Retour à la fiche</a>
+  } @else {
+    <div class="fiche-topbar">
+      <a class="tb-back" [routerLink]="ficheLink()">← Fiche membre</a>
+      @if (retourListeLink(); as liste) {
+        <span class="tb-subtitle">·</span>
+        <a class="tb-back" [routerLink]="liste">Liste membres</a>
+      }
+    </div>
+
+    <div class="page-header">
+      <div>
+        <div class="pt">Rapport membre</div>
+        <div class="ps">{{ orgNom() }} · {{ rapport()!.code }}</div>
+      </div>
+      <div class="header-actions">
+        <select class="f-select" [value]="periode()" (change)="onPeriodeChange($event)">
+          @for (p of periodes(); track p.value) {
+            <option [value]="p.value">{{ p.label }}</option>
+          }
+        </select>
+        <button type="button" class="btn-s" (click)="imprimer()">🖨 Imprimer</button>
+      </div>
+    </div>
+
+    <div class="rapport-hero">
+      <div class="rh-inner">
+        <div class="rh-top">
+          <div class="hero-member">
+            <div class="hero-av" [style.background]="rapport()!.avColor">{{ rapport()!.initials }}</div>
+            <div>
+              <div class="hero-member-name">{{ rapport()!.nom }}</div>
+              <div class="hero-member-meta">
+                <span class="badge" [class]="rapport()!.posteBadgeClass">{{ rapport()!.posteLabel }}</span>
+                · {{ periodeLabel() }} · Généré le {{ dateRapport() }}
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="rh-stats">
+          @for (s of heroStats(); track s.label) {
+            <div class="rh-stat">
+              <div class="rh-stat-val">{{ s.valeur }}</div>
+              <div class="rh-stat-lbl">{{ s.label }}</div>
+              <div class="rh-stat-trend">{{ s.trend }}</div>
+            </div>
+          }
+        </div>
+      </div>
+    </div>
+
+    <div class="tabs-bar">
+      <button type="button" class="tab" [class.on]="tabUi() === 'cotis'" (click)="setTab('cotis')">
+        💰 Cotisations
+      </button>
+      <button type="button" class="tab" [class.on]="tabUi() === 'empr'" (click)="setTab('empr')">
+        📋 Emprunts
+      </button>
+      <button type="button" class="tab" [class.on]="tabUi() === 'ops'" (click)="setTab('ops')">
+        📜 Opérations
+      </button>
+    </div>
+
+    @if (tabUi() === 'cotis') {
+      <div class="dash-grid">
+        <div class="card">
+          <div class="card-inner">
+            <div class="card-h">
+              <span class="card-title">📈 Cotisations hebdomadaires — {{ periodeLabel() }}</span>
+            </div>
+            <div class="chart-area">
+              @for (b of chartBars(); track b.label) {
+                <div class="bar-col">
+                  <div
+                    class="bar"
+                    [style.height.%]="b.heightPct"
+                    [class.bar-warn]="b.belowTarget"
+                  ></div>
+                  <div class="bar-val">{{ b.valeurLabel }}</div>
+                  <div class="bar-lbl">{{ b.label }}</div>
+                </div>
+              } @empty {
+                <p class="fiche-err">Aucune cotisation hebdomadaire sur cette période.</p>
+              }
+            </div>
+            <div class="chart-legend">
+              <span class="leg-total">Total : {{ rapport()!.totalCotisationsLabel }}</span>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-inner">
+            <div class="card-h"><span class="card-title">📊 Synthèse cotisations</span></div>
+            <div class="synth-recap">
+              <div class="synth-line">
+                <span>Hebdomadaire</span><span class="cr-c fw">{{ rapport()!.hebdo }}</span>
+              </div>
+              <div class="synth-line">
+                <span>Type mois</span><span class="or-c fw">{{ rapport()!.mois }}</span>
+              </div>
+              <div class="synth-line">
+                <span>Solde solidarité</span><span class="fw">{{ rapport()!.solidarite }}</span>
+              </div>
+              <div class="synth-line">
+                <span>Statut période</span>
+                <span class="badge" [class]="statutBadgeClass()">{{ rapport()!.statutCotisationLabel }}</span>
+              </div>
+            </div>
+            @if (rapport()?.soldeMembre; as s) {
+              <div class="synth-recap" style="margin-top: 12px">
+                <div class="synth-line">
+                  <span>Solde membre global</span>
+                  <span class="cr-c fw">{{ formatFcfa(s.solde) }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      @if (comptes().length) {
+        <div class="card">
+          <div class="card-inner">
+            <div class="card-h"><span class="card-title">💳 Comptes</span></div>
+            <div class="synth-grid">
+              @for (c of comptes(); track c.typeCompte) {
+                <div class="synth-box g3">
+                  <div class="synth-n g1">{{ c.soldeLabel }}</div>
+                  <div class="synth-l">{{ c.libelle }}</div>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      }
+    }
+
+    @if (tabUi() === 'empr') {
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h"><span class="card-title">📋 Emprunts en cours</span></div>
+          <div class="emp-cards">
+            @for (e of emprunts(); track e.detail) {
+              <div
+                class="emp-card"
+                [class.re2]="e.borderClass === 'retard'"
+                [class.border-sol]="e.borderClass === 'sol'"
+                [class.border-cours]="e.borderClass === 'cours'"
+              >
+                <div class="emp-top">
+                  <span class="emp-name">{{ e.nom }}</span>
+                  <span class="badge" [class]="e.badgeClass">{{ e.badge }}</span>
+                </div>
+                <div class="emp-detail">{{ e.detail }}</div>
+                <div class="prog-lbl">
+                  <span>{{ e.rembourse }} / {{ e.total }}</span>
+                  <span>{{ e.pct }}%</span>
+                </div>
+                <div class="prog-bar">
+                  <div class="prog-fill" [class]="e.barClass" [style.width.%]="e.pct"></div>
+                </div>
+              </div>
+            } @empty {
+              <p class="fiche-err">Aucun emprunt en cours.</p>
+            }
+          </div>
+        </div>
+      </div>
+    }
+
+    @if (tabUi() === 'ops') {
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h">
+            <span class="card-title">📜 Opérations — {{ periodeLabel() }}</span>
+          </div>
+          <div class="table-wrap">
+            <table class="rep-table">
+              <thead>
+                <tr>
+                  <th>Date</th>
+                  <th>Libellé</th>
+                  <th>Montant</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (o of operationsPaged(); track o.id) {
+                  <tr>
+                    <td class="date-lbl">{{ o.dateLabel }}</td>
+                    <td>{{ o.libelle }}</td>
+                    <td [class]="o.sens === 'credit' ? 'cr-c fw' : 'db-c fw'">{{ o.montantLabel }}</td>
+                  </tr>
+                } @empty {
+                  <tr>
+                    <td colspan="3">Aucune opération sur cette période.</td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <app-list-pagination
+            [page]="pageOps()"
+            [total]="operations().length"
+            [pageSize]="pageSizeOps"
+            unit="opération(s)"
+            (pageChange)="pageOps.set($event)"
+          />
+        </div>
+      </div>
+    }
+  }
+</div>

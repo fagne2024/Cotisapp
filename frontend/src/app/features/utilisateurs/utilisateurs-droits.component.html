@@ -1,0 +1,827 @@
+<div class="ud-page">
+  <div class="page-header">
+    <div>
+      <h1 class="pt">Utilisateurs &amp; Droits</h1>
+      <p class="ps">Gérer les accès, les rôles et les connexions du GIE</p>
+    </div>
+    <div class="page-header-actions">
+      @if (profilLink(); as pl) {
+        <a class="btn-s" [routerLink]="pl">👤 Mon profil</a>
+      }
+      <button type="button" class="btn-p" (click)="openModal()">+ Nouvel utilisateur</button>
+    </div>
+  </div>
+
+  <div class="stats-banner">
+    <div class="stat-card">
+      <div class="sc-icon" style="background: var(--g3)">👥</div>
+      <div>
+        <div class="sc-val" style="color: var(--g1)">{{ stats().total }}</div>
+        <div class="sc-lbl">Utilisateurs total</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-icon" style="background: var(--g3)">✅</div>
+      <div>
+        <div class="sc-val" style="color: var(--g2)">{{ stats().actifs }}</div>
+        <div class="sc-lbl">Comptes actifs</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-icon" style="background: var(--re2)">🔒</div>
+      <div>
+        <div class="sc-val" style="color: var(--re)">{{ stats().suspendus }}</div>
+        <div class="sc-lbl">Suspendus</div>
+      </div>
+    </div>
+    <div class="stat-card">
+      <div class="sc-icon" style="background: var(--bl2)">🟢</div>
+      <div>
+        <div class="sc-val" style="color: var(--bl)">{{ stats().connectesMaintenant }}</div>
+        <div class="sc-lbl">Connectés maintenant</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs-bar">
+    <button type="button" class="tab" [class.on]="activeTab() === 'users'" (click)="setTab('users')" title="Utilisateurs (Ctrl+1)">
+      👥 Utilisateurs <span class="cnt">{{ stats().total }}</span>
+    </button>
+    <button type="button" class="tab" [class.on]="activeTab() === 'journal'" (click)="setTab('journal')" title="Journal utilisateurs (Ctrl+2)">
+      📋 Journal utilisateurs <span class="cnt">{{ journalCount() }}</span>
+    </button>
+    <button type="button" class="tab" [class.on]="activeTab() === 'types'" (click)="setTab('types')" title="Types de profil (Ctrl+3)">
+      🏷 Types de profil <span class="cnt">{{ typesProfil().length }}</span>
+    </button>
+    <button type="button" class="tab" [class.on]="activeTab() === 'droits'" (click)="setTab('droits')" title="Droits par profil (Ctrl+4)">
+      🔐 Droits par profil
+    </button>
+  </div>
+
+  @if (activeTab() === 'types') {
+    <div class="card">
+      <div class="card-inner">
+        <div class="card-h"><span class="card-title">🏷 Types de profil (organisation)</span></div>
+        <p class="journal-hint">
+          Définissez les profils disponibles (Membre, SG, Trésorier…). Utilisez la colonne
+          <strong>Actions</strong> pour modifier un profil ou cliquer sur <strong>Droits</strong> afin d'octroyer les
+          permissions action par action.
+        </p>
+        <div class="types-toolbar">
+          <button type="button" class="btn-s" (click)="reinitialiserDroitsProfilsSysteme()">
+            ↺ Réaligner droits SG / SGA / Trésorier…
+          </button>
+        </div>
+        <div class="table-wrap">
+        <table class="usr-table types-table">
+          <thead>
+            <tr>
+              <th>Code</th>
+              <th>Libellé</th>
+              <th>Rôle</th>
+              <th>Poste</th>
+              <th>Connexion</th>
+              <th class="col-actions">Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (t of typesProfil(); track t.id) {
+              <tr [class.type-row-selected]="droitsModal()?.id === t.id">
+                <td><span class="type-code">{{ t.code }}</span></td>
+                <td>{{ t.libelle }}</td>
+                <td>{{ roleLabel(t.role) }}</td>
+                <td>{{ posteTypeProfilLabel(t.posteMembre) }}</td>
+                <td>{{ canalLabel(t.canalConnexion) }}</td>
+                <td class="col-actions">
+                  <div class="type-actions">
+                    <button type="button" class="type-act-btn type-act-droits" (click)="openDroitsModal(t)">
+                      Droits
+                    </button>
+                    <button type="button" class="type-act-btn type-act-edit" (click)="openTypeEdit(t)">
+                      Modifier
+                    </button>
+                    @if (!t.systeme) {
+                      <button type="button" class="type-act-btn type-act-del" (click)="confirmerSupprimerType(t)">
+                        Supprimer
+                      </button>
+                    }
+                  </div>
+                </td>
+              </tr>
+            } @empty {
+              <tr><td colspan="6" class="muted-sm">Aucun type de profil — vérifiez votre connexion ou rechargez la page.</td></tr>
+            }
+          </tbody>
+        </table>
+        </div>
+        <form class="type-form" [formGroup]="typeForm" (ngSubmit)="onTypeFormSubmit()">
+          <div class="type-form-title">Ajouter un type de profil</div>
+          <div class="type-form-grid">
+            <div class="tf-field">
+              <label for="tp-code">Code</label>
+              <input
+                id="tp-code"
+                class="f-input"
+                placeholder="ex. DELEGUE"
+                formControlName="code"
+                [class.invalid]="typeForm.controls.code.touched && typeForm.controls.code.invalid"
+              />
+            </div>
+            <div class="tf-field">
+              <label for="tp-libelle">Libellé</label>
+              <input
+                id="tp-libelle"
+                class="f-input"
+                placeholder="ex. Délégué régional"
+                formControlName="libelle"
+                [class.invalid]="typeForm.controls.libelle.touched && typeForm.controls.libelle.invalid"
+              />
+            </div>
+            <div class="tf-field">
+              <label for="tp-role">Rôle</label>
+              <select id="tp-role" class="f-select tf-select-full" formControlName="role" (change)="onTypeRoleChange()">
+                <option value="MEMBRE">Membre</option>
+                <option value="ADMIN_GIE">Admin GIE</option>
+              </select>
+            </div>
+            @if (typeRoleMembre()) {
+              <div class="tf-field">
+                <label for="tp-poste">Poste</label>
+                <select id="tp-poste" class="f-select tf-select-full" formControlName="posteMembre">
+                  @for (p of postesForm; track p.api) {
+                    <option [value]="p.api">{{ p.label }}</option>
+                  }
+                </select>
+              </div>
+            }
+            <div class="tf-field">
+              <label for="tp-canal">Connexion</label>
+              <select id="tp-canal" class="f-select tf-select-full" formControlName="canalConnexion">
+                <option value="TELEPHONE">Téléphone</option>
+                <option value="EMAIL">Email</option>
+                <option value="LES_DEUX">Les deux</option>
+              </select>
+            </div>
+            <div class="tf-field tf-actions">
+              <span class="tf-label-spacer" aria-hidden="true"></span>
+              <button type="submit" class="btn-p tf-submit" [disabled]="savingTypeProfil()">
+                {{ savingTypeProfil() ? 'Ajout…' : '+ Ajouter' }}
+              </button>
+            </div>
+          </div>
+        </form>
+        <ng-container *ngTemplateOutlet="droitsProfilPanel"></ng-container>
+      </div>
+    </div>
+  }
+
+  @if (activeTab() === 'users') {
+    <div class="filters-row">
+      <select class="f-select" [value]="filtreRole()" (change)="onFiltreRoleChange($event)">
+        <option value="ALL">Tous les rôles</option>
+        <option value="ADMIN_GIE">Admin GIE</option>
+        <option value="MEMBRE">Membre</option>
+      </select>
+      <select class="f-select" [value]="filtreStatut()" (change)="onFiltreStatutChange($event)">
+        <option value="ALL">Tous les statuts</option>
+        <option value="ACTIF">Actif</option>
+        <option value="SUSPENDU">Suspendu</option>
+      </select>
+      <select class="f-select" [value]="filtrePoste()" (change)="onFiltrePosteChange($event)">
+        <option value="ALL">Tous les postes</option>
+        @for (p of postesForm; track p.api) {
+          <option [value]="p.api">{{ p.label }}</option>
+        }
+      </select>
+      <span class="filters-count">{{ filteredUsers().length }} utilisateur(s)</span>
+    </div>
+
+    <div class="card">
+      <div class="card-inner">
+        <div class="card-h">
+          <span class="card-title">Liste des utilisateurs</span>
+          <button type="button" class="btn-s btn-sm" disabled title="Bientôt disponible">📊 Exporter</button>
+        </div>
+        @if (loading()) {
+          <p class="loading-msg">Chargement…</p>
+        } @else if (filteredUsers().length === 0) {
+          <p class="loading-msg">Aucun utilisateur ne correspond aux filtres.</p>
+        } @else {
+          <div class="table-wrap">
+            <table class="usr-table">
+              <thead>
+                <tr>
+                  <th>Utilisateur</th>
+                  <th>Rôle</th>
+                  <th>Poste / Catégorie</th>
+                  <th>Dernière connexion</th>
+                  <th>Connexions (30j)</th>
+                  <th>Statut</th>
+                  <th>Accès actif</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (u of paginatedUsers(); track u.utilisateurId) {
+                  <tr [class.row-muted]="!u.actif">
+                    <td>
+                      <div class="usr-cell">
+                        <div class="usr-av" [style.background]="avatarColor(u.utilisateurId)">
+                          {{ initials(u.nomComplet) }}
+                        </div>
+                        <div>
+                          <div class="usr-name">{{ u.nomComplet }}</div>
+                          <div class="usr-phone">{{ telephoneAffiche(u) }}</div>
+                        </div>
+                      </div>
+                    </td>
+                    <td>
+                      <span
+                        class="role-badge"
+                        [class.rb-admin]="u.role === 'ADMIN_GIE'"
+                        [class.rb-membre]="u.role === 'MEMBRE'"
+                        [title]="u.typeProfilCode ?? ''"
+                      >
+                        {{ u.role === 'ADMIN_GIE' ? '⚙' : '👤' }} {{ roleAffichage(u) }}
+                      </span>
+                    </td>
+                    <td>
+                      @if (u.role === 'ADMIN_GIE') {
+                        <span class="badge b-gray">Admin</span>
+                      } @else {
+                        <span class="badge" [class]="posteMeta(u).badgeClass">
+                          {{ posteMeta(u).icon }} {{ posteMeta(u).label }}
+                        </span>
+                      }
+                    </td>
+                    <td>
+                      <span class="last-login" [class]="lastLoginClass(u.derniereConnexionLibelle)">
+                        {{ u.derniereConnexionLibelle }}
+                      </span>
+                    </td>
+                    <td class="col-num" [class.muted]="!u.actif">{{ u.connexions30j }}</td>
+                    <td>
+                      @if (u.actif) {
+                        <span class="badge b-green">✓ Actif</span>
+                      } @else {
+                        <span class="badge b-red">⛔ Suspendu</span>
+                      }
+                    </td>
+                    <td>
+                      <button
+                        type="button"
+                        class="toggle"
+                        [class.on]="u.actif"
+                        [attr.aria-pressed]="u.actif"
+                        (click)="toggleAcces(u, $event)"
+                      ></button>
+                    </td>
+                    <td>
+                      <div class="row-actions">
+                        @if (u.actif) {
+                          <button type="button" class="ra-btn ra-edit" (click)="openModal(u)" title="Modifier">✏</button>
+                          <button type="button" class="ra-btn ra-reset" (click)="resetMdp()" title="Réinitialiser">🔑</button>
+                        } @else {
+                          <button type="button" class="ra-btn ra-activate" (click)="basculerActif(u)">▶ Activer</button>
+                        }
+                      </div>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+          <app-list-pagination
+            [page]="pageUsers()"
+            [total]="filteredUsers().length"
+            [pageSize]="pageSizeUsers"
+            unit="utilisateur(s)"
+            (pageChange)="onPageUsersChange($event)"
+          />
+        }
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h">
+            <span class="card-title">🟢 Connectés maintenant ({{ connectes().length }})</span>
+          </div>
+          <div class="conn-list">
+            @if (connectes().length === 0) {
+              <p class="muted-sm">Aucune session active détectée.</p>
+            }
+            @for (u of connectes(); track u.utilisateurId) {
+              <div class="conn-row">
+                <div class="conn-av" [style.background]="avatarColor(u.utilisateurId)">{{ initials(u.nomComplet) }}</div>
+                <div class="conn-info">
+                  <div class="conn-name">{{ u.nomComplet }}</div>
+                  <div class="conn-meta">{{ roleAffichage(u) }} · {{ posteMeta(u).label }}</div>
+                </div>
+                <div class="conn-status cs-online"></div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h"><span class="card-title">🔑 Sécurité des accès</span></div>
+          <div class="sec-list">
+            <div class="sec-row">
+              <div>
+                <div class="sec-title">Double authentification (2FA)</div>
+                <div class="sec-sub">Ajouter un code SMS à la connexion</div>
+              </div>
+              <button type="button" class="toggle" aria-label="2FA"></button>
+            </div>
+            <div class="sec-row">
+              <div>
+                <div class="sec-title">Expiration des sessions</div>
+                <div class="sec-sub">Déconnexion automatique après 8h</div>
+              </div>
+              <button type="button" class="toggle on" aria-label="Sessions"></button>
+            </div>
+            <div class="sec-row">
+              <div>
+                <div class="sec-title">Journalisation des accès</div>
+                <div class="sec-sub">Enregistrer toutes les connexions</div>
+              </div>
+              <button type="button" class="toggle on" aria-label="Journal"></button>
+            </div>
+            <div class="sec-row sec-row-warn">
+              <div>
+                <div class="sec-title warn">Réinitialiser tous les mots de passe</div>
+                <div class="sec-sub">Envoyer des emails à tous les utilisateurs</div>
+              </div>
+              <button type="button" class="btn-re" (click)="confirmResetAll()">Exécuter</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (activeTab() === 'journal') {
+    <div class="filters-row journal-filters">
+      <select class="f-select" [value]="journalTypeFiltre()" (change)="onJournalTypeChange($event)">
+        @for (t of typesEvenementJournal; track t.value) {
+          <option [value]="t.value">{{ t.label }}</option>
+        }
+      </select>
+      <select class="f-select" [value]="journalSuccesFiltre()" (change)="onJournalSuccesChange($event)">
+        <option value="ALL">Tous les résultats</option>
+        <option value="OK">Succès uniquement</option>
+        <option value="KO">Échecs uniquement</option>
+      </select>
+      <select class="f-select" [value]="journalUtilisateurFiltre() ?? ''" (change)="onJournalUtilisateurChange($event)">
+        <option value="">Tous les utilisateurs</option>
+        @for (u of users(); track u.utilisateurId) {
+          <option [value]="u.utilisateurId">{{ u.nomComplet }} ({{ u.email }})</option>
+        }
+      </select>
+      <input
+        type="search"
+        class="f-input journal-search"
+        placeholder="Rechercher action, détail, email…"
+        [value]="journalSearch()"
+        (input)="onJournalSearchInput($event)"
+        (keydown.enter)="appliquerJournalSearch()"
+      />
+      <button type="button" class="btn-s btn-sm" (click)="appliquerJournalSearch()">🔍 Filtrer</button>
+      <button type="button" class="btn-s btn-sm" (click)="chargerJournal()" title="Actualiser">↻</button>
+      <span class="filters-count">{{ journalTotal() }} événement(s)</span>
+    </div>
+
+    <div class="card">
+      <div class="card-inner">
+        <div class="card-h">
+          <span class="card-title">📋 Journal des actions utilisateurs</span>
+          <button type="button" class="btn-s btn-sm" disabled title="Bientôt disponible">📥 Exporter</button>
+        </div>
+        <p class="journal-hint">
+          Connexions, déconnexions, visites de modules et actions métier — avec date, utilisateur, IP et navigateur.
+        </p>
+        @if (journalLoading()) {
+          <p class="loading-msg">Chargement du journal…</p>
+        } @else if (paginatedJournal().length === 0) {
+          <p class="loading-msg">Aucun événement ne correspond aux filtres.</p>
+        } @else {
+          @for (e of paginatedJournal(); track e.id) {
+            <div class="journal-row">
+              <div class="jr-icon jr-icon-auto">{{ journalIcon(e) }}</div>
+              <div class="jr-info">
+                <div class="jr-title">
+                  {{ e.typeEvenementLibelle }} — {{ e.libelleResume }}
+                </div>
+                <div class="jr-meta">
+                  {{ e.dateCreation | date: 'dd/MM/yyyy HH:mm:ss' }}
+                  @if (e.utilisateurNom || e.utilisateurEmail) {
+                    · {{ e.utilisateurNom || e.utilisateurEmail }}
+                  }
+                  @if (e.role) {
+                    · {{ roleLabel(e.role) }}
+                  }
+                  @if (e.action && e.action !== 'MODULE_VISITE') {
+                    · {{ e.action }}
+                  }
+                </div>
+                @if (e.details && e.details !== e.libelleResume) {
+                  <div class="jr-detail">{{ e.details }}</div>
+                }
+                @if (e.routePath) {
+                  <div class="jr-detail">Route : {{ e.routePath }}</div>
+                }
+                @if (e.ipAddress || e.userAgent) {
+                  <div class="jr-detail jr-tech">
+                    @if (e.ipAddress) {
+                      IP {{ e.ipAddress }}
+                    }
+                    @if (e.userAgent) {
+                      · {{ e.userAgent }}
+                    }
+                  </div>
+                }
+              </div>
+              <span class="jr-badge" [class]="journalBadgeClass(e)">
+                {{ e.succes ? 'OK' : 'Échec' }}
+              </span>
+            </div>
+          }
+          <app-list-pagination
+            [page]="journalPage()"
+            [pageSize]="journalPageSize"
+            [total]="journalTotal()"
+            (pageChange)="onJournalPageChange($event)"
+          />
+        }
+      </div>
+    </div>
+  }
+
+  @if (activeTab() === 'droits') {
+    <div class="card">
+      <div class="card-inner">
+        <div class="card-h">
+          <span class="card-title">🔐 Droits par type de profil</span>
+        </div>
+        <p class="journal-hint">
+          Choisissez un profil applicatif, activez les modules du menu, puis attribuez un niveau à chaque action.
+        </p>
+        <div class="droits-profil-picker">
+          <label for="droits-profil-select">Profil à configurer</label>
+          <select
+            id="droits-profil-select"
+            class="f-select droits-profil-select"
+            [value]="droitsModal()?.id ?? ''"
+            (change)="onDroitsProfilSelect($event)"
+          >
+            <option value="" disabled>Sélectionner un profil…</option>
+            @for (t of typesProfil(); track t.id) {
+              <option [value]="t.id">{{ t.libelle }} ({{ t.code }})</option>
+            }
+          </select>
+        </div>
+        <ng-container *ngTemplateOutlet="droitsProfilPanel"></ng-container>
+        @if (!droitsModal() && typesProfil().length === 0) {
+          <p class="muted-sm droits-empty-hint">Aucun type de profil. Créez-en un dans l'onglet Types de profil.</p>
+        }
+      </div>
+    </div>
+  }
+</div>
+
+@if (modalOpen()) {
+  <div class="modal-overlay show" (click)="closeModal()" role="presentation">
+    <div class="modal" (click)="$event.stopPropagation()" role="dialog" aria-labelledby="modal-ud-title">
+      <div class="modal-head">
+        <h3 id="modal-ud-title">{{ editingUser() ? 'Modifier un utilisateur' : 'Créer un utilisateur' }}</h3>
+        <button type="button" class="modal-close" (click)="closeModal()" aria-label="Fermer">×</button>
+      </div>
+      <form class="modal-body" [formGroup]="form" (ngSubmit)="enregistrer()">
+        <div class="sect-title-m">👤 Informations personnelles</div>
+        <div class="form-grid">
+          <div class="fl">
+            <label for="ud-prenom">Prénom</label>
+            <input id="ud-prenom" formControlName="prenom" placeholder="Ex. Fatou" />
+          </div>
+          <div class="fl">
+            <label for="ud-nom">Nom</label>
+            <input id="ud-nom" formControlName="nom" placeholder="Ex. Bâ" />
+          </div>
+          <div class="fl span2">
+            <label for="ud-email">Email (identifiant)</label>
+            <input id="ud-email" type="email" formControlName="email" />
+          </div>
+        </div>
+
+        <div class="sect-title-m">🔐 Rôle &amp; Permissions</div>
+        <div class="role-selector role-selector-3">
+          <button
+            type="button"
+            class="rs-opt"
+            [class.on-admin]="roleFormUi() === 'ADMIN_GIE'"
+            [disabled]="!editingUser() && adminGieExiste()"
+            (click)="selRoleUi('ADMIN_GIE')"
+          >
+            <div class="rs-icon">⚙</div>
+            <div class="rs-label">Admin GIE</div>
+            <div class="rs-sub">
+              @if (!editingUser() && adminGieExiste()) {
+                Un admin actif existe déjà
+              } @else {
+                Tous les droits organisation
+              }
+            </div>
+          </button>
+          <button
+            type="button"
+            class="rs-opt"
+            [class.on-bureau]="roleFormUi() === 'MEMBRE_BUREAU'"
+            (click)="selRoleUi('MEMBRE_BUREAU')"
+          >
+            <div class="rs-icon">🏛</div>
+            <div class="rs-label">Membre de bureau</div>
+            <div class="rs-sub">Modules selon le profil (SG, trésorier…)</div>
+          </button>
+          <button
+            type="button"
+            class="rs-opt"
+            [class.on-membre]="roleFormUi() === 'MEMBRE_SIMPLE'"
+            (click)="selRoleUi('MEMBRE_SIMPLE')"
+          >
+            <div class="rs-icon">👤</div>
+            <div class="rs-label">Membre simple</div>
+            <div class="rs-sub">Mon compte uniquement</div>
+          </button>
+        </div>
+
+        <div class="sect-title-m">🏷 Profil applicatif (droits)</div>
+        <div class="fl span2">
+          <label for="ud-type-profil">Profil applicatif</label>
+          <select
+            id="ud-type-profil"
+            formControlName="typeProfilId"
+            (change)="onTypeProfilUtilisateurChange()"
+          >
+            @if (roleFormUi() !== 'ADMIN_GIE') {
+              <option [ngValue]="null">— Selon le poste —</option>
+            }
+            @for (tp of typesProfilFiltresPourUtilisateur(); track tp.id) {
+              <option [ngValue]="tp.id">{{ libelleProfilApplicatif(tp) }}</option>
+            }
+          </select>
+          @if (roleFormUi() === 'ADMIN_GIE') {
+            <p class="field-hint">
+              Le profil <strong>Admin GIE</strong> confère tous les droits de gestion sur ce GIE (hors superadmin).
+            </p>
+          } @else if (roleFormUi() === 'MEMBRE_BUREAU') {
+            <p class="field-hint">
+              Chaque profil bureau (Secrétaire général, Trésorier, etc.) active des
+              <strong>modules</strong> différents dans le menu Gestion GIE. Ajustez les modules dans l'onglet Droits.
+            </p>
+            <div class="bureau-rapides">
+              <span class="bureau-rapides-lbl">Profil bureau :</span>
+              @for (p of profilsBureauRapides; track p.code) {
+                <button
+                  type="button"
+                  class="btn-s bureau-rapide-btn"
+                  [class.on]="form.controls.poste.value === p.poste"
+                  (click)="selProfilBureauRapide(p.code, p.poste)"
+                  [title]="p.description"
+                >
+                  {{ p.label }}
+                </button>
+              }
+            </div>
+          } @else {
+            <p class="field-hint">Accès limité à l'espace personnel (Mon compte).</p>
+          }
+        </div>
+
+        @if (roleFormUi() !== 'ADMIN_GIE') {
+          @if (roleFormUi() === 'MEMBRE_SIMPLE') {
+            <p class="field-hint span2">
+              Les nouveaux membres se créent dans le module <strong>Membres</strong> (compte utilisateur inclus).
+              Ici, activez l’accès pour un membre déjà enregistré sans compte.
+            </p>
+          } @else {
+            <p class="field-hint span2">
+              Compte de gestion (SG, trésorier, superviseur…) : connexion par <strong>email</strong>,
+              sans fiche membre. Le <strong>profil applicatif</strong> détermine les modules du menu Gestion GIE.
+            </p>
+          }
+          @if (roleFormUi() === 'MEMBRE_SIMPLE') {
+            <div class="sect-title-m">🏷 Membre à activer</div>
+            <div class="fl">
+              <label for="ud-membre">Membre sans compte utilisateur</label>
+              <select id="ud-membre" formControlName="membreId" (change)="onMembreChange()">
+                <option [ngValue]="null">— Choisir —</option>
+                @for (m of membresSansCompte(); track m.id) {
+                  <option [ngValue]="m.id">{{ m.nomComplet }} ({{ m.codeMembre }})</option>
+                }
+              </select>
+              @if (membresSansCompte().length === 0) {
+                <p class="field-hint">Tous les membres actifs ont déjà un compte.</p>
+              }
+            </div>
+          }
+          @if (roleFormUi() === 'MEMBRE_BUREAU') {
+            <div class="sect-title-m">🏷 Poste bureau</div>
+            <div class="fl">
+              <label for="ud-poste">Poste</label>
+              <select id="ud-poste" formControlName="poste" (change)="onPosteUtilisateurChange()">
+                @for (p of postesForm; track p.api) {
+                  @if (p.api !== 'SIMPLE') {
+                    <option [value]="p.api">{{ p.label }}</option>
+                  }
+                }
+              </select>
+            </div>
+          }
+        }
+
+        <div class="sect-title-m">🔑 Accès &amp; Sécurité</div>
+        <div class="perms-grid">
+          <div class="perm-row">
+            <span class="perm-label">✅ Compte actif</span>
+            <button
+              type="button"
+              class="toggle"
+              [class.on]="form.controls.compteActif.value"
+              (click)="form.controls.compteActif.setValue(!form.controls.compteActif.value)"
+            ></button>
+          </div>
+          <div class="perm-row">
+            <span class="perm-label">📧 Envoyer email d'activation</span>
+            <button
+              type="button"
+              class="toggle"
+              [class.on]="form.controls.envoyerActivation.value"
+              (click)="form.controls.envoyerActivation.setValue(!form.controls.envoyerActivation.value)"
+            ></button>
+          </div>
+        </div>
+      </form>
+      <div class="modal-foot">
+        <button type="button" class="btn-s" (click)="closeModal()">Annuler</button>
+        <button type="button" class="btn-p" [disabled]="saving()" (click)="enregistrer()">
+          {{ saving() ? 'Enregistrement…' : '💾 Enregistrer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (typeEditModal(); as t) {
+  <div class="modal-overlay show" (click)="closeTypeEdit()" role="presentation">
+    <div class="modal" (click)="$event.stopPropagation()" role="dialog">
+      <div class="modal-head">
+        <h3>Modifier le type « {{ t.code }} »</h3>
+        <button type="button" class="modal-close" (click)="closeTypeEdit()">×</button>
+      </div>
+      <form class="modal-body" [formGroup]="typeEditForm" (ngSubmit)="enregistrerTypeEdit()">
+        <div class="fl span2">
+          <label>Code</label>
+          <input class="f-input" [value]="t.code" readonly disabled />
+        </div>
+        <div class="fl span2">
+          <label for="te-libelle">Libellé</label>
+          <input id="te-libelle" class="f-input" formControlName="libelle" />
+        </div>
+        @if (typeEditRoleMembre()) {
+          <div class="fl span2">
+            <label for="te-poste">Poste</label>
+            <select id="te-poste" class="f-select tf-select-full" formControlName="posteMembre">
+              @for (p of postesForm; track p.api) {
+                <option [value]="p.api">{{ p.label }}</option>
+              }
+            </select>
+          </div>
+        }
+        <div class="fl">
+          <label for="te-canal">Connexion</label>
+          <select id="te-canal" class="f-select tf-select-full" formControlName="canalConnexion">
+            <option value="TELEPHONE">Téléphone</option>
+            <option value="EMAIL">Email</option>
+            <option value="LES_DEUX">Les deux</option>
+          </select>
+        </div>
+        <div class="fl">
+          <label>Actif</label>
+          <button
+            type="button"
+            class="toggle"
+            [class.on]="typeEditForm.controls.actif.value"
+            (click)="typeEditForm.controls.actif.setValue(!typeEditForm.controls.actif.value)"
+          ></button>
+        </div>
+      </form>
+      <div class="modal-foot">
+        <button type="button" class="btn-s" (click)="closeTypeEdit()">Annuler</button>
+        <button type="button" class="btn-p" [disabled]="savingTypeProfil()" (click)="enregistrerTypeEdit()">
+          {{ savingTypeProfil() ? 'Enregistrement…' : 'Enregistrer' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+<ng-template #droitsProfilPanel>
+  @if (droitsModal(); as t) {
+    <div id="droits-profil-panel" class="droits-profil-panel">
+      <div class="droits-panel-head">
+        <h3 class="droits-panel-title">Droits — {{ t.libelle }} <span class="type-code">{{ t.code }}</span></h3>
+        <button type="button" class="btn-s btn-sm" (click)="closeDroitsModal()">Fermer</button>
+      </div>
+      <p class="journal-hint">
+        Cochez un <strong>module</strong> pour l’afficher dans le menu Gestion GIE des utilisateurs de ce profil, puis
+        ajustez chaque <strong>action</strong> (aucun, complet, limité au GIE, le sien).
+        @if (droitsActionsCount() > 0) {
+          <span class="droits-actions-count">{{ droitsActionsCount() }} action(s) au catalogue.</span>
+        }
+      </p>
+      <div class="droits-legend">
+        <span><strong>—</strong> Aucun</span>
+        <span><strong>✓</strong> Complet</span>
+        <span><strong>SON GIE</strong> Organisation</span>
+        <span><strong>LE SIEN</strong> Son compte</span>
+      </div>
+      <div class="table-wrap">
+        <table class="rights-table droits-edit-table">
+          <thead>
+            <tr>
+              <th>Module / action</th>
+              <th class="col-center">Module menu</th>
+              <th class="col-center">Niveau d'accès</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (l of droitsLignes(); track l.actionCode; let i = $index) {
+              @if (afficherEnteteSection(i) && l.section) {
+                <tr class="rt-section">
+                  <td colspan="3">{{ l.section }}</td>
+                </tr>
+                @if (sectionModuleConfigurable(l.section)) {
+                  <tr class="rt-module-toggle">
+                    <td class="module-toggle-label">Afficher ce module dans le menu</td>
+                    <td class="col-center">
+                      <input
+                        type="checkbox"
+                        class="module-toggle-cb"
+                        [checked]="moduleSectionEstActif(l.section)"
+                        [disabled]="droitsChargement()"
+                        (change)="basculerModuleSection(l.section, $any($event.target).checked)"
+                        [attr.aria-label]="'Module ' + l.section"
+                      />
+                    </td>
+                    <td class="col-center muted-sm">—</td>
+                  </tr>
+                }
+              }
+              <tr>
+                <td class="action-name">{{ l.libelle }}</td>
+                <td class="col-center muted-sm">—</td>
+                <td class="col-center">
+                  <select
+                    class="f-select droit-niveau-select"
+                    [ngModel]="l.niveau"
+                    [ngModelOptions]="{ standalone: true }"
+                    [disabled]="droitsChargement()"
+                    (ngModelChange)="changerNiveauDroit(l.actionCode, $event)"
+                  >
+                    @for (opt of niveauxDroitOptions; track opt.value) {
+                      <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td colspan="3" class="muted-sm">Chargement des actions…</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <div class="droits-panel-foot">
+        <button
+          type="button"
+          class="btn-p"
+          [disabled]="savingDroits() || !droitsPretPourEnregistrement()"
+          (click)="enregistrerDroits()"
+        >
+          {{
+            savingDroits()
+              ? 'Enregistrement…'
+              : droitsChargement()
+                ? 'Chargement…'
+                : 'Enregistrer les droits'
+          }}
+        </button>
+      </div>
+    </div>
+  }
+</ng-template>

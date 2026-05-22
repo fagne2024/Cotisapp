@@ -1,0 +1,241 @@
+<section class="membre-recap-section" aria-labelledby="membre-recap-title">
+  <h2 id="membre-recap-title" class="membre-recap-heading">📋 Récapitulatif de mes journées</h2>
+  <p class="membre-recap-sub">Activités enregistrées lors des réunions — uniquement vos opérations.</p>
+
+  <div class="recap-page membre-recap-embed">
+    <div class="recap-layout">
+      <aside class="left-panel">
+        <div class="lp-header">
+          <div class="lp-title">Mes journées</div>
+          <div class="date-label">Date de réunion</div>
+          <div class="date-input-wrap">
+            <input
+              id="mon-recap-date"
+              type="date"
+              class="date-input"
+              [value]="dateSaisie()"
+              (change)="dateSaisie.set($any($event.target).value)"
+            />
+            <span class="date-ico" aria-hidden="true">📅</span>
+          </div>
+          <div class="lp-btns">
+            <button type="button" class="btn-p lp-btn-main" (click)="chargerParDate()">👁 Voir le récap</button>
+          </div>
+
+          @if (journees().length) {
+            <div class="planad-filtre">
+              <label for="mon-recap-filtre-planad">N° PLANAD</label>
+              <div class="planad-filtre-row">
+                <input
+                  id="mon-recap-filtre-planad"
+                  type="number"
+                  min="1"
+                  max="99"
+                  class="planad-input"
+                  [value]="filtrePlanadNumero()"
+                  (input)="onFiltrePlanadNumero($event)"
+                  placeholder="Ex. 12"
+                  inputmode="numeric"
+                />
+                @if (filtrePlanadActif()) {
+                  <button type="button" class="btn-s" (click)="effacerFiltrePlanad()">Effacer</button>
+                }
+              </div>
+            </div>
+          }
+        </div>
+
+        <div class="journees-list">
+          @if (loadingListe()) {
+            <p class="hint">Chargement…</p>
+          } @else if (!journees().length) {
+            <p class="hint">Aucune journée avec vos opérations.</p>
+          } @else if (!journeesFiltrees().length) {
+            <p class="hint">Aucune journée pour ce numéro.</p>
+          } @else {
+            <div class="list-lbl">Réunions récentes</div>
+            @for (j of journeesPaged(); track j.id) {
+              <button
+                type="button"
+                class="journee-item"
+                [class.active]="journeeSelectionneeId() === j.id"
+                (click)="selectionnerJournee(j.id)"
+              >
+                <div class="ji-name">{{ j.libelle }}</div>
+                <div class="ji-date">{{ formatDateFr(j.dateReunion) }}</div>
+                <div class="ji-stats">
+                  <span class="ji-stat">💰 <span>{{ j.nbCotisations }}</span> cotis.</span>
+                  <span class="ji-stat">📋 <span>{{ j.nbEmprunts }}</span> empr.</span>
+                  <span class="ji-stat">🔄 <span>{{ j.nbRemboursements }}</span> remb.</span>
+                </div>
+              </button>
+            }
+            <app-list-pagination
+              class="journees-pagination"
+              [page]="pageJournees()"
+              [total]="journeesFiltrees().length"
+              [pageSize]="pageSizeJournees"
+              unit="journée(s)"
+              (pageChange)="pageJournees.set($event)"
+            />
+          }
+        </div>
+      </aside>
+
+      <div class="right-panel">
+        @if (loadingRecap()) {
+          <p class="hint center">Chargement du récapitulatif…</p>
+        } @else {
+          @if (recap(); as r) {
+          <div class="recap-header">
+            <div class="rh-top">
+              <div class="rh-left">
+                <div class="rh-title-row">
+                  <span class="rh-planad-badge">{{ planadBadgeFromLibelle(r.libelle) }}</span>
+                  <h3 class="rh-title">{{ r.libelle }}</h3>
+                </div>
+                <p class="rh-date">📅 {{ formatDateFr(r.dateReunion) }}</p>
+              </div>
+            </div>
+
+            <div class="kpi-strip">
+              <div class="kpi-cell">
+                <div class="kc-val">{{ r.synthese.nbCotisations }}</div>
+                <div class="kc-lbl">Cotisations</div>
+                <div class="kc-sub">{{ formatFcfa(r.synthese.montantCotisations) }}</div>
+              </div>
+              <div class="kpi-cell">
+                <div class="kc-val">{{ r.synthese.nbEmprunts }}</div>
+                <div class="kc-lbl">Emprunts</div>
+                <div class="kc-sub neg">{{ formatFcfa(r.synthese.montantEmprunts) }}</div>
+              </div>
+              <div class="kpi-cell">
+                <div class="kc-val">{{ r.synthese.nbRemboursements }}</div>
+                <div class="kc-lbl">Remboursements</div>
+                <div class="kc-sub">{{ formatFcfa(r.synthese.montantRemboursements) }}</div>
+              </div>
+              <div class="kpi-cell">
+                <div class="kc-val">{{ nbOperationsActives() }}</div>
+                <div class="kc-lbl">Opérations</div>
+                @if (statutMembreLabel(r.resume); as st) {
+                  <div class="kc-sub or">{{ st.label }}</div>
+                }
+              </div>
+            </div>
+          </div>
+
+          @if (r.resume.nbOperations > 0) {
+            <div class="section">
+              <div class="section-head">
+                <div class="section-title">💳 Mon résumé du jour</div>
+              </div>
+              <div class="section-body">
+                <div class="cm-card cm-card-solo">
+                  <div class="cm-comptes">
+                    <div class="cm-compte-row">
+                      <span>Cotisations</span>
+                      <span>{{ formatFcfa(r.resume.montantCotisations) }}</span>
+                    </div>
+                    <div class="cm-compte-row">
+                      <span>Emprunts</span>
+                      <span>{{ formatFcfa(r.resume.montantEmprunts) }}</span>
+                    </div>
+                    <div class="cm-compte-row">
+                      <span>Remboursements</span>
+                      <span>{{ formatFcfa(r.resume.montantRemboursements) }}</span>
+                    </div>
+                    <div class="cm-compte-row">
+                      <span>Variation nette de mes comptes</span>
+                      <span [class]="variationClass(r.resume.variationNetComptes)">{{
+                        formatVariation(r.resume.variationNetComptes)
+                      }}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          }
+
+          <div class="section">
+            <div class="section-head ops-head">
+              <div class="section-title">
+                ⚡ Mes opérations du jour
+                <span class="count-muted">({{ operationsFiltres().length }})</span>
+              </div>
+              <div class="ops-filters">
+                <select class="sel-filtre" [value]="filtreTypeOperation()" (change)="onFiltreTypeOp($event)">
+                  <option value="">Tous les types</option>
+                  <option value="COTISATION">Cotisation</option>
+                  <option value="COTISATION_MOIS">Cotisation mois</option>
+                  <option value="EMPRUNT">Emprunt</option>
+                  <option value="REMBOURSEMENT">Remboursement</option>
+                </select>
+                <select class="sel-filtre" [value]="filtreStatutOperation()" (change)="onFiltreStatutOp($event)">
+                  <option value="">Tous les statuts</option>
+                  <option value="ACTIVE">Active</option>
+                  <option value="ANNULEE">Annulée</option>
+                  <option value="ANNULATION">Annulation</option>
+                </select>
+              </div>
+            </div>
+            <div class="section-body section-body-flush">
+              @if (!operationsFiltres().length) {
+                <p class="hint pad">Aucune opération à afficher pour cette journée.</p>
+              } @else {
+                <div class="table-wrap">
+                  <table class="ops-table">
+                    <thead>
+                      <tr>
+                        <th>Type</th>
+                        <th>Détails</th>
+                        <th class="ta-r">Montant</th>
+                        <th>Statut</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      @for (op of operationsPaged(); track op.operationId) {
+                        <tr [class.annulee]="op.annulee || op.annulation">
+                          <td>
+                            <div class="op-type">
+                              @if (typeOperationMeta(op.typeOperation); as meta) {
+                                <span class="op-type-ico" [style.background]="meta.bg">{{ meta.icon }}</span>
+                              }
+                              {{ op.typeLibelle }}
+                            </div>
+                          </td>
+                          <td class="muted-sm">{{ op.observation || '—' }}</td>
+                          <td class="ta-r fw" [class.cr-c]="!op.annulee && !op.annulation">
+                            {{ formatFcfa(op.montantTotal) }}
+                          </td>
+                          <td>
+                            @if (op.annulation) {
+                              <span class="statut-chip sc-annulation">Annulation</span>
+                            } @else if (op.annulee) {
+                              <span class="statut-chip sc-annulee">Annulée</span>
+                            } @else {
+                              <span class="statut-chip sc-active">Active</span>
+                            }
+                          </td>
+                        </tr>
+                      }
+                    </tbody>
+                  </table>
+                </div>
+                <app-list-pagination
+                  [page]="pageOperations()"
+                  [total]="operationsFiltres().length"
+                  [pageSize]="pageSizeOperations"
+                  unit="opération(s)"
+                  (pageChange)="pageOperations.set($event)"
+                />
+              }
+            </div>
+          </div>
+          } @else {
+            <p class="hint center">Sélectionnez une journée ou une date pour afficher votre récapitulatif.</p>
+          }
+        }
+      </div>
+    </div>
+  </div>
+</section>

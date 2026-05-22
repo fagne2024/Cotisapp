@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:cotisapp;MODE=MySQL;DB_CLOSE_DELAY=-1
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: none
+    properties:
+      hibernate:
+        type:
+          preferred_enum_jdbc_type: STRING
+  flyway:
+    enabled: true
+
+cotisapp:
+  jwt:
+    secret: test-secret-key-for-unit-tests-minimum-256-bits-required-here
+    expiration-ms: 3600000

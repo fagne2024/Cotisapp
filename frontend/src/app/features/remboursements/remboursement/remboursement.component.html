@@ -1,0 +1,799 @@
+<div class="remboursement-page">
+  <div class="page-header">
+    <div>
+      <div class="pt">
+        @if (typeUi() === 'historique') {
+          Historique des remboursements
+        } @else {
+          Enregistrer un remboursement
+        }
+      </div>
+      <div class="ps">
+        @if (typeUi() === 'historique') {
+          Tous les remboursements enregistrés (étalé, caisse, solidarité)
+        } @else {
+          {{ config().sousTitre }}
+        }
+      </div>
+    </div>
+    @if (typeUi() !== 'historique' && empruntsEnRetard().length) {
+      <span class="hdr-badge-warn">{{ empruntsEnRetard().length }} emprunt(s) en retard</span>
+    }
+  </div>
+
+  <div class="type-tabs type-tabs-4">
+    <button type="button" class="type-tab" [class.on-etale]="typeUi() === 'etale'" (click)="setType('etale')">
+      <span>📈 Étalé / Financement</span>
+      <span class="tt-sub">Échéances · Caisse</span>
+    </button>
+    <button type="button" class="type-tab" [class.on-caisse]="typeUi() === 'caisse'" (click)="setType('caisse')">
+      <span>🏦 Caisse / Financement</span>
+      <span class="tt-sub">Capital + frais membre</span>
+    </button>
+    <button type="button" class="type-tab" [class.on-sol]="typeUi() === 'solidarite'" (click)="setType('solidarite')">
+      <span>🤝 Solidarité</span>
+      <span class="tt-sub">Fonds solidarité</span>
+    </button>
+    <button type="button" class="type-tab" [class.on-hist]="typeUi() === 'historique'" (click)="setType('historique')">
+      <span>📋 Historique</span>
+      <span class="tt-sub">Tous les remboursements</span>
+    </button>
+  </div>
+
+  @if (typeUi() === 'historique') {
+    <div class="historique-panel">
+      <div class="card">
+        <div class="card-pad">
+          <div class="card-h historique-h">
+            <span class="card-title">📋 Historique des remboursements</span>
+            <button type="button" class="btn-refresh" (click)="chargerHistorique()">Actualiser</button>
+          </div>
+          <div class="filters-row historique-filters">
+            <select class="filter-select" [value]="filtreHistType()" (change)="onFiltreHistType($event)">
+              <option value="tous">Tous les types</option>
+              <option value="etale">Étalé / Financement</option>
+              <option value="caisse">Caisse / Financement</option>
+              <option value="solidarite">Solidarité</option>
+            </select>
+            <input
+              type="search"
+              class="filter-search"
+              placeholder="Membre, code, observation…"
+              [value]="filtreHistRecherche()"
+              (input)="onFiltreHistRecherche($event)"
+              aria-label="Filtrer l'historique"
+            />
+            <span class="filtre-count">{{ historiqueFiltre().length }} ligne(s)</span>
+          </div>
+          <div class="filters-row historique-dates">
+            <label class="hist-date-lbl">
+              Du
+              <input
+                type="date"
+                class="filter-date"
+                [value]="filtreHistDateDebut()"
+                (change)="onFiltreHistDateDebut($event)"
+              />
+            </label>
+            <label class="hist-date-lbl">
+              Au
+              <input
+                type="date"
+                class="filter-date"
+                [value]="filtreHistDateFin()"
+                (change)="onFiltreHistDateFin($event)"
+              />
+            </label>
+            @if (filtreHistDateDebut() || filtreHistDateFin()) {
+              <button type="button" class="btn-date-clear" (click)="reinitialiserFiltreHistDates()">
+                Effacer dates
+              </button>
+            }
+          </div>
+          <div class="hist-summary hist-summary-3">
+            <div class="hist-sum green">
+              <div class="n">{{ historiqueTotaux().etale }}</div>
+              <div class="lbl">Étalé</div>
+              <div class="sub">{{ formatFcfa(historiqueTotaux().montantEtale) }}</div>
+            </div>
+            <div class="hist-sum or">
+              <div class="n">{{ historiqueTotaux().caisse }}</div>
+              <div class="lbl">Caisse</div>
+              <div class="sub">{{ formatFcfa(historiqueTotaux().montantCaisse) }}</div>
+            </div>
+            <div class="hist-sum bl">
+              <div class="n">{{ historiqueTotaux().solidarite }}</div>
+              <div class="lbl">Solidarité</div>
+              <div class="sub">{{ formatFcfa(historiqueTotaux().montantSolidarite) }}</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="hist-table">
+              <thead>
+                <tr>
+                  <th>Membre</th>
+                  <th>Type</th>
+                  <th>Capital</th>
+                  <th>Frais</th>
+                  <th>Total</th>
+                  <th>Paiement</th>
+                  <th>Date</th>
+                  <th class="th-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (historiqueLoading()) {
+                  <tr>
+                    <td colspan="8" class="empty-filtre">Chargement…</td>
+                  </tr>
+                } @else {
+                  @for (h of historiqueFiltre(); track h.ligneId) {
+                    <tr [class.hist-row-annulee]="h.annulee">
+                      <td>
+                        <div class="h-name">{{ h.membreNom }}</div>
+                        <div class="h-code">{{ h.codeMembre }}</div>
+                      </td>
+                      <td>
+                        @if (h.typeEmprunt === 'ETALE') {
+                          <span class="badge b-green">Étalé</span>
+                        } @else if (h.typeEmprunt === 'CAISSE') {
+                          <span class="badge b-or">Caisse</span>
+                        } @else {
+                          <span class="badge b-blue">Solidarité</span>
+                        }
+                        @if (h.annulee) {
+                          <span class="badge b-muted">Annulée</span>
+                        }
+                      </td>
+                      <td class="h-amt">{{ formatFcfa(h.montantCapital) }}</td>
+                      <td class="h-amt">{{ h.montantFrais > 0 ? formatFcfa(h.montantFrais) : '—' }}</td>
+                      <td class="h-amt cr-c">
+                        @if (h.annulee) {
+                          <s>+{{ formatFcfa(h.montantTotal) }}</s>
+                        } @else {
+                          +{{ formatFcfa(h.montantTotal) }}
+                        }
+                      </td>
+                      <td class="h-paiement">
+                        <span>{{ h.modePaiementLibelle ?? 'Espèces' }}</span>
+                        @if (h.referencePaiement) {
+                          <span class="h-ref-paiement">{{ h.referencePaiement }}</span>
+                        }
+                      </td>
+                      <td>{{ h.dateLabel }}</td>
+                      <td class="h-actions">
+                        @if (h.annulable) {
+                          <button
+                            type="button"
+                            class="btn-annuler"
+                            [disabled]="estAnnulationEnCours(h.operationId)"
+                            (click)="confirmerAnnulationRemboursement(h)"
+                          >
+                            @if (estAnnulationEnCours(h.operationId)) { … } @else { Annuler }
+                          </button>
+                        } @else if (h.annulee) {
+                          <span class="hist-action-muted">—</span>
+                        }
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="8" class="empty-filtre">Aucun remboursement enregistré.</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  } @else {
+    <div class="type-alert" [class]="'type-alert ta-' + typeUi()">
+      <span class="ta-ico">{{ typeUi() === 'etale' ? '📈' : typeUi() === 'caisse' ? '🏦' : '🤝' }}</span>
+      <div>
+        <div class="ta-title">{{ config().alerteTitre }}</div>
+        <div class="ta-desc">{{ config().alerteDesc }}</div>
+      </div>
+    </div>
+
+    <div class="alertes-stack">
+      @for (a of alertes(); track a.message) {
+        <div class="alerte" [class]="'alerte-' + a.level">
+          <span class="alerte-ico">{{ a.icon }}</span>
+          <span>{{ a.message }}</span>
+        </div>
+      }
+    </div>
+
+    <div class="main-grid">
+      <div class="col-main">
+        <div class="card">
+          <div class="card-pad">
+            @if (!emprunts().length) {
+              <p class="empty-msg">
+                Aucun emprunt en cours pour ce type.
+                <a [routerLink]="['/organisations', orgCourante(), 'operations', 'emprunts']">Accorder un emprunt →</a>
+              </p>
+            } @else {
+              <div class="sect-title">👤 Membre{{ modeSaisieMembre() === 'bulk' ? 's' : '' }} concerné{{ modeSaisieMembre() === 'bulk' ? 's' : '' }}</div>
+              <div class="membre-mode-tabs" role="tablist" aria-label="Mode de sélection">
+                <button
+                  type="button"
+                  class="membre-mode-tab"
+                  role="tab"
+                  [attr.aria-selected]="modeSaisieMembre() === 'unitaire'"
+                  [class.on]="modeSaisieMembre() === 'unitaire'"
+                  (click)="setModeSaisieMembre('unitaire')"
+                >
+                  Un membre
+                </button>
+                <button
+                  type="button"
+                  class="membre-mode-tab"
+                  role="tab"
+                  [attr.aria-selected]="modeSaisieMembre() === 'bulk'"
+                  [class.on]="modeSaisieMembre() === 'bulk'"
+                  (click)="setModeSaisieMembre('bulk')"
+                >
+                  En lot
+                </button>
+              </div>
+
+              @if (modeSaisieMembre() === 'unitaire') {
+                <div class="filters-row remb-filters membre-search-row">
+                  <input
+                    type="search"
+                    class="filter-search membre-search-main"
+                    placeholder="Rechercher un membre (nom, code)…"
+                    [value]="filtreRecherche()"
+                    (input)="onFiltreRecherche($event)"
+                  />
+                  <div class="membre-search-code remb-code-lookup">
+                    <label class="sr-only" for="remb-code-num">N° code membre</label>
+                    <input
+                      id="remb-code-num"
+                      type="text"
+                      class="filter-code-num"
+                      placeholder="N° 001"
+                      inputmode="numeric"
+                      autocomplete="off"
+                      [value]="membreCodeNumero()"
+                      (input)="onMembreCodeNumeroInput($event)"
+                      (keydown.enter)="onMembreCodeNumeroEnter($event)"
+                    />
+                  </div>
+                  <select class="filter-select" [value]="filtreStatut()" (change)="onFiltreStatut($event)">
+                    <option value="tous">Tous</option>
+                    <option value="retard">En retard uniquement</option>
+                  </select>
+                  <span class="filtre-count">{{ empruntsFiltres().length }} / {{ emprunts().length }}</span>
+                </div>
+
+                @if (!empruntsFiltres().length) {
+                  <p class="empty-msg">
+                    Aucun emprunt ne correspond.
+                    <button type="button" class="btn-link-inline" (click)="effacerFiltresEmprunts()">Effacer les filtres</button>
+                  </p>
+                }
+              } @else {
+                <p class="bulk-mode-hint">
+                  Cochez les emprunts à rembourser avec les mêmes paramètres de paiement (montant plafonné au reste dû / échéance prioritaire par emprunt).
+                </p>
+                <div class="bulk-catalogue-toolbar">
+                  <div class="fl bulk-filtre-fl">
+                    <label for="remb-bulk-filtre">Filtrer la liste</label>
+                    <input
+                      id="remb-bulk-filtre"
+                      type="search"
+                      [value]="bulkFiltre()"
+                      placeholder="Membre, code…"
+                      autocomplete="off"
+                      (input)="onBulkFiltreInput($event)"
+                    />
+                  </div>
+                  <select class="filter-select" [value]="filtreStatut()" (change)="onFiltreStatut($event)">
+                    <option value="tous">Tous</option>
+                    <option value="retard">En retard uniquement</option>
+                  </select>
+                  <button type="button" class="bulk-page-select-btn" (click)="toggleSelectionPageBulk()">
+                    @if (bulkPageToutSelectionnee()) {
+                      Désélectionner la page
+                    } @else {
+                      Sélectionner la page
+                    }
+                  </button>
+                </div>
+                @if (bulkCatalogueTotal() === 0) {
+                  <p class="empty-msg">Aucun emprunt en cours{{ bulkFiltre() ? ' pour ce filtre' : '' }}.</p>
+                } @else {
+                  <div class="remb-bulk-catalogue" role="region" aria-label="Emprunts à rembourser en lot">
+                    <div class="bulk-catalogue-list membre-result" role="listbox">
+                      @for (e of empruntsBulkPage(); track e.id) {
+                        <button
+                          type="button"
+                          class="mr-item bulk-catalogue-row remb-bulk-row"
+                          [class.sel]="isEmpruntBulkSelected(e.id)"
+                          [class.remb-bulk-row-retard]="empruntEnRetard(e)"
+                          [attr.aria-pressed]="isEmpruntBulkSelected(e.id)"
+                          (click)="toggleEmpruntBulk(e)"
+                        >
+                          <span class="mr-bulk-check" aria-hidden="true">{{
+                            isEmpruntBulkSelected(e.id) ? '✓' : ''
+                          }}</span>
+                          <div class="mr-av" [style.background]="avatarColor(e.codeMembre)">{{
+                            initials(e.membreNom)
+                          }}</div>
+                          <div class="mr-txt">
+                            <div class="mr-name">{{ e.membreNom }}</div>
+                            <div class="mr-meta">
+                              <span class="mr-code">{{ e.codeMembre }}</span>
+                              <span class="mr-ref">{{ referenceEmprunt(e) }}</span>
+                              @if (empruntEnRetard(e)) {
+                                <span class="remb-bulk-tag retard">En retard</span>
+                              }
+                            </div>
+                          </div>
+                          <div class="remb-bulk-row-end">
+                            <div class="remb-bulk-amount">
+                              <span class="remb-bulk-amount-lbl">Reste dû</span>
+                              <span class="remb-bulk-amount-val or">{{ formatFcfa(e.montantRestant) }}</span>
+                            </div>
+                            <div class="remb-bulk-amount">
+                              <span class="remb-bulk-amount-lbl">Montant prévu</span>
+                              <span class="remb-bulk-amount-val">{{
+                                formatFcfa(montantRemboursementEffectifPourEmprunt(e))
+                              }}</span>
+                            </div>
+                          </div>
+                        </button>
+                      }
+                    </div>
+                  </div>
+                  <app-list-pagination
+                    [page]="bulkPage()"
+                    [total]="bulkCatalogueTotal()"
+                    [pageSize]="bulkPageSize"
+                    unit="emprunt(s)"
+                    (pageChange)="goBulkPage($event)"
+                  />
+                }
+                @if (empruntsBulk().length > 0) {
+                  <div class="bulk-membres-panel">
+                    <div class="bulk-membres-head">
+                      <span class="bulk-membres-count">
+                        {{ bulkNbEmprunts() }} emprunt{{ bulkNbEmprunts() > 1 ? 's' : '' }} sélectionné{{ bulkNbEmprunts() > 1 ? 's' : '' }}
+                        @if (bulkRecapMontants(); as recap) {
+                          @if (recap.identiques && recap.parOperation != null && recap.parOperation > 0) {
+                            · {{ formatFcfa(recap.parOperation) }} / emprunt
+                          }
+                        }
+                      </span>
+                      <button type="button" class="bulk-membres-clear" (click)="viderEmpruntsBulk()">Tout effacer</button>
+                    </div>
+                    <div class="bulk-membres-chips">
+                      @for (e of empruntsBulk(); track e.id) {
+                        <span class="bulk-chip">
+                          <span class="bulk-chip-name">{{ e.membreNom }}</span>
+                          <span class="bulk-chip-code">{{ e.codeMembre }}</span>
+                          @if (bulkRecapMontants(); as recap) {
+                            @if (!recap.identiques) {
+                              <span class="bulk-chip-montant">{{ formatFcfa(montantRemboursementEffectifPourEmprunt(e)) }}</span>
+                            }
+                          }
+                          <button
+                            type="button"
+                            class="bulk-chip-remove"
+                            [attr.aria-label]="'Retirer ' + e.membreNom"
+                            (click)="retirerEmpruntBulk(e.id)"
+                          >
+                            ×
+                          </button>
+                        </span>
+                      }
+                    </div>
+                    @if (bulkRecapMontants(); as recap) {
+                      @if (recap.total > 0) {
+                        <p class="bulk-membres-total">
+                          Total lot :
+                          @if (recap.identiques && recap.parOperation != null) {
+                            {{ recap.count }} × ({{ formatFcfa(recap.parOperation) }}) =
+                          } @else {
+                            {{ recap.count }} remboursement{{ recap.count > 1 ? 's' : '' }} =
+                          }
+                          <strong>{{ formatFcfa(recap.total) }}</strong>
+                        </p>
+                      }
+                    }
+                  </div>
+                }
+              }
+
+              @if (
+                (modeSaisieMembre() === 'unitaire' && empruntsFiltres().length) ||
+                (modeSaisieMembre() === 'bulk' && empruntsBulk().length > 0)
+              ) {
+                <form [formGroup]="form" class="remb-form">
+                  @if (modeSaisieMembre() === 'unitaire') {
+                    <div class="fl emprunt-pick-top">
+                      <label for="remb-emprunt">EMPRUNT</label>
+                      <select id="remb-emprunt" class="emprunt-pick-select" formControlName="empruntId" (change)="onEmpruntSelectChange($event)">
+                        @for (e of empruntsFiltres(); track e.id) {
+                          <option [value]="e.id">{{ empruntLabel(e) }}</option>
+                        }
+                      </select>
+                    </div>
+                  }
+
+        @if (modeSaisieMembre() === 'unitaire' && empruntSelectionne(); as emp) {
+          <div class="card emp-recap" [class]="'emp-recap emp-' + typeUi()">
+            <div class="card-pad">
+              <div class="recap-top">
+                <div>
+                  <div class="recap-name">{{ emp.membreNom }}</div>
+                  <div class="recap-meta">{{ referenceEmprunt(emp) }} · {{ typeEmpruntLabel(emp.typeEmprunt) }} / Financement</div>
+                </div>
+                @if (badgeRetardEmprunt(emp); as badgeRetard) {
+                  <span class="badge b-red">{{ badgeRetard }}</span>
+                } @else {
+                  <span class="badge b-green">En cours</span>
+                }
+              </div>
+              <div class="recap-kpis">
+                <div class="kpi">
+                  <span class="kpi-l">Montant initial</span>
+                  <span class="kpi-v">{{ formatFcfa(emp.montantTotal) }}</span>
+                </div>
+                <div class="kpi">
+                  <span class="kpi-l">Remboursé</span>
+                  <span class="kpi-v g">{{ formatFcfa(emp.montantRembourse) }}</span>
+                </div>
+                <div class="kpi">
+                  <span class="kpi-l">Reste à payer</span>
+                  <span class="kpi-v or">{{ formatFcfa(emp.montantRestant) }}</span>
+                </div>
+                <div class="kpi">
+                  <span class="kpi-l">Progression</span>
+                  <span class="kpi-v">{{ progressPct(emp) }}%</span>
+                </div>
+              </div>
+              <div class="prog-lbl">
+                <span>Remboursé : {{ formatFcfa(emp.montantRembourse) }} / {{ formatFcfa(emp.montantTotal) }}</span>
+                <span>{{ progressPct(emp) }}%</span>
+              </div>
+              <div class="prog-bar">
+                <div
+                  class="prog-fill"
+                  [class.pf-red]="empruntEnRetard(emp)"
+                  [style.width.%]="progressPct(emp)"
+                ></div>
+              </div>
+
+              @if (emp.echeances.length && config().avecEcheance) {
+                <div class="ech-title">🗓 Sélectionner l'échéance à rembourser</div>
+                <div class="ech-wrap">
+                  <div class="ech-head">
+                    <span>#</span>
+                    <span>Date prévue</span>
+                    <span>Capital + intérêts</span>
+                    <span>Statut</span>
+                    <span>Action</span>
+                  </div>
+                  @for (ech of emp.echeances; track ech.id) {
+                    <div
+                      class="ech-row"
+                      [class.sel]="echeanceSelectionnee(ech)"
+                      [class.retard]="statutEcheanceClass(ech) === 'retard'"
+                      [class.avenir]="statutEcheanceClass(ech) === 'avenir'"
+                    >
+                      <span class="ech-num">{{ ech.numero }}</span>
+                      <span [class.ech-date-retard]="echeanceEnRetard(ech)">{{ formatDateFr(ech.dateEcheance) }}</span>
+                      <span [class.ech-amt-retard]="echeanceEnRetard(ech)">{{ formatFcfa(ech.montantEcheance) }}</span>
+                      <span class="ech-st" [class]="statutEcheanceClass(ech)">{{ statutEcheanceLabel(ech) }}</span>
+                      <span class="ech-action">
+                        @if (ech.statut === 'PAYE') {
+                          <span class="ech-muted">—</span>
+                        } @else if (echeanceSelectionnee(ech)) {
+                          <button type="button" class="ech-btn ech-btn-sel" (click)="choisirEcheance(ech, $event)">✓ Sélectionnée</button>
+                        } @else {
+                          <button type="button" class="ech-btn" (click)="choisirEcheance(ech, $event)">Choisir</button>
+                        }
+                      </span>
+                    </div>
+                  }
+                </div>
+              }
+            </div>
+          </div>
+        }
+
+                  <div class="sect-title sect-title-form">💵 Saisie du remboursement</div>
+
+                  @if (config().avecEcheance && echeanceCourante(); as echSel) {
+                    <div class="fl fl-ech-readonly">
+                      <label>Échéance sélectionnée</label>
+                      <div
+                        class="ech-readonly"
+                        [class.ech-readonly-retard]="echeanceEnRetard(echSel)"
+                      >{{ echeanceLabelForm(echSel) }}</div>
+                    </div>
+                    <button type="button" class="btn-link" (click)="appliquerMontantExactEcheance()">
+                      ↻ Reprendre le montant exact de l'échéance
+                    </button>
+                  }
+
+                  <div class="form-row">
+                    @if (config().avecFrais) {
+                      <div class="fl">
+                        <label for="remb-capital">Montant capital remboursé (FCFA)</label>
+                        <input id="remb-capital" type="number" formControlName="montantCapital" min="1" step="1" />
+                      </div>
+                      <div class="fl">
+                        <label for="remb-frais">Frais membre (FCFA)</label>
+                        <input id="remb-frais" type="number" formControlName="montantFrais" min="0" step="1" />
+                      </div>
+                    } @else {
+                      <div class="fl">
+                        <label for="remb-montant">Montant capital remboursé (FCFA)</label>
+                        <input id="remb-montant" type="number" formControlName="montant" min="1" step="1" />
+                      </div>
+                    }
+
+                    <div class="fl">
+                      <label for="remb-date">Date du paiement</label>
+                      <input id="remb-date" type="date" formControlName="datePaiement" (change)="onDatePaiementChange()" />
+                    </div>
+
+                  </div>
+                  <div class="sect-title mt12">💳 Mode de paiement</div>
+                  <div class="mode-paiement-choix">
+                    @for (m of modesPaiement; track m.value) {
+                      <button
+                        type="button"
+                        class="mode-paiement-btn"
+                        [class.on]="form.controls.modePaiement.value === m.value"
+                        [class.wave]="m.value === 'WAVE'"
+                        [class.om]="m.value === 'ORANGE_MONEY'"
+                        (click)="selectModePaiement(m.value)"
+                      >
+                        @if (m.logoUrl) {
+                          <span class="mode-paiement-logo-wrap" [class.om]="m.value === 'ORANGE_MONEY'">
+                            <img [src]="m.logoUrl" [alt]="m.label" class="mode-paiement-logo" />
+                          </span>
+                        } @else {
+                          <span class="mode-paiement-ico" aria-hidden="true">💵</span>
+                        }
+                        <span class="mode-paiement-lbl">{{ m.label }}</span>
+                      </button>
+                    }
+                  </div>
+                  @if (modePaiementMobile(form.controls.modePaiement.value)) {
+                    <div class="fl mt8">
+                      <label for="remb-ref-paiement">N° transaction (Wave / Orange Money)</label>
+                      <input
+                        id="remb-ref-paiement"
+                        type="text"
+                        formControlName="referencePaiement"
+                        placeholder="Référence affichée dans l’app mobile"
+                        autocomplete="off"
+                      />
+                    </div>
+                    <p class="paiement-hint">
+                      Indiquez la référence du paiement mobile reçu du membre (Wave ou Orange Money).
+                    </p>
+                  }
+
+                  @if (penaliteCalc().applicable) {
+                    <div class="penalite-box">
+                      <label class="penalite-check">
+                        <input
+                          type="checkbox"
+                          [checked]="form.controls.appliquerPenalite.value"
+                          (change)="onAppliquerPenaliteChange($any($event.target).checked)"
+                        />
+                        Appliquer la pénalité de retard ({{ formatFcfa(penaliteCalc().montant) }})
+                      </label>
+                      <span class="penalite-regle">{{ libellePenaliteEmprunt(regleActive()) }}</span>
+                    </div>
+                  }
+
+                  <div class="fl">
+                    <label for="remb-obs">Observation (optionnel)</label>
+                    <input id="remb-obs" type="text" formControlName="observation" />
+                  </div>
+
+                  @if (avanceCaisseEmprunt(); as av) {
+                    <div class="avance-caisse-alert">
+                      <strong>Avance Caisse à l'octroi</strong>
+                      <span>
+                        {{ formatFcfa(av.restant) }} restant à rembourser à la Caisse (sur
+                        {{ formatFcfa(av.total) }} d'avance). Les paiements affectent d'abord la Caisse, puis le fonds
+                        Solidarité.
+                      </span>
+                    </div>
+                  }
+
+                  @if (previewLines().length) {
+                    <div class="sim-box" [class]="'sim-box sim-' + typeUi()">
+                      <div class="sim-title">{{ config().simTitre }}</div>
+                      <ul class="preview-list">
+                        @for (line of previewLines(); track line.libelle + line.sens) {
+                          <li class="preview-row">
+                            <span>{{ line.libelle }}</span>
+                            <span [class.debit]="line.sens === 'DEBIT'" [class.credit]="line.sens === 'CREDIT'">
+                              {{ line.sens === 'DEBIT' ? '−' : '+' }} {{ formatFcfa(line.montant) }}
+                            </span>
+                          </li>
+                        }
+                      </ul>
+                      @if (simProgression(); as sp) {
+                        <div class="sim-totals">
+                          <div class="sim-row">
+                            <span>Progression après ce remboursement</span>
+                            <span>{{ sp.pct }}% remboursé</span>
+                          </div>
+                          <div class="sim-row">
+                            <span>Reste à rembourser</span>
+                            <span class="debit">{{ formatFcfa(sp.reste) }}</span>
+                          </div>
+                          @if (typeUi() === 'solidarite' && sp.soldeCaisseApres != null) {
+                            <div class="sim-row">
+                              <span>Solde Caisse après opération</span>
+                              <span class="credit">{{ formatFcfa(sp.soldeCaisseApres) }}</span>
+                            </div>
+                            <div class="sim-row">
+                              <span>Solde Solidarité après opération</span>
+                              <span class="credit">{{ formatFcfa(sp.soldeApres) }}</span>
+                            </div>
+                          } @else {
+                            <div class="sim-row">
+                              <span>Solde {{ typeUi() === 'solidarite' ? 'Solidarité' : 'Caisse' }} après opération</span>
+                              <span class="credit">{{ formatFcfa(sp.soldeApres) }}</span>
+                            </div>
+                          }
+                        </div>
+                      }
+                    </div>
+                  }
+
+                  <div class="form-actions">
+                    <button type="button" class="btn-s" (click)="annuler()" [disabled]="loading()">Annuler</button>
+                    <button
+                      type="button"
+                      class="btn-p btn-valider"
+                      [class.btn-or]="typeUi() === 'caisse'"
+                      [class.btn-bl]="typeUi() === 'solidarite'"
+                      (click)="valider()"
+                      [disabled]="loading() || validationBloquee() || (modeSaisieMembre() === 'unitaire' && form.invalid) || (modeSaisieMembre() === 'bulk' && bulkNbEmprunts() === 0)"
+                    >
+                      @if (loading()) {
+                        Enregistrement…
+                      } @else if (modeSaisieMembre() === 'bulk' && bulkNbEmprunts() > 0) {
+                        ✅ Rembourser {{ bulkNbEmprunts() }} emprunt{{ bulkNbEmprunts() > 1 ? 's' : '' }}
+                      } @else {
+                        {{ config().bouton }}
+                      }
+                    </button>
+                  </div>
+                </form>
+              }
+            }
+          </div>
+        </div>
+      </div>
+
+      <div class="col-side right-panel">
+        <div class="card">
+          <div class="card-pad">
+            <div class="sect-title">📊 Logique par type</div>
+            <div class="synthese-card sc-etale">
+              <div class="sc-title">📈 Étalé / Financement</div>
+              <div class="sc-body">Capital + intérêts → Caisse. Intérêts dans les échéances.</div>
+            </div>
+            <div class="synthese-card sc-caisse">
+              <div class="sc-title">🏦 Caisse / Financement</div>
+              <div class="sc-body">Capital et frais → crédit membre + caisse.</div>
+            </div>
+            <div class="synthese-card sc-sol">
+              <div class="sc-title">🤝 Solidarité</div>
+              <div class="sc-body">
+                Capital → Fonds Solidarité. Si le solde est insuffisant, la Caisse complète (avance tracée) ; au
+                remboursement, la Caisse est recréditée en priorité, séparément du fonds Solidarité.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-pad">
+            <div class="card-h">
+              <span class="card-title">📋 Emprunts actifs</span>
+              <a class="card-action" [routerLink]="['/organisations', orgCourante(), 'operations', 'emprunts']">Voir tout</a>
+            </div>
+            @for (e of empruntsActifs(); track e.id) {
+              <button
+                type="button"
+                class="emp-pick-side"
+                [class.retard]="empruntEnRetard(e)"
+                [class.sel]="empruntSelectionne()?.id === e.id"
+                (click)="selectEmpruntDepuisPanneau(e)"
+              >
+                <div class="ep-top">
+                  <span class="ep-name">{{ e.membreNom }}</span>
+                  @if (empruntEnRetard(e)) {
+                    <span class="ep-badge warn">Retard</span>
+                  } @else if (e.typeEmprunt === 'SOLIDARITE') {
+                    <span class="ep-badge bl">Solidarité</span>
+                  } @else if (e.typeEmprunt === 'CAISSE') {
+                    <span class="ep-badge or">Caisse</span>
+                  }
+                </div>
+                <div class="ep-sub">
+                  {{ typeEmpruntLabel(e.typeEmprunt) }} · {{ formatFcfa(e.montantRestant) }} restants
+                </div>
+                <div class="prog-bar">
+                  <div class="prog-fill" [style.width.%]="progressPct(e)"></div>
+                </div>
+              </button>
+            } @empty {
+              <p class="empty-msg">Aucun emprunt actif.</p>
+            }
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-pad">
+            <div class="sect-title">🕐 Remboursements récents</div>
+            @if (panneau()?.recentes?.length) {
+              <div class="op-list">
+                @for (r of panneau()!.recentes; track r.operationId) {
+                  <div class="op-row">
+                    <div class="op-ico" [class]="r.iconeClass">🔄</div>
+                    <div class="op-info">
+                      <div class="op-name">{{ r.membreNom }} — {{ r.typeLibelle }}</div>
+                      <div class="op-meta">{{ r.meta }}</div>
+                    </div>
+                    <div class="op-amt cr-c">+{{ formatFcfa(r.montantTotal) }}</div>
+                  </div>
+                }
+              </div>
+            } @else {
+              <p class="empty-msg">Aucun remboursement récent.</p>
+            }
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-pad">
+            <div class="sect-title">💰 Soldes actuels</div>
+            <div class="solde-row solde-caisse">
+              <span>🏦 Caisse</span>
+              <span class="solde-val">
+                @if (panneauLoading()) { … } @else { {{ formatFcfa(panneau()?.soldeCaisse ?? 0) }} }
+              </span>
+            </div>
+            <div class="solde-row solde-sol">
+              <span>🤝 Solidarité</span>
+              <span class="solde-val bl">
+                @if (panneauLoading()) { … } @else { {{ formatFcfa(panneau()?.soldeSolidarite ?? 0) }} }
+              </span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+</div>
+
+@if (confirmDialog(); as dlg) {
+  <app-confirm-dialog
+    [title]="dlg.title"
+    [paragraphs]="dlg.paragraphs"
+    [variant]="dlg.variant"
+    [showCancel]="dlg.showCancel"
+    [confirmLabel]="dlg.confirmLabel"
+    [loading]="loading()"
+    (confirmed)="onConfirmDialogOk()"
+    (cancelled)="onConfirmDialogCancel()"
+  />
+}

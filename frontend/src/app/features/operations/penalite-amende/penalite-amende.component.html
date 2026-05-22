@@ -1,0 +1,457 @@
+<div class="penalite-page">
+  <form [formGroup]="form" (ngSubmit)="$event.preventDefault()">
+    <div class="page-header">
+      <div>
+        <div class="pt">{{
+          typeUi() === 'pen' ? 'Appliquer une pénalité' : 'Appliquer une amende'
+        }}</div>
+        <div class="ps">Crédite la caisse · Débite le compte Pénalité du membre</div>
+      </div>
+    </div>
+
+    <div class="type-switch">
+      <button
+        type="button"
+        class="ts-opt"
+        [class.on-pen]="typeUi() === 'pen'"
+        (click)="setType('pen')"
+        title="Pénalité (Ctrl+1)"
+      >
+        ⚠ Pénalité
+      </button>
+      <button type="button" class="ts-opt" [class.on-am]="typeUi() === 'am'" (click)="setType('am')" title="Amende (Ctrl+2)">
+        🚫 Amende
+      </button>
+    </div>
+
+    <div class="main-grid">
+      <div>
+        <div class="card">
+          <div class="card-pad">
+            <div class="sect-title">
+              {{ typeUi() === 'pen' ? '⚠' : '🚫' }} Membre{{ modeSaisieMembre() === 'bulk' ? 's' : '' }} concerné{{ modeSaisieMembre() === 'bulk' ? 's' : '' }} —
+              {{ typeUi() === 'pen' ? 'Pénalité' : 'Amende' }}
+            </div>
+
+            <div class="membre-mode-tabs" role="tablist" aria-label="Mode de sélection des membres">
+              <button
+                type="button"
+                class="membre-mode-tab"
+                role="tab"
+                [attr.aria-selected]="modeSaisieMembre() === 'unitaire'"
+                [class.on]="modeSaisieMembre() === 'unitaire'"
+                (click)="setModeSaisieMembre('unitaire')"
+              >
+                Un membre
+              </button>
+              <button
+                type="button"
+                class="membre-mode-tab"
+                role="tab"
+                [attr.aria-selected]="modeSaisieMembre() === 'bulk'"
+                [class.on]="modeSaisieMembre() === 'bulk'"
+                (click)="setModeSaisieMembre('bulk')"
+              >
+                En lot
+              </button>
+            </div>
+
+            @if (modeSaisieMembre() === 'unitaire') {
+              @if (selectedMembre(); as m) {
+                <button type="button" class="membre-card sel" (click)="membreListOpen.set(true)">
+                  <div class="mc-av" [style.background]="avatarColor(m.codeMembre)">{{ initials(m.nomComplet) }}</div>
+                  <div class="mc-info">
+                    <div class="mc-name">{{ m.nomComplet }}</div>
+                    <div class="mc-meta">
+                      {{ m.codeMembre }} · {{ posteLabel(m.codeMembre) }} ·
+                      {{ m.actif ? 'Actif' : 'Inactif' }}
+                    </div>
+                  </div>
+                  <div class="mc-soldes">
+                    <div class="mc-solde-item pen">
+                      Pénalités : {{ penaliteDisplay(m.id) }} · Amendes : {{ amendeDisplay(m.id) }}
+                    </div>
+                    <div class="mc-solde-item">Épargne : {{ epargneDisplay(m.id) }}</div>
+                  </div>
+                </button>
+              }
+
+              <div class="membre-search-row">
+                <div class="fl mb6 membre-search-main">
+                  <label for="membre-input">Rechercher un membre</label>
+                  <input
+                    id="membre-input"
+                    type="search"
+                    formControlName="membreSearch"
+                    placeholder="Code, nom, prénom ou téléphone…"
+                    autocomplete="off"
+                    (focus)="onMembreFocus()"
+                    (input)="onMembreInput()"
+                  />
+                </div>
+                <div class="fl mb6 membre-search-code">
+                  <label for="membre-code-num">N° code</label>
+                  <input
+                    id="membre-code-num"
+                    type="text"
+                    formControlName="membreCodeNumero"
+                    placeholder="001"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    (keydown.enter)="onMembreCodeNumeroEnter($event)"
+                  />
+                </div>
+              </div>
+              @if (rechercheMembreLoading()) {
+                <p class="recherche-hint">Recherche en cours…</p>
+              }
+              @if (membreListOpen() && !rechercheMembreLoading() && membreSearchHasQuery() && filteredMembres().length === 0) {
+                <p class="recherche-hint">Aucun membre trouvé.</p>
+              }
+              @if (membreListOpen() && filteredMembres().length > 0) {
+                <div class="membre-result" role="listbox">
+                  @for (m of filteredMembres(); track m.id) {
+                    <button
+                      type="button"
+                      class="mr-item"
+                      [class.sel]="form.controls.membreId.value === m.id"
+                      (click)="selectMembre(m)"
+                    >
+                      <div class="mr-av" [style.background]="avatarColor(m.codeMembre)">{{ initials(m.nomComplet) }}</div>
+                      <div class="mr-txt">
+                        <div class="mr-name">{{ m.nomComplet }}</div>
+                        <div class="mr-meta">
+                          <span class="mr-code">{{ m.codeMembre }}</span>
+                          <span class="mr-ref">Pén. {{ penaliteDisplay(m.id) }} · Am. {{ amendeDisplay(m.id) }}</span>
+                          @if (m.telephone) {
+                            <span class="mr-ref">{{ m.telephone }}</span>
+                          }
+                        </div>
+                      </div>
+                      <span class="mr-badge" [class]="'pb-' + postePourCodeMembre(m.codeMembre).kind">{{
+                        posteLabel(m.codeMembre)
+                      }}</span>
+                    </button>
+                  }
+                </div>
+              }
+              @if (form.controls.membreId.value != null) {
+                <button type="button" class="btn-clear-membre" (click)="clearMembre()">Effacer la sélection</button>
+              }
+            } @else {
+              <p class="bulk-mode-hint">
+                Cochez les membres (10 par page). Le même montant, motif et date s’appliquent à toute la sélection.
+              </p>
+              <div class="bulk-catalogue-toolbar">
+                <div class="fl bulk-filtre-fl">
+                  <label for="pen-bulk-filtre">Filtrer la liste</label>
+                  <input
+                    id="pen-bulk-filtre"
+                    type="search"
+                    [value]="bulkFiltre()"
+                    placeholder="Code, nom, prénom ou téléphone…"
+                    autocomplete="off"
+                    (input)="onBulkFiltreInput($event)"
+                  />
+                </div>
+                <button type="button" class="bulk-page-select-btn" (click)="toggleSelectionPageBulk()">
+                  @if (bulkPageToutSelectionnee()) {
+                    Désélectionner la page
+                  } @else {
+                    Sélectionner la page
+                  }
+                </button>
+              </div>
+              @if (membresBulkCatalogueLoading()) {
+                <p class="recherche-hint">Chargement des membres…</p>
+              } @else if (bulkCatalogueTotal() === 0) {
+                <p class="recherche-hint">Aucun membre{{ bulkFiltre() ? ' pour ce filtre' : '' }}.</p>
+              } @else {
+                <div class="bulk-catalogue-list membre-result" role="listbox" aria-label="Liste des membres">
+                  @for (m of membresBulkPage(); track m.id) {
+                    <button
+                      type="button"
+                      class="mr-item bulk-catalogue-row"
+                      [class.sel]="isMembreBulkSelected(m.id)"
+                      (click)="toggleMembreBulk(m)"
+                    >
+                      <span class="mr-bulk-check" aria-hidden="true">{{ isMembreBulkSelected(m.id) ? '✓' : '' }}</span>
+                      <div class="mr-av" [style.background]="avatarColor(m.codeMembre)">{{ initials(m.nomComplet) }}</div>
+                      <div class="mr-txt">
+                        <div class="mr-name">{{ m.nomComplet }}</div>
+                        <div class="mr-meta">
+                          <span class="mr-code">{{ m.codeMembre }}</span>
+                          <span class="mr-ref">Pén. {{ penaliteDisplay(m.id) }} · Am. {{ amendeDisplay(m.id) }}</span>
+                        </div>
+                      </div>
+                    </button>
+                  }
+                </div>
+                <app-list-pagination
+                  [page]="bulkPage()"
+                  [total]="bulkCatalogueTotal()"
+                  [pageSize]="bulkPageSize"
+                  unit="membre(s)"
+                  (pageChange)="goBulkPage($event)"
+                />
+              }
+              @if (bulkNbMembres() > 0) {
+                <div class="bulk-membres-panel">
+                  <div class="bulk-membres-head">
+                    <span class="bulk-membres-count">
+                      {{ bulkNbMembres() }} sélectionné{{ bulkNbMembres() > 1 ? 's' : '' }}
+                      @if (bulkMontantTotal() > 0) {
+                        · {{ formatFcfa(simMontant()) }} / membre
+                      }
+                    </span>
+                    <button type="button" class="bulk-membres-clear" (click)="viderMembresBulk()">Tout effacer</button>
+                  </div>
+                  <div class="bulk-membres-chips">
+                    @for (m of membresBulk(); track m.id) {
+                      <span class="bulk-chip">
+                        <span class="bulk-chip-name">{{ m.nomComplet }}</span>
+                        <span class="bulk-chip-code">{{ m.codeMembre }}</span>
+                        <span class="bulk-chip-montant">{{ formatFcfa(simMontant()) }}</span>
+                        <button
+                          type="button"
+                          class="bulk-chip-remove"
+                          (click)="retirerMembreBulk(m.id)"
+                          aria-label="Retirer"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    }
+                  </div>
+                  @if (bulkMontantTotal() > 0) {
+                    <p class="bulk-membres-total">
+                      Total lot : {{ bulkNbMembres() }} × {{ formatFcfa(simMontant()) }} =
+                      <strong>{{ formatFcfa(bulkMontantTotal()) }}</strong>
+                    </p>
+                  }
+                </div>
+              }
+              <div class="membre-search-row bulk-code-row">
+                <div class="fl mb6 membre-search-code">
+                  <label for="pen-bulk-code-num">Ajouter par N° code</label>
+                  <input
+                    id="pen-bulk-code-num"
+                    type="text"
+                    formControlName="membreCodeNumero"
+                    placeholder="001"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    (keydown.enter)="onMembreCodeNumeroEnter($event)"
+                  />
+                </div>
+              </div>
+            }
+
+            <div class="sect-title mt18">
+              📋 Motif de l'{{ typeUi() === 'pen' ? 'pénalité' : 'amende' }}
+            </div>
+            <div class="motif-grid">
+              @for (mot of motifsActifs(); track mot.id) {
+                <button
+                  type="button"
+                  class="motif-card"
+                  [class.on]="isMotifOn(mot)"
+                  (click)="selectMotif(mot)"
+                >
+                  <div class="motif-icon">{{ mot.icon }}</div>
+                  <div class="motif-label">{{ mot.label }}</div>
+                </button>
+              }
+            </div>
+
+            <div class="form-grid">
+              <div class="fl">
+                <label for="montant">
+                  Montant {{ typeUi() === 'pen' ? 'pénalité' : 'amende' }} (FCFA)
+                </label>
+                <input id="montant" type="number" formControlName="montant" min="100" />
+              </div>
+              <div class="fl">
+                <label for="date-app">Date d'application</label>
+                <input id="date-app" type="date" formControlName="dateApplication" />
+              </div>
+              <div class="fl span2">
+                <label for="obs">Observation / Détails</label>
+                <textarea id="obs" formControlName="observation" rows="3"></textarea>
+              </div>
+            </div>
+
+            <div class="sim" [class.pen]="typeUi() === 'pen'" [class.am]="typeUi() === 'am'">
+              <div class="sim-title">
+                🔍 Prévisualisation — Règle : {{ typeUi() === 'pen' ? 'Pénalité' : 'Amende' }}
+                @if (modeSaisieMembre() === 'bulk' && bulkNbMembres() > 0) {
+                  <span class="bulk-sim-hint">
+                    (1er membre · {{ bulkNbMembres() }} sanction{{ bulkNbMembres() > 1 ? 's' : '' }})
+                  </span>
+                }
+              </div>
+              <div class="sim-row">
+                <span
+                  >Membre · Compte {{ typeUi() === 'pen' ? 'Pénalité' : 'Amende' }} ({{
+                    selectedMembre()?.nomComplet ?? '—'
+                  }})</span
+                >
+                <span class="db-c">− dette {{ formatFcfa(simMontant()) }}</span>
+              </div>
+              <div class="sim-row">
+                <span>Organisation · Caisse</span>
+                <span class="cr-c">
+                  + {{ formatFcfa(modeSaisieMembre() === 'bulk' ? bulkMontantTotal() : simMontant()) }}
+                </span>
+              </div>
+              <div class="sim-row sim-sub">
+                <span>Compte {{ typeUi() === 'pen' ? 'pénalité' : 'amende' }} membre après</span>
+                <span class="pen-total">{{ formatFcfa(simSanctionApres()) }} total</span>
+              </div>
+              <div class="sim-row">
+                <span>Solde Caisse après</span>
+                <span class="caisse-after">{{ formatFcfa(simCaisseApres()) }}</span>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button type="button" class="btn-s" (click)="annuler()" title="Annuler (Esc)" [disabled]="loading()">
+                Annuler
+              </button>
+              <button
+                type="button"
+                class="btn-re"
+                (click)="valider()"
+                title="Valider (Ctrl+E)"
+                [disabled]="loading() || (modeSaisieMembre() === 'unitaire' && form.invalid) || (modeSaisieMembre() === 'bulk' && bulkNbMembres() === 0)"
+              >
+                @if (loading()) {
+                  Enregistrement…
+                } @else if (modeSaisieMembre() === 'bulk' && bulkNbMembres() > 0) {
+                  @if (typeUi() === 'pen') {
+                    ⚠ Appliquer {{ bulkNbMembres() }} pénalité{{ bulkNbMembres() > 1 ? 's' : '' }}
+                  } @else {
+                    🚫 Appliquer {{ bulkNbMembres() }} amende{{ bulkNbMembres() > 1 ? 's' : '' }}
+                  }
+                } @else if (typeUi() === 'pen') {
+                  ⚠ Appliquer la pénalité
+                } @else {
+                  🚫 Appliquer l'amende
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div class="card">
+          <div class="card-inner">
+            <div class="card-h">
+              <span class="card-title">📊 Ce mois{{ statsMois().moisLabel ? ' — ' + statsMois().moisLabel : '' }}</span>
+            </div>
+            <div class="stats-row">
+              <div class="stat-box re2">
+                <div class="stat-val re">{{ statsMois().penalites }}</div>
+                <div class="stat-lbl">Pénalités</div>
+              </div>
+              <div class="stat-box pu2">
+                <div class="stat-val pu">{{ statsMois().amendes }}</div>
+                <div class="stat-lbl">Amendes</div>
+              </div>
+            </div>
+            <div class="total-enc">
+              <span>Total encaissé</span>
+              <span class="enc-val">{{ formatFcfa(statsMois().totalEncaisse) }}</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-inner">
+            <div class="card-h">
+              <span class="card-title">📋 Historique pénalités / amendes</span>
+              <span class="card-action" role="button" tabindex="0">Exporter</span>
+            </div>
+            <div class="filters-row">
+              <select class="filter-select" [value]="filtreHistType()" (change)="onFiltreHistType($event)">
+                <option value="tous">Tous les types</option>
+                <option value="pen">Pénalités</option>
+                <option value="am">Amendes</option>
+              </select>
+              <input
+                type="search"
+                class="filter-search"
+                placeholder="Membre ou motif…"
+                [value]="filtreHistRecherche()"
+                (input)="onFiltreHistRecherche($event)"
+                aria-label="Filtrer l'historique"
+              />
+              <span class="filtre-count">{{ historiqueAffiche().length }} ligne(s)</span>
+            </div>
+            <div class="table-wrap">
+              <table class="hist-table">
+                <thead>
+                  <tr>
+                    <th>Membre</th>
+                    <th>Type</th>
+                    <th>Motif</th>
+                    <th>Montant</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @if (historiqueAffiche().length === 0) {
+                    <tr>
+                      <td colspan="5" class="empty-sub">Aucune sanction pour ce filtre.</td>
+                    </tr>
+                  }
+                  @for (h of historiqueAffiche(); track h.membreNom + h.dateLabel + h.montant) {
+                    <tr>
+                      <td>
+                        <div class="h-name">{{ h.membreNom }}</div>
+                        <div class="h-code">{{ h.codeMembre }}</div>
+                      </td>
+                      <td>
+                        @if (h.type === 'pen') {
+                          <span class="badge b-red">Pénalité</span>
+                        } @else {
+                          <span class="badge b-pu">Amende</span>
+                        }
+                      </td>
+                      <td class="h-motif">{{ h.motif }}</td>
+                      <td class="db-c h-amt">{{ formatFcfa(h.montant) }}</td>
+                      <td class="h-date">{{ h.dateLabel }}</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-inner">
+            <div class="card-h"><span class="card-title">⚠ Top pénalisés</span></div>
+            <div class="top-list">
+              @if (topPenalises().length === 0) {
+                <p class="empty-sub">Aucune sanction enregistrée pour le moment.</p>
+              }
+              @for (t of topPenalises(); track t.codeMembre) {
+                <div class="top-row" [class.highlight]="t.highlight">
+                  <div class="top-av" [style.background]="t.avColor">{{ t.initials }}</div>
+                  <div class="top-info">
+                    <div class="top-name">{{ t.nom }}</div>
+                    <div class="top-detail">{{ t.detail }}</div>
+                  </div>
+                  <span class="top-amt">{{ formatFcfa(t.total) }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </form>
+</div>
+

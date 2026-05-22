@@ -1,0 +1,222 @@
+.param-cloture-page {
+  max-width: 960px;
+}
+
+.card-preview {
+  margin-top: 8px;
+}
+
+.page-head h1 {
+  margin: 0 0 8px;
+  font-size: 1.35rem;
+}
+
+.lead {
+  color: var(--md, #4a5568);
+  font-size: 0.92rem;
+  line-height: 1.5;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e8ede9;
+  border-radius: 12px;
+  padding: 16px 18px;
+  margin-bottom: 16px;
+}
+
+.card h2 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+}
+
+.sub {
+  margin: 14px 0 8px;
+  font-size: 0.9rem;
+}
+
+.grid-2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85rem;
+}
+
+.chk {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.retenue-row {
+  display: grid;
+  grid-template-columns: 1fr auto 100px auto;
+  gap: 8px;
+  margin-bottom: 8px;
+  align-items: center;
+}
+
+.actions {
+  margin-top: 8px;
+}
+
+.card-hint {
+  margin: -4px 0 12px;
+  font-size: 0.85rem;
+  color: var(--md, #4a5568);
+  line-height: 1.45;
+}
+
+.excl-pret {
+  margin-top: 12px;
+}
+
+.pct-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.pct-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.pct-row {
+  display: grid;
+  grid-template-columns: 1fr auto 80px auto;
+  gap: 8px;
+  align-items: center;
+  font-size: 0.88rem;
+}
+
+.pct-nom {
+  font-weight: 500;
+}
+
+.pct-code {
+  color: var(--md, #4a5568);
+  font-size: 0.8rem;
+}
+
+.poste-groupe {
+  margin-top: 8px;
+  max-width: 160px;
+}
+
+.pool-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.poste-pool {
+  margin-top: 8px;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--md, #4a5568);
+}
+
+.mode-row {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.mode-opt {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e8ede9;
+  border-radius: 10px;
+  cursor: pointer;
+
+  strong {
+    display: block;
+    font-size: 0.92rem;
+  }
+
+  small {
+    color: var(--md, #4a5568);
+    font-size: 0.8rem;
+  }
+}
+
+.postes-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.poste-row {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  padding: 12px;
+  border: 1px solid #e8ede9;
+  border-radius: 10px;
+  background: #fafbfc;
+}
+
+.poste-actif {
+  margin: 4px 0 0;
+}
+
+.poste-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.poste-libelle-fixe {
+  font-weight: 600;
+  font-size: 0.92rem;
+}
+
+.poste-libelle-input {
+  width: 100%;
+  margin-bottom: 6px;
+}
+
+.poste-comptes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.compte-tag {
+  font-size: 0.75rem;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: #e8f5ee;
+  color: #1a5c3a;
+}
+
+.poste-type-op {
+  font-size: 0.82rem;
+  margin-top: 4px;
+
+  select {
+    margin-top: 4px;
+    width: 100%;
+  }
+}
+
+.frais-globaux {
+  margin-bottom: 12px;
+}

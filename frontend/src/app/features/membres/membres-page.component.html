@@ -1,0 +1,697 @@
+<div class="membres-page">
+  @if (loading()) {
+    <p class="loading-msg">Chargement des membres…</p>
+  } @else {
+    <div class="page-header">
+      <div class="ph-left">
+        <div class="pt">Membres du GIE</div>
+        <div class="ps">{{ phSubline() }}</div>
+      </div>
+      <div class="ph-actions">
+        <button
+          type="button"
+          class="btn-s"
+          (click)="exportMembres()"
+          [disabled]="membres().length === 0"
+          title="Exporter en CSV (Ctrl+E)">
+          📊 Exporter
+        </button>
+        <a
+          class="btn-s btn-link-dl"
+          [href]="modeleImportUrl"
+          download="modele-import-membres.csv"
+          (click)="$event.stopPropagation()"
+        >
+          ⬇ Modèle
+        </a>
+        <button type="button" class="btn-s" (click)="openImportModal()">📥 Importer</button>
+        <button type="button" class="btn-p" (click)="openModal()">+ Nouveau membre</button>
+      </div>
+    </div>
+
+    @if (loadError()) {
+      <p class="loading-msg load-error">{{ loadError() }}</p>
+    } @else if (membres().length === 0) {
+      <div class="empty-state">
+        <div class="empty-state-icon" aria-hidden="true">👥</div>
+        <p class="empty-state-title">Aucun membre pour cette organisation</p>
+        <p class="empty-state-text">
+          Commencez par créer un membre, importer un fichier Excel ou télécharger le modèle d'import.
+        </p>
+      </div>
+    } @else {
+    <div class="stats-banner">
+      <div class="stat-box">
+        <div class="stat-val c-g1">{{ stats().actifs }}</div>
+        <div class="stat-lbl">Total actifs</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val c-pu">{{ stats().president }}</div>
+        <div class="stat-lbl">Président(e)</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val c-bl">{{ stats().secs }}</div>
+        <div class="stat-lbl">Secrétaires</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val c-g1">{{ stats().tres }}</div>
+        <div class="stat-lbl">Trésorier</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val c-re">{{ stats().sup }}</div>
+        <div class="stat-lbl">Superviseur</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-val c-md">{{ stats().simple }}</div>
+        <div class="stat-lbl">Membres simples</div>
+      </div>
+    </div>
+
+    <div class="tabs-bar">
+      <button type="button" class="tab" [class.on]="tab() === 'tous'" (click)="setTab('tous')">
+        Tous <span class="cnt">{{ tabCounts().tous }}</span>
+      </button>
+      <button type="button" class="tab" [class.on]="tab() === 'bureau'" (click)="setTab('bureau')">
+        👑 Bureau <span class="cnt">{{ tabCounts().bureau }}</span>
+      </button>
+      <button type="button" class="tab" [class.on]="tab() === 'simples'" (click)="setTab('simples')">
+        👤 Simples <span class="cnt">{{ tabCounts().simples }}</span>
+      </button>
+      <button type="button" class="tab" [class.on]="tab() === 'suspendus'" (click)="setTab('suspendus')">
+        ⚠ Suspendus <span class="cnt">{{ tabCounts().suspendus }}</span>
+      </button>
+    </div>
+
+    @if (bureauCards().length > 0) {
+      <div class="bureau-section">
+        <div class="bureau-title">👑 Membres du bureau</div>
+        <div class="bureau-cards">
+          @for (b of bureauCards(); track b.raw.id) {
+            <div
+              class="bureau-card"
+              role="link"
+              tabindex="0"
+              [routerLink]="['/organisations', orgCourante()!, 'membres', b.raw.id]"
+            >
+              @if (b.poste.kind === 'president') {
+                <div class="bc-crown" aria-hidden="true">👑</div>
+              }
+              <div class="bc-av" [style.background]="b.avColor">{{ b.initials }}</div>
+              <div class="bc-name">{{ b.raw.nomComplet }}</div>
+              <div class="bc-poste">{{ b.raw.codeMembre }}</div>
+              <span class="poste-badge {{ b.poste.badgeClass }}">{{ b.poste.label }}</span>
+            </div>
+          }
+        </div>
+      </div>
+    }
+
+    <div class="filters-row">
+      <input
+        type="search"
+        class="filter-search"
+        placeholder="Rechercher un membre…"
+        [value]="searchInput()"
+        (input)="onSearch($event)"
+        aria-label="Rechercher un membre"
+      />
+      <select class="filter-select" [value]="posteSelect()" (change)="onPosteFilter($event)">
+        <option value="">Tous les postes</option>
+        <option value="president">Président(e)</option>
+        <option value="vice_president">Vice-président(e)</option>
+        <option value="sg">Secrétaire Général</option>
+        <option value="sga">S.G. Adjoint(e)</option>
+        <option value="tresorier">Trésorier(ère)</option>
+        <option value="superviseur">Superviseur</option>
+        <option value="simple">Membre simple</option>
+      </select>
+      <select class="filter-select" [value]="statutSelect()" (change)="onStatutFilter($event)">
+        <option value="">Tous les statuts</option>
+        <option value="actif">Actif</option>
+        <option value="suspendu">Suspendu</option>
+        <option value="exclu">Exclu</option>
+      </select>
+      <button type="button" class="filter-btn" [class.on]="viewMode() === 'table'" (click)="setViewMode('table')">
+        📋 Tableau
+      </button>
+      <button type="button" class="filter-btn" [class.on]="viewMode() === 'cards'" (click)="setViewMode('cards')">
+        🗃 Cartes
+      </button>
+      <span class="filtre-count">{{ filteredRows().length }} résultat(s)</span>
+    </div>
+
+    @if (viewMode() === 'table') {
+      <div class="card">
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th class="col-sticky">Membre</th>
+                <th>Poste</th>
+                <th>Adhésion</th>
+                <th class="col-solde">Ép. hebdo</th>
+                <th class="col-solde">Ép. mois</th>
+                <th class="col-solde">Solidarité</th>
+                <th class="col-solde">Pénalité</th>
+                <th class="col-solde">Amende</th>
+                <th>Emprunt</th>
+                <th>Statut</th>
+                <th class="col-actions">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of pagedRows(); track r.raw.id) {
+                <tr class="click-row" (click)="voirFiche(r.raw.id)">
+                  <td>
+                    <div class="m-info">
+                      <div class="m-av" [style.background]="r.avColor">{{ r.initials }}</div>
+                      <div>
+                        <div class="m-name" [innerHTML]="r.raw.nomComplet | highlight: searchInput()"></div>
+                        <div class="m-num" [innerHTML]="r.raw.codeMembre | highlight: searchInput()"></div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="poste-badge {{ r.poste.badgeClass }}">{{ r.poste.icon }} {{ r.poste.label }}</span>
+                  </td>
+                  <td>{{ r.adhesion }}</td>
+                  <td>
+                    <div class="solde-bar" [title]="formatFcfa(r.soldes.epargneHebdo)">
+                      <div class="bar-fill" [style.width.%]="Math.min(100, Math.max(0, (r.soldes.epargneHebdo / (r.soldes.epargneHebdo > 0 ? 50000 : 1)) * 100))"></div>
+                      <span class="solde-cell sc-pos">{{ formatSoldeCompte(r.soldes.epargneHebdo) }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="solde-bar" [title]="formatFcfa(r.soldes.epargneMois)">
+                      <div class="bar-fill" [style.width.%]="Math.min(100, Math.max(0, (r.soldes.epargneMois / (r.soldes.epargneMois > 0 ? 100000 : 1)) * 100))"></div>
+                      <span class="solde-cell sc-pos">{{ formatSoldeCompte(r.soldes.epargneMois) }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <div class="solde-bar" [title]="formatFcfa(r.soldes.solidarite)">
+                      <div class="bar-fill" [style.width.%]="Math.min(100, Math.max(0, (r.soldes.solidarite / (r.soldes.solidarite > 0 ? 50000 : 1)) * 100))"></div>
+                      <span class="solde-cell sc-pos">{{ formatSoldeCompte(r.soldes.solidarite) }}</span>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="solde-cell" [class.sc-pos]="r.soldes.penalite > 0" [class.sc-zero]="r.soldes.penalite === 0">
+                      {{ formatSoldeCompte(r.soldes.penalite) }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="solde-cell" [class.sc-pos]="r.soldes.amende > 0" [class.sc-zero]="r.soldes.amende === 0">
+                      {{ formatSoldeCompte(r.soldes.amende) }}
+                    </span>
+                  </td>
+                  <td>
+                    @if (r.empruntMontant != null) {
+                      <span class="solde-cell" [class.sc-neg]="r.empruntRetard" [class.sc-pos]="!r.empruntRetard">
+                        {{ formatFcfa(r.empruntMontant) }}
+                        @if (r.empruntRetard) {
+                          <span> ⚠</span>
+                        }
+                      </span>
+                    } @else {
+                      <span class="solde-cell sc-zero">—</span>
+                    }
+                  </td>
+                  <td>
+                    <span
+                      class="statut-badge"
+                      [class.sb-actif]="r.raw.actif"
+                      [class.sb-suspendu]="!r.raw.actif"
+                    >
+                      {{ r.raw.actif ? 'Actif' : 'Suspendu' }}
+                    </span>
+                  </td>
+                  <td>
+                    <div class="row-actions">
+                      <button
+                        type="button"
+                        class="act-btn view"
+                        aria-label="Voir la fiche"
+                        (click)="voirFiche(r.raw.id, $event)"
+                      >
+                        👁
+                      </button>
+                      <button
+                        type="button"
+                        class="act-btn edit"
+                        aria-label="Modifier"
+                        (click)="openEditModal(r.raw.id, $event)"
+                      >
+                        ✏
+                      </button>
+                      <button
+                        type="button"
+                        class="act-btn del"
+                        aria-label="Supprimer"
+                        (click)="demanderSuppression(r.raw.id, $event)"
+                      >
+                        🗑
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        @if (filteredRows().length === 0) {
+          <p class="empty-msg">Aucun membre ne correspond aux filtres.</p>
+        }
+        <div class="pagination">
+          <div class="pagination-left">
+            <span>{{ rangeLabel() }}</span>
+            <select class="page-size-select" [value]="pageSize()" (change)="onPageSizeChange($event)" aria-label="Nombre de résultats par page">
+              @for (size of pageSizeOptions; track size) {
+                <option [value]="size">{{ size }} par page</option>
+              }
+            </select>
+          </div>
+          <div class="page-btns">
+            <button type="button" class="page-btn" (click)="goPage(page() - 1)" [disabled]="page() <= 1">‹</button>
+            @for (pn of pageNumbers(); track pn) {
+              <button type="button" class="page-btn" [class.on]="page() === pn" (click)="goPage(pn)">{{ pn }}</button>
+            }
+            <button type="button" class="page-btn" (click)="goPage(page() + 1)" [disabled]="page() >= totalPages()">›</button>
+          </div>
+        </div>
+      </div>
+    } @else {
+      <div class="cards-grid">
+        @for (r of filteredRows(); track r.raw.id) {
+          <div
+            class="member-card"
+            role="link"
+            tabindex="0"
+            [routerLink]="['/organisations', orgCourante()!, 'membres', r.raw.id]"
+          >
+            <div class="m-av lg" [style.background]="r.avColor">{{ r.initials }}</div>
+            <div class="m-name">{{ r.raw.nomComplet }}</div>
+            <div class="m-num">{{ r.raw.codeMembre }}</div>
+            <span class="poste-badge {{ r.poste.badgeClass }}">{{ r.poste.label }}</span>
+            <div class="card-meta">
+              <span class="card-meta-item">Adhésion {{ r.adhesion }}</span>
+              <span
+                class="statut-badge"
+                [class.sb-actif]="r.raw.actif"
+                [class.sb-suspendu]="!r.raw.actif"
+              >
+                {{ r.raw.actif ? 'Actif' : 'Suspendu' }}
+              </span>
+            </div>
+            <div class="card-solde">
+              <span>Ép. hebdo {{ formatSoldeCompte(r.soldes.epargneHebdo) }}</span>
+              <span>Ép. mois {{ formatSoldeCompte(r.soldes.epargneMois) }}</span>
+              <span>Solidarité {{ formatSoldeCompte(r.soldes.solidarite) }}</span>
+              <span
+                [class.sc-pos]="r.soldes.penalite > 0"
+                [class.sc-zero]="r.soldes.penalite === 0"
+              >
+                Pénalité {{ formatSoldeCompte(r.soldes.penalite) }}
+              </span>
+              <span
+                [class.sc-pos]="r.soldes.amende > 0"
+                [class.sc-zero]="r.soldes.amende === 0"
+              >
+                Amende {{ formatSoldeCompte(r.soldes.amende) }}
+              </span>
+              <span
+                class="card-emprunt"
+                [class.sc-neg]="r.empruntRetard"
+                [class.sc-pos]="r.empruntMontant != null && !r.empruntRetard"
+                [class.sc-zero]="r.empruntMontant == null"
+              >
+                Emprunt
+                @if (r.empruntMontant != null) {
+                  {{ formatFcfa(r.empruntMontant) }}@if (r.empruntRetard) { ⚠}
+                } @else {
+                  —
+                }
+              </span>
+            </div>
+          </div>
+        }
+      </div>
+      @if (filteredRows().length === 0) {
+        <p class="empty-msg">Aucun membre ne correspond aux filtres.</p>
+      }
+    }
+    }
+  }
+
+  <!-- Modal -->
+  <div
+    class="modal-overlay"
+    [class.show]="modalOpen()"
+    (click)="overlayClick($event)"
+    aria-hidden="true"
+  >
+    <div
+      class="modal cotis-comptes-scope"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mod-title"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="modal-head">
+        <h3 id="mod-title">
+          @if (modalEnEdition()) {
+            ✏ Modifier le membre
+          } @else {
+            ➕ Nouveau membre
+          }
+        </h3>
+        <button type="button" class="modal-close" (click)="closeModal()" aria-label="Fermer">×</button>
+      </div>
+      <div class="modal-body" [formGroup]="modalForm" [class.modal-loading]="modalLoading()">
+        @if (modalLoading()) {
+          <p class="modal-hint">Chargement…</p>
+        }
+        @if (modalError()) {
+          <p class="modal-error">{{ modalError() }}</p>
+        }
+        <div class="sect-title">👤 Informations personnelles</div>
+        <div class="form-grid">
+          <div class="fl">
+            <label for="m-prenom">Prénom</label>
+            <input id="m-prenom" formControlName="prenom" placeholder="ex. Fatou" />
+          </div>
+          <div class="fl">
+            <label for="m-nom">Nom</label>
+            <input id="m-nom" formControlName="nom" placeholder="ex. Bâ" />
+          </div>
+          <div class="fl">
+            <label for="m-mail">Email (connexion) *</label>
+            <input id="m-mail" type="email" formControlName="email" placeholder="email@exemple.sn" />
+          </div>
+          <div class="fl">
+            <label for="m-tel">Téléphone (connexion) *</label>
+            <input id="m-tel" formControlName="telephone" placeholder="+221 77 xxx xx xx" />
+          </div>
+          @if (!modalEnEdition()) {
+            <p class="field-hint span2">
+              Un compte utilisateur membre sera créé automatiquement (mot de passe initial <strong>Passer123</strong>, à changer à la première connexion).
+            </p>
+            <div class="fl span2 perm-row-inline">
+              <span>Envoyer l'email d'activation</span>
+              <button
+                type="button"
+                class="toggle-mini"
+                [class.on]="modalForm.controls.envoyerEmailActivation.value"
+                (click)="modalForm.controls.envoyerEmailActivation.setValue(!modalForm.controls.envoyerEmailActivation.value)"
+              ></button>
+            </div>
+          }
+          @if (modalEnEdition()) {
+            <div class="fl span2 perm-row-inline">
+              <span>Membre actif</span>
+              <button
+                type="button"
+                class="toggle-mini"
+                [class.on]="modalForm.controls.actif.value"
+                (click)="modalForm.controls.actif.setValue(!modalForm.controls.actif.value)"
+              ></button>
+            </div>
+          }
+          <div class="fl">
+            <label for="m-adh">Date d'adhésion</label>
+            <input id="m-adh" type="date" formControlName="dateAdhesion" />
+          </div>
+          <div class="fl">
+            <label for="m-cni">N° pièce d'identité</label>
+            <input id="m-cni" formControlName="pieceIdentite" placeholder="CNI ou passeport" />
+          </div>
+        </div>
+
+        <div class="sect-title">👑 Poste &amp; Catégorie</div>
+        <div class="poste-grid">
+          <button
+            type="button"
+            class="poste-opt"
+            [class.on]="modalPoste() === 'simple'"
+            (click)="pickModalPoste('simple')"
+          >
+            <div class="po-ico">👤</div>
+            <div class="po-label">Membre simple</div>
+            <div class="po-sub">Sans responsabilité</div>
+          </button>
+          <button
+            type="button"
+            class="poste-opt"
+            [class.on]="modalPoste() === 'president'"
+            [class.pu]="modalPoste() === 'president'"
+            (click)="pickModalPoste('president')"
+          >
+            <div class="po-ico">👑</div>
+            <div class="po-label">Président(e)</div>
+            <div class="po-sub">Chef du bureau</div>
+          </button>
+          <button
+            type="button"
+            class="poste-opt"
+            [class.on]="modalPoste() === 'vice_president'"
+            [class.vi]="modalPoste() === 'vice_president'"
+            (click)="pickModalPoste('vice_president')"
+          >
+            <div class="po-ico">🏅</div>
+            <div class="po-label">Vice-président(e)</div>
+            <div class="po-sub">Adjoint(e) au bureau</div>
+          </button>
+          <button
+            type="button"
+            class="poste-opt"
+            [class.on]="modalPoste() === 'sg'"
+            [class.bl]="modalPoste() === 'sg'"
+            (click)="pickModalPoste('sg')"
+          >
+            <div class="po-ico">📝</div>
+            <div class="po-label">Secrétaire Général</div>
+            <div class="po-sub">Administration</div>
+          </button>
+          <button
+            type="button"
+            class="poste-opt"
+            [class.on]="modalPoste() === 'sga'"
+            [class.or]="modalPoste() === 'sga'"
+            (click)="pickModalPoste('sga')"
+          >
+            <div class="po-ico">📋</div>
+            <div class="po-label">S.G. Adjoint(e)</div>
+            <div class="po-sub">Assistance S.G.</div>
+          </button>
+          <button
+            type="button"
+            class="poste-opt"
+            [class.on]="modalPoste() === 'tresorier'"
+            (click)="pickModalPoste('tresorier')"
+          >
+            <div class="po-ico">💼</div>
+            <div class="po-label">Trésorier(ère)</div>
+            <div class="po-sub">Finances</div>
+          </button>
+          <button
+            type="button"
+            class="poste-opt"
+            [class.on]="modalPoste() === 'superviseur'"
+            [class.re]="modalPoste() === 'superviseur'"
+            (click)="pickModalPoste('superviseur')"
+          >
+            <div class="po-ico">🔍</div>
+            <div class="po-label">Superviseur</div>
+            <div class="po-sub">Contrôle &amp; audit</div>
+          </button>
+        </div>
+
+        @if (!modalEnEdition()) {
+        <div class="sect-title mt">🏦 Comptes à créer</div>
+        <div class="comptes-auto comptes-select">
+          <label class="ca-item ca-check" [class.on]="modalForm.controls.epargneHebdo.value">
+            <input type="checkbox" formControlName="epargneHebdo" class="ca-input" />
+            <div class="ca-ico">📅</div>
+            <div class="ca-lbl c-g1">Épargne hebdo</div>
+          </label>
+          <label class="ca-item ca-check" [class.on]="modalForm.controls.epargneMois.value">
+            <input type="checkbox" formControlName="epargneMois" class="ca-input" />
+            <div class="ca-ico">📆</div>
+            <div class="ca-lbl c-g1">Épargne mois</div>
+          </label>
+          <label class="ca-item ca-check" [class.on]="modalForm.controls.solidarite.value">
+            <input type="checkbox" formControlName="solidarite" class="ca-input" />
+            <div class="ca-ico">🤝</div>
+            <div class="ca-lbl c-or">Solidarité</div>
+          </label>
+          <label class="ca-item ca-check ca-warn" [class.on]="modalForm.controls.penalite.value">
+            <input type="checkbox" formControlName="penalite" class="ca-input" />
+            <div class="ca-ico">⚠</div>
+            <div class="ca-lbl c-re">Pénalité</div>
+          </label>
+          <label class="ca-item ca-check ca-warn" [class.on]="modalForm.controls.amende.value">
+            <input type="checkbox" formControlName="amende" class="ca-input" />
+            <div class="ca-ico">🚫</div>
+            <div class="ca-lbl c-re">Amende</div>
+          </label>
+        </div>
+
+        @if (modelesCompte().length) {
+          <div class="sect-title mt">📂 Comptes de l'organisation</div>
+          <div class="comptes-auto comptes-select">
+            @for (mdl of modelesCompte(); track mdl.id) {
+              <button
+                type="button"
+                class="ca-item ca-check"
+                [class.on]="isModeleSelected(mdl.id)"
+                (click)="toggleModeleCompte(mdl.id)"
+              >
+                <div class="ca-ico">🏷</div>
+                <div class="ca-lbl">{{ mdl.libelle }}</div>
+                <div class="ca-sub">{{ mdl.code }}</div>
+              </button>
+            }
+          </div>
+        }
+
+        <div class="sect-title mt">➕ Nouveau type de compte</div>
+        <div class="modele-add">
+          <input formControlName="nouveauModeleCode" placeholder="Code (ex. FONDS)" class="modele-inp" />
+          <input formControlName="nouveauModeleLibelle" placeholder="Libellé" class="modele-inp modele-inp-wide" />
+          <button type="button" class="btn-s" (click)="ajouterModeleCompte()">Ajouter</button>
+        </div>
+
+        <p class="modal-hint">
+          Cochez les comptes à ouvrir pour ce membre. Le numéro membre est généré automatiquement à la validation.
+        </p>
+        }
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn-s" (click)="closeModal()" [disabled]="modalSaving() || modalLoading()">Annuler</button>
+        <button type="button" class="btn-p" (click)="enregistrerMembre()" [disabled]="modalSaving() || modalLoading()">
+          @if (modalSaving()) {
+            @if (modalEnEdition()) {
+              Enregistrement…
+            } @else {
+              Création…
+            }
+          } @else if (modalEnEdition()) {
+            ✅ Enregistrer
+          } @else {
+            ✅ Créer le membre
+          }
+        </button>
+      </div>
+    </div>
+    </div>
+
+  <!-- Modal import Excel -->
+  <div
+    class="modal-overlay"
+    [class.show]="importModalOpen()"
+    (click)="importOverlayClick($event)"
+    aria-hidden="true"
+  >
+    <div class="modal modal-import" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3>📥 Importer des membres</h3>
+        <button type="button" class="modal-close" (click)="closeImportModal()" aria-label="Fermer">×</button>
+      </div>
+      <div class="modal-body">
+        @if (importError()) {
+          <p class="modal-error">{{ importError() }}</p>
+        }
+        <p class="import-intro">
+          Téléchargez le modèle, remplissez une ligne par membre, puis importez le fichier (.csv ou .xlsx).
+        </p>
+        <div class="import-actions">
+          <a
+            class="btn-s btn-link-dl"
+            [href]="modeleImportUrl"
+            download="modele-import-membres.csv"
+          >
+            ⬇ Modèle CSV (recommandé)
+          </a>
+          <button
+            type="button"
+            class="btn-s"
+            (click)="telechargerModeleImport()"
+            [disabled]="importDownloading()"
+          >
+            @if (importDownloading()) {
+              Téléchargement…
+            } @else {
+              ⬇ Modèle Excel (.xlsx)
+            }
+          </button>
+        </div>
+
+        <div class="sect-title mt">Fichier à importer</div>
+        <label class="import-drop">
+          <input
+            type="file"
+            accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,text/csv"
+            (change)="onFichierImportSelected($event)"
+          />
+          @if (importFichier(); as f) {
+            <span class="import-file-name">📄 {{ f.name }}</span>
+          } @else {
+            <span class="import-file-hint">Cliquez ou déposez un fichier Excel</span>
+          }
+        </label>
+
+        @if (importResult(); as res) {
+          <div class="import-result" [class.has-errors]="res.erreurs.length > 0">
+            <p>
+              <strong>{{ res.membresCrees }}</strong> membre(s) créé(s) sur
+              <strong>{{ res.lignesLues }}</strong> ligne(s) lue(s).
+            </p>
+            @if (res.erreurs.length) {
+              <ul class="import-errors">
+                @for (e of res.erreurs; track e.ligne) {
+                  <li>Ligne {{ e.ligne }} : {{ e.message }}</li>
+                }
+              </ul>
+            }
+          </div>
+        }
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn-s" (click)="closeImportModal()" [disabled]="importUploading()">
+          Fermer
+        </button>
+        <button
+          type="button"
+          class="btn-p"
+          (click)="lancerImportMembres()"
+          [disabled]="importUploading() || !importFichier()"
+        >
+          @if (importUploading()) {
+            Import en cours…
+          } @else {
+            ✅ Lancer l'import
+          }
+        </button>
+      </div>
+    </div>
+  </div>
+
+  @if (deleteConfirmId(); as mid) {
+    <div class="modal-overlay show" role="presentation" (click)="annulerSuppression()">
+      <div class="modal modal-sm" role="dialog" (click)="$event.stopPropagation()">
+        <div class="modal-head">
+          <h3>Supprimer ce membre ?</h3>
+        </div>
+        <div class="modal-body">
+          <p>
+            La fiche membre et son compte utilisateur (s'il existe) seront supprimés. Impossible si des cotisations ou emprunts sont enregistrés.
+          </p>
+        </div>
+        <div class="modal-foot">
+          <button type="button" class="btn-s" (click)="annulerSuppression()" [disabled]="deleteSaving()">Annuler</button>
+          <button type="button" class="btn-p btn-danger" (click)="confirmerSuppression()" [disabled]="deleteSaving()">
+            {{ deleteSaving() ? 'Suppression…' : 'Supprimer' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  }
+</div>

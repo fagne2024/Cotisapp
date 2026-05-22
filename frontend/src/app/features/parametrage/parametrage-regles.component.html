@@ -1,0 +1,437 @@
+<div class="regles-page">
+  <div class="page-header">
+    <div>
+      <div class="pt">Paramétrage</div>
+      <div class="ps">
+        {{ regles().length }} règle{{ regles().length > 1 ? 's' : '' }} configurée{{ regles().length > 1 ? 's' : '' }}
+        · {{ auth.currentOrgNom() ?? 'Organisation' }} · Cotisations hebdo / mois stockées en base
+      </div>
+    </div>
+    <button type="button" class="btn-p" (click)="reinitialiser()" [disabled]="loading() || saving()">
+      ↺ Réinitialiser défauts
+    </button>
+  </div>
+
+  <app-parametrage-tabs />
+
+  @if (loading()) {
+    <p class="loading-msg">Chargement des règles…</p>
+  } @else if (!regles().length) {
+    <p class="loading-msg">Aucune règle. Utilisez « Réinitialiser défauts ».</p>
+  } @else {
+    <div class="param-layout">
+      <div class="rules-list">
+        @for (r of regles(); track r.id) {
+          <button
+            type="button"
+            class="rule-item"
+            [class.active]="selectedId() === r.id"
+            (click)="selectRegle(r)"
+          >
+            <div class="ri-top">
+              <div class="ri-icon" [style.background]="iconBgFor(r)">{{ iconFor(r) }}</div>
+              <div class="ri-info">
+                <div class="ri-name">{{ r.libelle }}</div>
+                <div class="ri-type">{{ typeLabel(r) }}</div>
+              </div>
+              <div
+                class="toggle"
+                [class.on]="r.actif"
+                role="switch"
+                [attr.aria-checked]="r.actif"
+                tabindex="0"
+                (click)="toggleActif(r, $event)"
+                (keydown.enter)="toggleActif(r, $event)"
+              ></div>
+            </div>
+            @if (showResumeParams(r)) {
+              <div class="ri-params">
+                @if (resumeRegleCotisationCarte(r); as resume) {
+                  <div class="rp-item">
+                    <div class="rp-label">Parts</div>
+                    <div class="rp-val">
+                      {{ resume.partsMin }}–{{ resume.partsMax }} × {{ formatFcfa(resume.montantParPart) }}
+                    </div>
+                  </div>
+                  <div class="rp-item">
+                    <div class="rp-label">Montant</div>
+                    <div class="rp-val">{{ formatFcfa(resume.montantMin) }} – {{ formatFcfa(resume.montantMax) }}</div>
+                  </div>
+                } @else {
+                  @if (r.montantMin != null) {
+                    <div class="rp-item">
+                      <div class="rp-label">Min</div>
+                      <div class="rp-val">{{ formatFcfa(r.montantMin) }}</div>
+                    </div>
+                  }
+                  @if (r.montantMax != null) {
+                    <div class="rp-item">
+                      <div class="rp-label">Max</div>
+                      <div class="rp-val">{{ formatFcfa(r.montantMax) }}</div>
+                    </div>
+                  }
+                }
+                @if (r.solidariteAuto && r.montantSolidariteAuto != null) {
+                  <div class="rp-item">
+                    <div class="rp-label">Solidarité</div>
+                    <div class="rp-val sol">{{ formatFcfa(r.montantSolidariteAuto) }} auto</div>
+                  </div>
+                }
+                @if ((r.typeOperation === 'COTISATION' || r.typeOperation === 'COTISATION_MOIS') && r.montantAmendeMin != null) {
+                  <div class="rp-item">
+                    <div class="rp-label">Amende</div>
+                    <div class="rp-val pu">{{ formatFcfa(r.montantAmendeMin) }} – {{ formatFcfa(r.montantAmendeMax ?? r.montantAmendeMin) }}</div>
+                  </div>
+                }
+                @if (r.typeOperation === 'EMPRUNT' && r.nbEcheancesDefaut != null) {
+                  <div class="rp-item">
+                    <div class="rp-label">Échéances</div>
+                    <div class="rp-val">{{ r.nbEcheancesDefaut }} ({{ r.nbEcheancesMin }}–{{ r.nbEcheancesMax }})</div>
+                  </div>
+                }
+                @if (r.typeOperation === 'EMPRUNT' && r.nbEcheancesDefaut != null) {
+                  <div class="rp-item">
+                    <div class="rp-label">Dernière échéance</div>
+                    <div class="rp-val">{{ derniereEcheanceLibelle(r) }}</div>
+                  </div>
+                }
+                @if (r.typeOperation === 'EMPRUNT') {
+                  <div class="rp-item">
+                    <div class="rp-label">Frais</div>
+                    <div class="rp-val">{{ fraisLibelle(r) }}</div>
+                  </div>
+                }
+                @if (r.typeOperation === 'EMPRUNT' && (r.montantEcheanceMin != null || r.montantEcheanceMax != null)) {
+                  <div class="rp-item">
+                    <div class="rp-label">Montant échéance</div>
+                    <div class="rp-val">{{ echeanceLibelle(r) }}</div>
+                  </div>
+                }
+                @if (r.typeOperation === 'EMPRUNT' && r.typePenalite) {
+                  <div class="rp-item">
+                    <div class="rp-label">Pénalité</div>
+                    <div class="rp-val sol">{{ penaliteLibelle(r) }}</div>
+                  </div>
+                }
+                @if (r.mouvements.length) {
+                  <div class="rp-item">
+                    <div class="rp-label">Mouvements</div>
+                    <div class="rp-val">{{ r.mouvements.length }}</div>
+                  </div>
+                }
+              </div>
+            }
+          </button>
+        }
+      </div>
+
+      @if (selectedRegle(); as regle) {
+        <div class="detail-panel">
+          <form class="detail-card" [formGroup]="form" (ngSubmit)="$event.preventDefault(); enregistrer()">
+            <div class="card-h">
+              <span class="card-title">⚙ {{ regle.libelle }}</span>
+              <div class="card-h-actions">
+                <span class="badge" [class.b-green]="regle.actif" [class.b-gray]="!regle.actif">
+                  {{ regle.actif ? 'Active' : 'Inactive' }}
+                </span>
+                <button type="button" class="btn-s" (click)="simuler()">🔍 Simuler</button>
+              </div>
+            </div>
+
+            <div class="sect-title">📋 Paramètres généraux</div>
+            <div class="form-grid">
+              <div class="fl">
+                <label for="r-libelle">Libellé de la règle</label>
+                <input id="r-libelle" formControlName="libelle" />
+              </div>
+              @if (supportsPeriodicite()) {
+                <div class="fl">
+                  <label for="r-perio">Périodicité</label>
+                  <select id="r-perio" formControlName="periodicite">
+                    <option value="">—</option>
+                    @for (opt of periodiciteOptions; track opt.value) {
+                      <option [value]="opt.value">{{ opt.label }}</option>
+                    }
+                  </select>
+                </div>
+              }
+              @if (supportsPartsCotisation()) {
+                <div class="fl">
+                  <label for="r-vpp">Valeur d'une part (FCFA)</label>
+                  <input id="r-vpp" type="number" formControlName="montantParPart" step="500" min="1" />
+                </div>
+                <div class="fl">
+                  <label for="r-parts-min">Nombre de parts (min)</label>
+                  <input id="r-parts-min" type="number" formControlName="partsMin" min="1" step="1" />
+                </div>
+                <div class="fl">
+                  <label for="r-parts-max">Nombre de parts (max)</label>
+                  <input id="r-parts-max" type="number" formControlName="partsMax" min="1" step="1" />
+                </div>
+                @if (resumePlageFormulaire(); as resume) {
+                  <div class="fl span2">
+                    <p class="field-hint">
+                      <strong>{{ resume.partsMin }} à {{ resume.partsMax }} parts</strong>
+                      × {{ formatFcfa(resume.montantParPart) }} / part
+                      =
+                      <strong>{{ formatFcfa(resume.montantMin) }} – {{ formatFcfa(resume.montantMax) }}</strong>
+                    </p>
+                  </div>
+                }
+              }
+              @if (supportsMontants()) {
+                <div class="fl">
+                  <label for="r-min">Montant minimum emprunt (FCFA)</label>
+                  <input id="r-min" type="number" formControlName="montantMin" step="1000" min="0" />
+                </div>
+                <div class="fl">
+                  <label for="r-max">Montant maximum emprunt (FCFA)</label>
+                  <input id="r-max" type="number" formControlName="montantMax" step="1000" min="0" />
+                </div>
+              }
+            </div>
+
+            @if (supportsEmprunt()) {
+              <div class="sect-title">📈 Paramètres emprunt</div>
+              <div class="form-grid emprunt-grid">
+                <div class="fl">
+                  <label for="r-type-frais">Frais d'emprunt</label>
+                  <select id="r-type-frais" formControlName="typeFrais">
+                    <option value="">Aucun frais</option>
+                    @for (m of modesCalcul; track m.value) {
+                      <option [value]="m.value">{{ m.label }}</option>
+                    }
+                  </select>
+                </div>
+                @if (form.get('typeFrais')?.value === 'FIXE') {
+                  <div class="fl">
+                    <label for="r-montant-frais">Montant frais (FCFA)</label>
+                    <input id="r-montant-frais" type="number" formControlName="montantFrais" min="0" />
+                  </div>
+                }
+                @if (form.get('typeFrais')?.value === 'POURCENTAGE') {
+                  <div class="fl">
+                    <label for="r-pct-frais">Frais (%)</label>
+                    <input id="r-pct-frais" type="number" formControlName="pourcentageFrais" min="0" step="0.1" />
+                  </div>
+                }
+                <div class="fl">
+                  <label for="r-ech-min">Nombre d'échéances (min)</label>
+                  <input id="r-ech-min" type="number" formControlName="nbEcheancesMin" min="1" />
+                </div>
+                <div class="fl">
+                  <label for="r-ech-max">Nombre d'échéances (max)</label>
+                  <input id="r-ech-max" type="number" formControlName="nbEcheancesMax" min="1" />
+                </div>
+                <div class="fl">
+                  <label for="r-ech-def">Nombre d'échéances par défaut</label>
+                  <input id="r-ech-def" type="number" formControlName="nbEcheancesDefaut" min="1" />
+                </div>
+                <div class="fl">
+                  <label for="r-jour-ech">Jour du mois (échéances)</label>
+                  <input
+                    id="r-jour-ech"
+                    type="number"
+                    formControlName="jourEcheanceMois"
+                    min="1"
+                    max="31"
+                    placeholder="Ex. 15"
+                  />
+                </div>
+                <div class="fl">
+                  <label for="r-sim-date">Date d'octroi (simulation)</label>
+                  <input
+                    id="r-sim-date"
+                    type="date"
+                    [value]="simDateOctroi()"
+                    (input)="simDateOctroi.set($any($event.target).value)"
+                  />
+                </div>
+                <div class="fl span2">
+                  <p class="field-hint">
+                    Remboursement étalé : chaque échéance (sauf la dernière) est plafonnée au montant max ;
+                    le reliquat est porté sur la dernière échéance. Si 1 seule échéance (solidarité),
+                    la plage correspond au montant min/max emprunt ci-dessus (+ frais).
+                  </p>
+                </div>
+                <div class="fl">
+                  <label for="r-ech-mnt-min">Montant échéance (min FCFA)</label>
+                  <input id="r-ech-mnt-min" type="number" formControlName="montantEcheanceMin" min="0" step="1000" />
+                </div>
+                <div class="fl">
+                  <label for="r-ech-mnt-max">Montant échéance (max FCFA)</label>
+                  <input id="r-ech-mnt-max" type="number" formControlName="montantEcheanceMax" min="0" step="1000" />
+                </div>
+                @if (plageEcheancePourAppliquer(); as plage) {
+                  <div class="fl span2">
+                    <button type="button" class="btn-link" (click)="appliquerMontantEcheanceDepuisPlageEmprunt()">
+                      Appliquer depuis la plage emprunt ({{ formatFcfa(plage.min) }} – {{ formatFcfa(plage.max) }})
+                      pour paiement unique
+                    </button>
+                  </div>
+                }
+                <div class="fl">
+                  <label for="r-type-pen">Pénalité de retard</label>
+                  <select id="r-type-pen" formControlName="typePenalite">
+                    <option value="">—</option>
+                    @for (m of modesCalcul; track m.value) {
+                      <option [value]="m.value">{{ m.label }}</option>
+                    }
+                  </select>
+                </div>
+                @if (form.get('typePenalite')?.value === 'FIXE') {
+                  <div class="fl">
+                    <label for="r-montant-pen">Montant pénalité (FCFA)</label>
+                    <input id="r-montant-pen" type="number" formControlName="montantPenalite" min="0" />
+                  </div>
+                }
+                @if (form.get('typePenalite')?.value === 'POURCENTAGE') {
+                  <div class="fl">
+                    <label for="r-pct-pen">Pénalité (%)</label>
+                    <input id="r-pct-pen" type="number" formControlName="pourcentagePenalite" min="0" step="0.1" />
+                  </div>
+                }
+              </div>
+              @if (simulationEmpruntActuelle(); as sim) {
+                <div class="sim-inline emprunt-sim">
+                  <div class="sim-title">🔍 Simulation — emprunt {{ formatFcfa(simMontantEmprunt) }}</div>
+                  <div class="sim-row"><span>Montant emprunté</span><span class="cr-c">+ {{ formatFcfa(sim.montantEmprunt) }}</span></div>
+                  <div class="sim-row">
+                    <span>Frais</span>
+                    @if (sim.frais > 0) {
+                      <span class="or-c">+ {{ formatFcfa(sim.frais) }}</span>
+                    } @else {
+                      <span class="rp-val">Aucun frais</span>
+                    }
+                  </div>
+                  <div class="sim-row"><span>Total à rembourser</span><span class="cr-c">{{ formatFcfa(sim.totalRembourser) }}</span></div>
+                  @if (sim.paiementUnique) {
+                    <div class="sim-row">
+                      <span>Paiement unique (nominal + frais)</span>
+                      <span class="cr-c">{{ formatFcfa(sim.montantParEcheance) }}</span>
+                    </div>
+                  } @else if (sim.nbEcheances > 1 && sim.montantDerniereEcheance !== sim.montantParEcheance) {
+                    <div class="sim-row">
+                      <span>{{ sim.nbEcheances - 1 }} × {{ formatFcfa(sim.montantParEcheance) }} (max) · dernière</span>
+                      <span class="cr-c">{{ formatFcfa(sim.montantDerniereEcheance) }}</span>
+                    </div>
+                  } @else {
+                    <div class="sim-row">
+                      <span>{{ sim.nbEcheances }} échéance(s) ×</span>
+                      <span class="cr-c">{{ formatFcfa(sim.montantParEcheance) }}</span>
+                    </div>
+                  }
+                  <div class="sim-row">
+                    <span>Date dernière échéance</span>
+                    <span class="cr-c">{{ formatDateFr(sim.dateDerniereEcheance) }}</span>
+                  </div>
+                  <div class="sim-row"><span>Pénalité (retard)</span><span class="sol">{{ formatFcfa(sim.penalite) }}</span></div>
+                </div>
+              }
+            }
+
+            @if (supportsSolidarite()) {
+              <div class="sol-auto-row">
+                <span class="sol-ico" aria-hidden="true">🤝</span>
+                <div class="sa-label">Solidarité automatique à chaque cotisation</div>
+                <label class="toggle" [class.on]="form.get('solidariteAuto')?.value">
+                  <input type="checkbox" formControlName="solidariteAuto" (change)="toggleSolidarite()" hidden />
+                </label>
+                <input
+                  class="sa-input"
+                  type="number"
+                  formControlName="montantSolidariteAuto"
+                  placeholder="Montant F"
+                />
+                <span class="sa-fcfa">FCFA</span>
+              </div>
+            }
+
+            @if (supportsAmendeCotisation()) {
+              <div class="sect-title">🚫 Amende (cotisation)</div>
+              <p class="mv-hint">Plage de montants autorisée lors de l'application d'une amende liée à la cotisation.</p>
+              <div class="form-grid">
+                <div class="fl">
+                  <label for="r-amende-min">Montant amende minimum (FCFA)</label>
+                  <input id="r-amende-min" type="number" formControlName="montantAmendeMin" step="500" min="0" />
+                </div>
+                <div class="fl">
+                  <label for="r-amende-max">Montant amende maximum (FCFA)</label>
+                  <input id="r-amende-max" type="number" formControlName="montantAmendeMax" step="500" min="0" />
+                </div>
+              </div>
+            }
+
+            @if (!supportsEmprunt()) {
+            <div class="sect-title">🔄 Mouvements comptables</div>
+            <p class="mv-hint">💡 Les mouvements sont exécutés dans l'ordre indiqué.</p>
+
+            <div class="mv-list" formArrayName="mouvements">
+              @for (mv of mouvements.controls; track mv; let i = $index) {
+                <div
+                  class="mv-row"
+                  [class.sol-row]="mv.get('typeMontant')?.value === 'MONTANT_FIXE'"
+                  [formGroupName]="i"
+                >
+                  <span class="mv-num" [class.or-num]="mv.get('typeMontant')?.value === 'MONTANT_FIXE'">{{ i + 1 }}</span>
+                  <div class="mv-fields">
+                    <select formControlName="sourceType">
+                      @for (c of comptesMouvement; track c) {
+                        <option [value]="c">{{ libelleCompte(c) }}</option>
+                      }
+                    </select>
+                    <span class="mv-arrow">→</span>
+                    <select formControlName="cibleType">
+                      @for (c of comptesMouvement; track c) {
+                        <option [value]="c">{{ libelleCompte(c) }}</option>
+                      }
+                    </select>
+                  </div>
+                  <select class="mv-type" formControlName="typeMontant">
+                    @for (t of typesMontant; track t) {
+                      <option [value]="t">{{ labelTypeMontant(t) }}</option>
+                    }
+                  </select>
+                  <button type="button" class="mv-delete" (click)="supprimerMouvement(i)" aria-label="Supprimer">×</button>
+                </div>
+              }
+            </div>
+
+            <button type="button" class="btn-s mv-add" (click)="ajouterMouvement()">+ Ajouter un mouvement</button>
+
+            @if (mouvements.length && supportsMontants()) {
+              <div class="sim-inline">
+                <div class="sim-title">🔍 Simulation avec montant {{ formatFcfa(simMontant) }}</div>
+                @for (l of simulationLignes(); track l.label) {
+                  <div class="sim-row">
+                    <span>{{ l.label }}</span>
+                    <span [class]="l.cls">
+                      @if (l.cls === 'db-c') {
+                        − {{ formatFcfa(l.montant) }}
+                      } @else {
+                        + {{ formatFcfa(l.montant) }}
+                      }
+                    </span>
+                  </div>
+                }
+              </div>
+            }
+            }
+
+            <div class="form-actions">
+              <button type="button" class="btn-s" (click)="annuler()" [disabled]="saving()">Annuler</button>
+              <button type="submit" class="btn-p" [disabled]="saving()">
+                @if (saving()) {
+                  Enregistrement…
+                } @else {
+                  💾 Enregistrer la règle
+                }
+              </button>
+            </div>
+          </form>
+        </div>
+      }
+    </div>
+  }
+</div>
+

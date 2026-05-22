@@ -1,0 +1,275 @@
+﻿<div class="exercice-page">
+  @if (chargement()) {
+    <div class="exercice-loading" aria-live="polite">
+      <span class="pulse"></span>
+      Chargement des exercices…
+    </div>
+  } @else {
+    <div class="exercice-layout">
+      <aside class="left-panel">
+        <div class="lp-header">
+          <div class="lp-title">Exercices</div>
+          <p class="lp-intro">
+            Du <strong>PLANAD n°1</strong> au dernier de la période. À la clôture, l'exercice suivant repart à zéro.
+          </p>
+          @if (orgId() > 0) {
+            <a
+              class="btn-s lp-link-param"
+              [routerLink]="['/organisations', orgId(), 'parametrage', 'cloture']"
+            >
+              Paramétrage clôture
+            </a>
+          }
+        </div>
+
+        <div class="exercices-list">
+          @if (exercicesTries().length === 0) {
+            <p class="hint">Aucun exercice enregistré.</p>
+          } @else {
+            <div class="list-lbl">Tous les exercices</div>
+            @for (e of exercicesPaged(); track e.id) {
+              <button
+                type="button"
+                class="exercice-item"
+                [class.active]="selectionId() === e.id"
+                (click)="selectionnerExercice(e)"
+              >
+                <div class="ei-top">
+                  <span class="ei-num">n°{{ e.numero }}</span>
+                  @if (e.courant) {
+                    <span class="tag tag-live tag-sm">En cours</span>
+                  } @else {
+                    <span class="tag tag-done tag-sm">Clôturé</span>
+                  }
+                </div>
+                <div class="ei-planad">{{ libellePlanad(e) }}</div>
+                <div class="ei-period">
+                  {{ formatDate(e.dateDebut) }}
+                  @if (e.dateCloture) {
+                    <span class="ei-sep">→</span>{{ formatDate(e.dateCloture) }}
+                  }
+                </div>
+              </button>
+            }
+            <app-list-pagination
+              class="exercices-pagination"
+              [page]="pageExercices()"
+              [total]="exercicesTries().length"
+              [pageSize]="pageSizeExercices"
+              unit="exercice(s)"
+              (pageChange)="pageExercices.set($event)"
+            />
+          }
+        </div>
+      </aside>
+
+      <main class="right-panel">
+        @if (exerciceAffiche(); as ex) {
+          <header class="rh-header">
+            <div class="rh-top">
+              <div>
+                <div class="rh-title-row">
+                  @if (ex.courant) {
+                    <span class="rh-badge">En cours</span>
+                  } @else {
+                    <span class="rh-badge rh-badge--done">Clôturé</span>
+                  }
+                  <h1 class="rh-title">Exercice n°{{ ex.numero }}</h1>
+                </div>
+                <p class="rh-sub">{{ libellePlanad(ex) }}</p>
+              </div>
+              @if (peutReouvrirExercice(ex)) {
+                <button
+                  type="button"
+                  class="btn-s btn-reouvrir-ex"
+                  [disabled]="reouvertureExerciceId() === ex.id"
+                  (click)="confirmerReouvertureExercice(ex)"
+                >
+                  @if (reouvertureExerciceId() === ex.id) {
+                    Réouverture…
+                  } @else {
+                    Réouvrir cet exercice
+                  }
+                </button>
+              }
+            </div>
+            <dl class="rh-stats">
+              <div>
+                <dt>Début</dt>
+                <dd>{{ formatDate(ex.dateDebut) }}</dd>
+              </div>
+              @if (ex.dateCloture) {
+                <div>
+                  <dt>Clôture</dt>
+                  <dd>{{ formatDate(ex.dateCloture) }}</dd>
+                </div>
+              }
+              <div>
+                <dt>Comptes</dt>
+                <dd>
+                  @if (ex.reinitialisationComptes) {
+                    Réinitialisés
+                  } @else if (ex.numero === 1) {
+                    —
+                  } @else {
+                    Conservés
+                  }
+                </dd>
+              </div>
+            </dl>
+            @if (ex.observationCloture) {
+              <p class="rh-obs"><strong>Observation :</strong> {{ ex.observationCloture }}</p>
+            }
+          </header>
+
+          @if (vueCourant()) {
+            <section class="card-section" aria-labelledby="planads-titre">
+              <div class="cs-head">
+                <h2 id="planads-titre" class="cs-title">PLANAD de l'exercice</h2>
+                <p class="cs-lead">
+                  Clôturez chaque PLANAD avant d'en ouvrir un nouveau. Tous doivent être clôturés pour passer à
+                  l'exercice suivant.
+                </p>
+              </div>
+
+              @if (planads().length === 0) {
+                <p class="hint-box">Aucun PLANAD enregistré — il sera créé à la première opération.</p>
+              } @else {
+                <ul class="planad-list">
+                  @for (p of planads(); track p.id) {
+                    <li class="planad-row" [class.planad-row--open]="p.statut === 'OUVERT'">
+                      <div class="planad-row-main">
+                        <span class="planad-name">{{ p.libelle }}</span>
+                        <span class="planad-meta">{{ formatDate(p.dateReunion) }} · {{ p.nbOperations }} op.</span>
+                      </div>
+                      <div class="planad-row-actions">
+                        @if (p.statut === 'OUVERT') {
+                          <span class="tag tag-live tag-sm">Ouvert</span>
+                          <button
+                            type="button"
+                            class="btn-p btn-sm"
+                            [disabled]="cloturePlanadId() === p.id"
+                            (click)="confirmerCloturePlanad(p)"
+                          >
+                            @if (cloturePlanadId() === p.id) {
+                              Clôture…
+                            } @else {
+                              Clôturer
+                            }
+                          </button>
+                        } @else {
+                          <span class="tag tag-done tag-sm">Clôturé</span>
+                          @if (p.dateCloture) {
+                            <span class="planad-cloture-dt">{{ formatDate(p.dateCloture) }}</span>
+                          }
+                          @if (estSuperadmin()) {
+                            <button
+                              type="button"
+                              class="btn-s btn-reouvrir-planad"
+                              [disabled]="reouverturePlanadId() === p.id"
+                              (click)="confirmerReouverturePlanad(p)"
+                            >
+                              @if (reouverturePlanadId() === p.id) {
+                                …
+                              } @else {
+                                Réouvrir
+                              }
+                            </button>
+                          }
+                        }
+                      </div>
+                    </li>
+                  }
+                </ul>
+              }
+            </section>
+
+            <section class="card-section card-section--closure" aria-labelledby="cloture-titre">
+              <div class="cs-head">
+                <h2 id="cloture-titre" class="cs-title">Clôturer &amp; ouvrir le suivant</h2>
+                <p class="cs-lead">
+                  Soldes tous les emprunts en cours et clôturez tous les PLANAD. Le prochain exercice reprendra au
+                  PLANAD n°1.
+                </p>
+              </div>
+
+              @if (messageBlocageExercice(); as msg) {
+                <p class="alert-warn" role="status">{{ msg }}</p>
+              }
+
+              <label class="option-card" [class.option-card--on]="effectuerRepartition()">
+                <input
+                  type="checkbox"
+                  class="option-check"
+                  [checked]="effectuerRepartition()"
+                  (change)="onRepartitionToggle($any($event.target).checked)"
+                />
+                <span class="option-body">
+                  <span class="option-title">Répartir les montants configurés (Intérêts, Pénalités, Amendes…)</span>
+                  <span class="option-desc">Prorata ou équitable selon le paramétrage — après frais et retenues</span>
+                </span>
+              </label>
+
+              @if (effectuerRepartition()) {
+                <div class="preview-block">
+                  <app-cloture-repartition-preview
+                    [preview]="previewRepartition()"
+                    [loading]="previewLoading()"
+                    (refresh)="chargerPreviewRepartition()"
+                  />
+                </div>
+              }
+
+              <label class="option-card" [class.option-card--on]="reinitialiserComptes()">
+                <input
+                  type="checkbox"
+                  class="option-check"
+                  [checked]="reinitialiserComptes()"
+                  (change)="reinitialiserComptes.set($any($event.target).checked)"
+                />
+                <span class="option-body">
+                  <span class="option-title">Réinitialiser les soldes des comptes</span>
+                  <span class="option-desc">Remet les soldes à zéro — l'historique des opérations est conservé</span>
+                </span>
+              </label>
+
+              <label class="field-block">
+                <span class="field-label">Observation de clôture <span class="opt">(optionnel)</span></span>
+                <textarea
+                  rows="3"
+                  class="field-textarea"
+                  [value]="observationCloture()"
+                  (input)="observationCloture.set($any($event.target).value)"
+                  placeholder="Ex. Assemblée générale du 18 mai 2026"
+                ></textarea>
+              </label>
+
+              <button
+                type="button"
+                class="btn-p btn-cloture-ex"
+                [disabled]="transitionEnCours() || !peutCloturerExercice()"
+                (click)="confirmerTransition()"
+              >
+                @if (transitionEnCours()) {
+                  <span class="btn-spinner" aria-hidden="true"></span>
+                  Traitement en cours…
+                } @else {
+                  Clôturer n°{{ ex.numero }} et ouvrir n°{{ ex.numero + 1 }}
+                }
+              </button>
+            </section>
+          } @else {
+            <section class="card-section">
+              <p class="hint-box">
+                Exercice clôturé — consultation seule. Sélectionnez l'exercice <strong>en cours</strong> pour gérer les
+                PLANAD et lancer une transition.
+              </p>
+            </section>
+          }
+        } @else {
+          <p class="hint-box">Aucun exercice à afficher.</p>
+        }
+      </main>
+    </div>
+  }
+</div>

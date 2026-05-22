@@ -1,0 +1,536 @@
+<div class="recap-page">
+  <div class="recap-layout">
+    <!-- Panneau gauche -->
+    <aside class="left-panel">
+      <div class="lp-header">
+        <div class="lp-title">Journées enregistrées</div>
+        <div class="date-label">Date de réunion</div>
+        <div class="date-input-wrap">
+          <input
+            id="recap-date"
+            type="date"
+            class="date-input"
+            [value]="dateSaisie()"
+            (change)="dateSaisie.set($any($event.target).value)"
+          />
+          <span class="date-ico" aria-hidden="true">📅</span>
+        </div>
+        <div class="lp-btns">
+          <button type="button" class="btn-p lp-btn-main" (click)="chargerParDate()">👁 Voir le récap</button>
+          <button type="button" class="btn-s" (click)="ouvrirModalNommer()">+ Nommer</button>
+        </div>
+
+        @if (journees().length) {
+          <div class="planad-filtre">
+            <label for="recap-filtre-planad">N° PLANAD</label>
+            <div class="planad-filtre-row">
+              <input
+                id="recap-filtre-planad"
+                type="number"
+                min="1"
+                max="99"
+                class="planad-input"
+                [value]="filtrePlanadNumero()"
+                (input)="onFiltrePlanadNumero($event)"
+                placeholder="Ex. 12"
+                inputmode="numeric"
+              />
+              @if (filtrePlanadActif()) {
+                <button type="button" class="btn-s" (click)="effacerFiltrePlanad()">Effacer</button>
+              }
+            </div>
+          </div>
+        }
+      </div>
+
+      <div class="journees-list">
+        @if (loadingListe()) {
+          <p class="hint">Chargement…</p>
+        } @else if (!journees().length) {
+          <p class="hint">Aucune journée enregistrée.</p>
+        } @else if (!journeesFiltrees().length) {
+          <p class="hint">Aucune journée pour ce numéro.</p>
+        } @else {
+          <div class="list-lbl">Réunions récentes</div>
+          @for (j of journeesPaged(); track j.id) {
+            <button
+              type="button"
+              class="journee-item"
+              [class.active]="journeeSelectionneeId() === j.id"
+              (click)="selectionnerJournee(j.id)"
+            >
+              <div class="ji-name">{{ j.libelle }}</div>
+              <div class="ji-date">{{ formatDateFr(j.dateReunion) }}</div>
+              <div class="ji-stats">
+                <span class="ji-stat">💰 <span>{{ j.nbCotisations }}</span> cotis.</span>
+                <span class="ji-stat">📋 <span>{{ j.nbEmprunts }}</span> empr.</span>
+                <span class="ji-stat">🔄 <span>{{ j.nbRemboursements }}</span> remb.</span>
+              </div>
+            </button>
+          }
+          <app-list-pagination
+            class="journees-pagination"
+            [page]="pageJournees()"
+            [total]="journeesFiltrees().length"
+            [pageSize]="pageSizeJournees"
+            unit="journée(s)"
+            (pageChange)="pageJournees.set($event)"
+          />
+        }
+      </div>
+    </aside>
+
+    <!-- Panneau droit -->
+    <div class="right-panel">
+      @if (loadingRecap()) {
+        <p class="hint center">Chargement du récapitulatif…</p>
+      } @else {
+        @if (recap(); as r) {
+        <div class="recap-toolbar no-print">
+          <input
+            type="search"
+            class="tb-search-input"
+            placeholder="Rechercher membre, opération…"
+            [value]="rechercheGlobale()"
+            (input)="onRechercheGlobale($event)"
+          />
+        </div>
+
+        <div class="recap-header">
+          <div class="rh-top">
+            <div class="rh-left">
+              <div class="rh-title-row">
+                <span class="rh-planad-badge">{{ planadBadgeFromLibelle(r.libelle) }}</span>
+                <h1 class="rh-title">{{ r.libelle }}</h1>
+              </div>
+              <p class="rh-date">
+                📅 {{ formatDateFr(r.dateReunion) }} · {{ organisationNom() }} · {{ r.codeOrganisation }}
+              </p>
+            </div>
+            <div class="rh-actions no-print">
+              <button type="button" class="btn-s" (click)="imprimer()">🖨 Imprimer</button>
+              <button type="button" class="btn-s" (click)="exporterPdf()">📄 PDF</button>
+              <button type="button" class="btn-or" (click)="exporterExcel()">📊 Excel</button>
+            </div>
+          </div>
+
+          <div class="kpi-strip">
+            <div class="kpi-cell">
+              <div class="kc-val">{{ r.synthese.nbCotisations }}</div>
+              <div class="kc-lbl">Cotisations</div>
+              <div class="kc-sub">{{ formatFcfa(r.synthese.montantCotisations) }}</div>
+            </div>
+            <div class="kpi-cell">
+              <div class="kc-val">{{ r.synthese.nbEmprunts }}</div>
+              <div class="kc-lbl">Emprunts accordés</div>
+              <div class="kc-sub neg">{{ sousTitreEmprunts() }}</div>
+            </div>
+            <div class="kpi-cell">
+              <div class="kc-val">{{ r.synthese.nbRemboursements }}</div>
+              <div class="kc-lbl">Remboursements</div>
+              <div class="kc-sub">{{ formatFcfa(r.synthese.montantRemboursements) }}</div>
+            </div>
+            <div class="kpi-cell">
+              <div class="kc-val">{{ r.synthese.nbMembresConcernes }}</div>
+              <div class="kc-lbl">Membres concernés</div>
+              <div class="kc-sub or">{{ nbOperationsActives() }} opérations</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filtre membre -->
+        <div class="section filtre-section no-print">
+          <div class="section-head">
+            <div class="section-title">🔍 Filtrer par membre</div>
+            <div class="head-actions">
+              <button type="button" class="btn-s" (click)="exporterMembresCsv()" [disabled]="!membresFiltres().length">
+                Exporter membres
+              </button>
+              <button type="button" class="btn-s" (click)="exporterOperationsCsv()" [disabled]="!operationsFiltres().length">
+                Exporter opérations
+              </button>
+            </div>
+          </div>
+          <div class="section-body">
+            <div class="membre-search-row recap-filtre-row">
+              <div class="fl membre-search-main">
+                <label for="recap-filtre-membre">Nom ou code membre</label>
+                <input
+                  id="recap-filtre-membre"
+                  type="search"
+                  [value]="filtreMembreTexte()"
+                  (input)="onFiltreMembreTexte($event)"
+                  placeholder="Ex. Dupont, GDR-001…"
+                />
+              </div>
+              <div class="fl membre-search-code">
+                <label for="recap-filtre-code">N° code</label>
+                <input
+                  id="recap-filtre-code"
+                  type="text"
+                  [value]="filtreMembreCodeNum()"
+                  (input)="onFiltreMembreCodeNum($event)"
+                  placeholder="001"
+                />
+              </div>
+              @if (filtreMembreActif()) {
+                <button type="button" class="btn-s filtre-clear" (click)="effacerFiltreMembre()">Effacer</button>
+              }
+            </div>
+          </div>
+        </div>
+
+        <!-- Comptes organisation -->
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">🏦 Comptes organisation — Impact de la journée</div>
+            <span class="badge b-green">Soldes mis à jour</span>
+          </div>
+          <div class="section-body">
+            <div class="comptes-grid">
+              @for (c of comptesOrgPaged(); track c.typeCompte) {
+                <div class="compte-box" [class]="compteOrgBoxClass(c.typeCompte)">
+                  <div class="cb-header">
+                    <span class="cb-name">{{ c.libelle }}</span>
+                    <span class="cb-icon">{{ compteIcon(c.typeCompte) }}</span>
+                  </div>
+                  <div class="cb-row">
+                    <span>Solde début de journée</span>
+                    <span>{{ formatFcfa(soldeDebutCompte(c)) }}</span>
+                  </div>
+                  <div class="cb-row">
+                    <span>Variation du jour</span>
+                    <span>
+                      <span class="variation-pill" [class]="variationPillClass(c.variationJour)">
+                        {{ formatVariation(c.variationJour) }}
+                      </span>
+                    </span>
+                  </div>
+                  <div class="cb-row cb-row-total">
+                    <span>Solde fin de journée</span>
+                    <span>{{ formatFcfa(c.soldeFinJournee) }}</span>
+                  </div>
+                  <div class="cb-row muted">
+                    <span>Solde actuel</span>
+                    <span>{{ formatFcfa(c.soldeActuel) }}</span>
+                  </div>
+                </div>
+              }
+            </div>
+            <app-list-pagination
+              [page]="pageComptesOrg()"
+              [total]="comptesOrgList().length"
+              [pageSize]="pageSizeComptesOrg"
+              unit="compte(s)"
+              (pageChange)="pageComptesOrg.set($event)"
+            />
+          </div>
+        </div>
+
+        <!-- Membres -->
+        <div class="section">
+          <div class="section-head">
+            <div class="section-title">
+              👥 Membres concernés
+              <span class="count-muted">({{ membresFiltres().length }} / {{ r.membres.length }})</span>
+            </div>
+          </div>
+          <div class="section-body section-body-table">
+            @if (!membresFiltres().length) {
+              <p class="hint">Aucun membre à afficher.</p>
+            } @else {
+              <div class="table-wrap">
+                <table class="membres-table">
+                  <thead>
+                    <tr>
+                      <th>Membre</th>
+                      <th>Cotisations</th>
+                      <th>Emprunts</th>
+                      <th>Remboursements</th>
+                      <th>Variation comptes</th>
+                      <th>Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (m of membresPaged(); track m.membreId) {
+                      <tr>
+                        <td>
+                          <div class="m-cell">
+                            <div
+                              class="m-av"
+                              [style.background]="avatarColor(m.codeMembre)"
+                            >{{ initialsFromName(m.membreNom) }}</div>
+                            <div>
+                              <div class="m-name">{{ m.membreNom }}</div>
+                              <div class="m-num">{{ m.codeMembre }}</div>
+                            </div>
+                          </div>
+                        </td>
+                        <td>
+                          @if (m.montantCotisations > 0) {
+                            <span class="cr-c fw">{{ formatFcfa(m.montantCotisations) }}</span>
+                          } @else {
+                            <span class="muted">—</span>
+                          }
+                        </td>
+                        <td>
+                          @if (m.montantEmprunts > 0) {
+                            <span class="db-c fw">{{ formatFcfa(m.montantEmprunts) }}</span>
+                          } @else {
+                            <span class="muted">—</span>
+                          }
+                        </td>
+                        <td>
+                          @if (m.montantRemboursements > 0) {
+                            <span class="cr-c fw">{{ formatFcfa(m.montantRemboursements) }}</span>
+                          } @else {
+                            <span class="muted">—</span>
+                          }
+                        </td>
+                        <td>
+                          <span class="variation-pill" [class]="variationPillClass(m.variationNetComptes)">
+                            {{ formatVariation(m.variationNetComptes) }}
+                          </span>
+                        </td>
+                        <td>
+                          @if (statutMembreLabel(m); as st) {
+                            <span class="badge" [class]="st.class">{{ st.label }}</span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <app-list-pagination
+                class="table-pagination"
+                [page]="pageMembres()"
+                [total]="membresFiltres().length"
+                [pageSize]="pageSizeTable"
+                unit="membre(s)"
+                (pageChange)="pageMembres.set($event)"
+              />
+            }
+          </div>
+        </div>
+
+        <!-- Détail comptes membres (synthèse) -->
+        @if (membresFiltres().length) {
+          <div class="section">
+            <div class="section-head">
+              <div class="section-title">💳 Synthèse par membre</div>
+            </div>
+            <div class="section-body">
+              <div class="comptes-membres-grid">
+                @for (m of syntheseMembresPaged(); track m.membreId) {
+                  <div class="cm-card">
+                    <div class="cm-header">
+                      <div class="cm-av" [style.background]="avatarColor(m.codeMembre)">
+                        {{ initialsFromName(m.membreNom) }}
+                      </div>
+                      <div>
+                        <div class="cm-name">{{ m.membreNom }}</div>
+                        <div class="cm-num">{{ m.codeMembre }}</div>
+                      </div>
+                      @if (statutMembreLabel(m); as st) {
+                        <span class="badge" [class]="st.class">{{ st.label }}</span>
+                      }
+                    </div>
+                    <div class="cm-comptes">
+                      <div class="cm-compte-row">
+                        <span>Cotisations</span>
+                        <span>{{ formatFcfa(m.montantCotisations) }}</span>
+                      </div>
+                      <div class="cm-compte-row">
+                        <span>Emprunts</span>
+                        <span>{{ formatFcfa(m.montantEmprunts) }}</span>
+                      </div>
+                      <div class="cm-compte-row">
+                        <span>Remboursements</span>
+                        <span>{{ formatFcfa(m.montantRemboursements) }}</span>
+                      </div>
+                      <div class="cm-compte-row">
+                        <span>Variation nette</span>
+                        <span [class]="variationClass(m.variationNetComptes)">{{ formatVariation(m.variationNetComptes) }}</span>
+                      </div>
+                    </div>
+                  </div>
+                }
+              </div>
+              <app-list-pagination
+                [page]="pageSynthese()"
+                [total]="membresFiltres().length"
+                [pageSize]="pageSizeSynthese"
+                unit="membre(s)"
+                (pageChange)="pageSynthese.set($event)"
+              />
+            </div>
+          </div>
+        }
+
+        <!-- Opérations -->
+        <div class="section">
+          <div class="section-head ops-head">
+            <div class="section-title">
+              ⚡ Opérations du jour
+              <span class="count-muted">({{ operationsFiltres().length }} / {{ r.operations.length }})</span>
+            </div>
+            <div class="ops-filters no-print">
+              <select class="sel-filtre" [value]="filtreTypeOperation()" (change)="onFiltreTypeOp($event)">
+                <option value="">Tous les types</option>
+                <option value="COTISATION">Cotisation</option>
+                <option value="EMPRUNT">Emprunt</option>
+                <option value="REMBOURSEMENT">Remboursement</option>
+              </select>
+              <select class="sel-filtre" [value]="filtreStatutOperation()" (change)="onFiltreStatutOp($event)">
+                <option value="">Tous les statuts</option>
+                <option value="ACTIVE">Active</option>
+                <option value="ANNULEE">Annulée</option>
+                <option value="ANNULATION">Annulation</option>
+              </select>
+              <button type="button" class="section-action" (click)="exporterOperationsCsv()">Exporter →</button>
+            </div>
+          </div>
+          <div class="section-body section-body-flush">
+            @if (!operationsFiltres().length) {
+              <p class="hint pad">Aucune opération à afficher.</p>
+            } @else {
+              <div class="table-wrap">
+                <table class="ops-table">
+                  <thead>
+                    <tr>
+                      <th>Type d'opération</th>
+                      <th>Membre</th>
+                      <th>Détails</th>
+                      <th class="ta-r">Montant</th>
+                      <th>Impact caisse</th>
+                      <th>Statut</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    @for (op of operationsPaged(); track op.operationId) {
+                      <tr [class.annulee]="op.annulee || op.annulation">
+                        <td>
+                          <div class="op-type">
+                            @if (typeOperationMeta(op.typeOperation); as meta) {
+                              <span class="op-type-ico" [style.background]="meta.bg">{{ meta.icon }}</span>
+                            }
+                            {{ op.typeLibelle }}
+                          </div>
+                        </td>
+                        <td>
+                          @if (op.membreNom) {
+                            <span class="fw">{{ op.membreNom }}</span>
+                            @if (op.codeMembre) {
+                              <br /><span class="m-num">{{ op.codeMembre }}</span>
+                            }
+                          } @else {
+                            <span class="muted">—</span>
+                          }
+                        </td>
+                        <td class="muted-sm">{{ op.observation || '—' }}</td>
+                        <td class="ta-r fw" [class.cr-c]="!op.annulee && !op.annulation">
+                          {{ formatFcfa(op.montantTotal) }}
+                        </td>
+                        <td>
+                          <span class="variation-pill" [class]="variationPillClass(op.annulee || op.annulation ? 0 : op.montantTotal)">
+                            {{ impactCaisseLabel(op) }}
+                          </span>
+                        </td>
+                        <td>
+                          @if (op.annulation) {
+                            <span class="statut-chip sc-annulation">Annulation</span>
+                          } @else if (op.annulee) {
+                            <span class="statut-chip sc-annulee">Annulée</span>
+                          } @else {
+                            <span class="statut-chip sc-active">Active</span>
+                          }
+                        </td>
+                      </tr>
+                    }
+                  </tbody>
+                </table>
+              </div>
+              <app-list-pagination
+                class="table-pagination"
+                [page]="pageOperations()"
+                [total]="operationsFiltres().length"
+                [pageSize]="pageSizeTable"
+                unit="opération(s)"
+                (pageChange)="pageOperations.set($event)"
+              />
+            }
+          </div>
+        </div>
+
+        <!-- Bilan global -->
+        <div class="recap-footer">
+          <div class="rf-title">📊 Bilan global de la journée — {{ r.libelle }}</div>
+          <div class="rf-grid">
+            <div class="rf-item">
+              <div class="rf-val">{{ formatVariation(r.comptesOrganisation.length ? r.comptesOrganisation[0].variationJour : 0) }}</div>
+              <div class="rf-lbl">Variation caisse nette</div>
+            </div>
+            <div class="rf-divider"></div>
+            <div class="rf-item">
+              <div class="rf-val">{{ formatFcfa(r.synthese.montantCotisations) }}</div>
+              <div class="rf-lbl">Total cotisations</div>
+            </div>
+            <div class="rf-divider"></div>
+            <div class="rf-item">
+              <div class="rf-val">{{ formatFcfa(r.synthese.montantEmprunts) }}</div>
+              <div class="rf-lbl">Total emprunts</div>
+            </div>
+            <div class="rf-divider"></div>
+            <div class="rf-item">
+              <div class="rf-val">{{ formatFcfa(r.synthese.montantRemboursements) }}</div>
+              <div class="rf-lbl">Total remboursements</div>
+            </div>
+            <div class="rf-divider"></div>
+            <div class="rf-item">
+              <div class="rf-val">{{ nbOperationsActives() }} / {{ r.operations.length }}</div>
+              <div class="rf-lbl">Opérations actives</div>
+            </div>
+          </div>
+        </div>
+        } @else {
+          <div class="empty-state">
+            <p>Sélectionnez une journée ou une date pour afficher le récapitulatif.</p>
+          </div>
+        }
+      }
+    </div>
+  </div>
+</div>
+
+<!-- Modal nommer -->
+@if (modalNommerOuvert()) {
+  <div
+    class="modal-ov show"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="modal-nommer-title"
+    (click)="fermerModalNommer()"
+    (keydown.escape)="fermerModalNommer()"
+  >
+    <div class="modal" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3 id="modal-nommer-title">📋 Nommer cette journée</h3>
+        <button type="button" class="modal-close" (click)="fermerModalNommer()" aria-label="Fermer">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-fl">
+          <label for="modal-date">Date de la réunion</label>
+          <input id="modal-date" type="date" [value]="dateSaisie()" (change)="dateSaisie.set($any($event.target).value)" />
+        </div>
+        <div class="modal-hint">
+          💡 Toutes les opérations enregistrées à cette date seront regroupées sous un libellé automatique (ex. PLANAD n°5).
+        </div>
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn-s" (click)="fermerModalNommer()">Annuler</button>
+        <button type="button" class="btn-p" (click)="confirmerNommer()">💾 Enregistrer</button>
+      </div>
+    </div>
+  </div>
+}

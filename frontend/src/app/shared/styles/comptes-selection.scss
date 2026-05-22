@@ -1,0 +1,177 @@
+// Sélection de comptes (modales membre / superadmin) — styles partagés
+.cotis-comptes-scope {
+  --g1: #1a5c3a;
+  --g2: #2d7a52;
+  --g3: #e8f5ee;
+  --or: #c9922a;
+  --md: #4a5568;
+  --lt: #94a3b8;
+  --re: #c0392b;
+  --re2: #fdeaea;
+  --dk: #1c1c1e;
+
+  .comptes-auto {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 8px;
+    font-size: 11px;
+  }
+
+  .comptes-select {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .ca-item {
+    background: var(--g3);
+    border-radius: 8px;
+    padding: 9px;
+    text-align: center;
+    border: 2px solid transparent;
+    font-family: inherit;
+  }
+
+  .ca-item.ca-check {
+    cursor: pointer;
+    position: relative;
+  }
+
+  .ca-item.ca-check.on {
+    border-color: var(--g2);
+    background: #fff;
+    box-shadow: 0 0 0 1px var(--g3);
+  }
+
+  .ca-item.ca-check.ca-warn.on {
+    border-color: var(--re);
+    background: #fff;
+  }
+
+  .ca-item.ca-fixed.on {
+    border-color: var(--g2);
+    background: #fff;
+    box-shadow: 0 0 0 1px var(--g3);
+  }
+
+  .ca-item.ca-check.on::after,
+  .ca-item.ca-fixed.on::after {
+    content: '✓';
+    position: absolute;
+    top: 5px;
+    right: 7px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--g2);
+    color: #fff;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 16px;
+    text-align: center;
+  }
+
+  .ca-item.ca-check.ca-warn.on::after {
+    background: var(--re);
+  }
+
+  .ca-input {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+  }
+
+  .ca-sub {
+    font-size: 9px;
+    color: var(--md);
+    margin-top: 2px;
+  }
+
+  .ca-fixed {
+    cursor: default;
+  }
+
+  .ca-item.ca-muted {
+    background: #f1f0eb;
+  }
+
+  .ca-item.ca-warn {
+    background: var(--re2);
+  }
+
+  .ca-ico {
+    font-size: 16px;
+    margin-bottom: 3px;
+  }
+
+  .ca-lbl {
+    font-weight: 700;
+  }
+
+  .c-g1 {
+    color: var(--g1);
+  }
+
+  .c-or {
+    color: var(--or);
+  }
+
+  .c-re {
+    color: var(--re);
+  }
+
+  .comptes-recap {
+    margin-top: 10px;
+    padding: 10px 12px;
+    background: var(--g3);
+    border-radius: 8px;
+    font-size: 11px;
+    color: var(--md);
+    line-height: 1.45;
+
+    strong {
+      color: var(--g1);
+      font-weight: 700;
+    }
+  }
+
+  .comptes-recap-tags {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    margin-top: 6px;
+  }
+
+  .comptes-recap-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 8px;
+    border-radius: 6px;
+    background: #fff;
+    border: 1px solid var(--g2);
+    color: var(--g1);
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  .comptes-recap-tag.warn {
+    border-color: var(--re);
+    color: var(--re);
+    background: #fff;
+  }
+
+  .comptes-recap-tag.muted {
+    border-color: #d1d5db;
+    color: var(--md);
+    background: #f9fafb;
+  }
+
+  .modal-hint {
+    font-size: 11px;
+    color: var(--md);
+    margin-top: 8px;
+    background: var(--g3);
+    border-radius: 8px;
+    padding: 9px;
+  }
+}

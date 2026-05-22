@@ -1,0 +1,761 @@
+<div class="cotisation-page">
+  <form [formGroup]="form" (ngSubmit)="$event.preventDefault()">
+  <div class="page-header">
+    <div>
+      <div class="pt">
+        @if (typeUi() === 'historique') {
+          Historique des cotisations
+        } @else if (typeUi() === 'hebdo') {
+          Saisir une cotisation
+        } @else {
+          Saisir une cotisation mensuelle
+        }
+      </div>
+      <div class="ps">
+        @if (typeUi() === 'historique') {
+          Cotisations hebdo, mensuelles et solidarité enregistrées pour l'organisation.
+        } @else {
+          Règle active : {{ regleActive().libelle }} · {{ libellePlageRegle(regleActive()) }}
+          @if (regleActive().solidariteAuto) {
+            · Solidarité auto {{ formatFcfa(regleActive().montantSolidarite) }}
+          }
+          · Amende {{ formatFcfa(regleActive().montantAmendeMin) }} – {{ formatFcfa(regleActive().montantAmendeMax) }}
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="type-tabs type-tabs-3">
+    <button
+      type="button"
+      class="type-tab"
+      [class.on-green]="typeUi() === 'hebdo'"
+      (click)="setType('hebdo')"
+      title="Hebdomadaire (Ctrl+1)"
+    >
+      <span>💰 Cotisation Hebdomadaire</span>
+      <span class="tt-sub">Épargne hebdo · {{ formatFcfa(regleHebdo().montantMin) }}–{{ formatFcfa(regleHebdo().montantMax) }}</span>
+    </button>
+    <button
+      type="button"
+      class="type-tab"
+      [class.on-pink]="typeUi() === 'mois'"
+      (click)="setType('mois')"
+      title="Mensuelle (Ctrl+2)"
+    >
+      <span>📅 Cotisation Mensuelle (Mois)</span>
+      <span class="tt-sub">Épargne mois · {{ formatFcfa(regleMois().montantMin) }}–{{ formatFcfa(regleMois().montantMax) }}</span>
+    </button>
+    <button
+      type="button"
+      class="type-tab"
+      [class.on-blue]="typeUi() === 'historique'"
+      (click)="setType('historique')"
+      title="Historique (Ctrl+3)"
+    >
+      <span>📋 Historique</span>
+      <span class="tt-sub">Cotisations & solidarité</span>
+    </button>
+  </div>
+
+  @if (typeUi() === 'historique') {
+    <div class="historique-panel">
+      <div class="card">
+        <div class="card-pad">
+          <div class="card-h historique-h">
+            <span class="card-title">📋 Toutes les cotisations & solidarités</span>
+            <button type="button" class="btn-refresh" (click)="chargerHistorique()">Actualiser</button>
+          </div>
+          <div class="filters-row historique-filters">
+            <select class="filter-select" [value]="filtreHistType()" (change)="onFiltreHistType($event)">
+              <option value="tous">Tous les types</option>
+              <option value="hebdo">Cotisation hebdo</option>
+              <option value="mois">Cotisation mois</option>
+              <option value="solidarite">Solidarité</option>
+            </select>
+            <input
+              type="search"
+              class="filter-search"
+              placeholder="Membre, période, observation…"
+              [value]="filtreHistRecherche()"
+              (input)="onFiltreHistRecherche($event)"
+              aria-label="Filtrer l'historique"
+            />
+            <span class="filtre-count">{{ historiqueFiltre().length }} ligne(s)</span>
+          </div>
+          <div class="filters-row historique-dates">
+            <label class="hist-date-lbl">
+              Du
+              <input
+                type="date"
+                class="filter-date"
+                [value]="filtreHistDateDebut()"
+                (change)="onFiltreHistDateDebut($event)"
+                aria-label="Date de début"
+              />
+            </label>
+            <label class="hist-date-lbl">
+              Au
+              <input
+                type="date"
+                class="filter-date"
+                [value]="filtreHistDateFin()"
+                (change)="onFiltreHistDateFin($event)"
+                aria-label="Date de fin"
+              />
+            </label>
+            @if (filtreHistDateDebut() || filtreHistDateFin()) {
+              <button type="button" class="btn-date-clear" (click)="reinitialiserFiltreHistDates()">
+                Effacer dates
+              </button>
+            }
+          </div>
+          <div class="hist-summary hist-summary-3">
+            <div class="hist-sum green">
+              <div class="n">{{ historiqueTotaux().hebdo }}</div>
+              <div class="lbl">Cotisations hebdo</div>
+              <div class="sub">{{ formatFcfa(historiqueTotaux().montantHebdo) }}</div>
+            </div>
+            <div class="hist-sum pi">
+              <div class="n">{{ historiqueTotaux().mois }}</div>
+              <div class="lbl">Cotisations mensuelles</div>
+              <div class="sub">{{ formatFcfa(historiqueTotaux().montantMois) }}</div>
+            </div>
+            <div class="hist-sum or">
+              <div class="n">{{ historiqueTotaux().solidarite }}</div>
+              <div class="lbl">Solidarités</div>
+              <div class="sub">{{ formatFcfa(historiqueTotaux().montantSolidarite) }}</div>
+            </div>
+          </div>
+          <div class="table-wrap">
+            <table class="hist-table">
+              <thead>
+                <tr>
+                  <th>Membre</th>
+                  <th>Type</th>
+                  <th>Période</th>
+                  <th>Montant</th>
+                  <th>Paiement</th>
+                  <th>Date</th>
+                  <th class="th-actions">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                @if (historiqueLoading()) {
+                  <tr>
+                    <td colspan="7" class="empty-filtre">
+                      <div class="loading-state-inline">
+                        <div class="spinner-small"></div>
+                        <span>Chargement…</span>
+                      </div>
+                    </td>
+                  </tr>
+                } @else {
+                  @for (h of historiqueFiltre(); track h.ligneId) {
+                    <tr [class.hist-row-annulee]="h.annulee">
+                      <td>
+                        <div class="h-name">{{ h.membreNom }}</div>
+                        <div class="h-code">{{ h.codeMembre }}</div>
+                      </td>
+                      <td>
+                        @if (h.typeLigne === 'HEBDO') {
+                          <span class="badge b-green">Hebdo</span>
+                        } @else if (h.typeLigne === 'MOIS') {
+                          <span class="badge b-pi">Mois</span>
+                        } @else {
+                          <span class="badge b-or">Solidarité</span>
+                          <span class="hist-sol-ctx">· {{ h.typeCotisation === 'HEBDO' ? 'hebdo' : 'mois' }}</span>
+                        }
+                        @if (h.annulee) {
+                          <span class="badge b-muted">Annulée</span>
+                        }
+                      </td>
+                      <td class="h-periode">{{ h.periode }}</td>
+                      <td class="h-amt" [class.cr-c]="!h.annulee" [class.hist-amt-annulee]="h.annulee">
+                        @if (h.annulee) {
+                          <s>+{{ formatFcfa(h.montant) }}</s>
+                        } @else {
+                          +{{ formatFcfa(h.montant) }}
+                        }
+                      </td>
+                      <td class="h-paiement">
+                        @if (h.typeLigne === 'HEBDO' || h.typeLigne === 'MOIS') {
+                          <span>{{ h.modePaiementLibelle ?? 'Espèces' }}</span>
+                          @if (h.referencePaiement) {
+                            <span class="h-ref-paiement">{{ h.referencePaiement }}</span>
+                          }
+                        } @else {
+                          —
+                        }
+                      </td>
+                      <td class="h-date">{{ h.dateLabel }}</td>
+                      <td class="h-actions">
+                        @if (h.annulable) {
+                          <button
+                            type="button"
+                            class="btn-annuler"
+                            [disabled]="estAnnulationEnCours(h.operationId)"
+                            (click)="confirmerAnnulation(h)"
+                          >
+                            @if (estAnnulationEnCours(h.operationId)) {
+                              …
+                            } @else {
+                              Annuler
+                            }
+                          </button>
+                        } @else if (h.annulee && (h.typeLigne === 'HEBDO' || h.typeLigne === 'MOIS')) {
+                          <span class="hist-action-muted">—</span>
+                        }
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="7" class="empty-filtre">Aucune opération enregistrée.</td>
+                    </tr>
+                  }
+                }
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  } @else {
+  <div class="main-grid">
+    <div>
+      <div class="card">
+        <div class="card-pad">
+          <div class="regle-info">
+            <div class="ri-title">
+              ⚙ Règle active —
+              {{ regleActive().libelle }}
+            </div>
+            <div class="ri-grid">
+              <div class="ri-item">
+                <div class="ri-label">Périodicité</div>
+                <div class="ri-val">{{ regleActive().periodicite }}</div>
+              </div>
+              <div class="ri-item">
+                <div class="ri-label">Montant min</div>
+                <div class="ri-val">{{ formatFcfa(regleActive().montantMin) }}</div>
+              </div>
+              <div class="ri-item">
+                <div class="ri-label">Montant max</div>
+                <div class="ri-val">{{ formatFcfa(regleActive().montantMax) }}</div>
+              </div>
+              @if (regleActive().solidariteAuto) {
+                <div class="ri-item">
+                  <div class="ri-label">Solidarité auto</div>
+                  <div class="ri-val ri-or">{{ formatFcfa(regleActive().montantSolidarite) }} ✓</div>
+                </div>
+              }
+              <div class="ri-item">
+                <div class="ri-label">Amende (plage)</div>
+                <div class="ri-val ri-pu">{{ formatFcfa(regleActive().montantAmendeMin) }} – {{ formatFcfa(regleActive().montantAmendeMax) }}</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="sect-title">👤 Membre{{ modeSaisieMembre() === 'bulk' ? 's' : '' }} concerné{{ modeSaisieMembre() === 'bulk' ? 's' : '' }}</div>
+          <div class="membre-mode-tabs" role="tablist" aria-label="Mode de sélection des membres">
+            <button
+              type="button"
+              class="membre-mode-tab"
+              role="tab"
+              [attr.aria-selected]="modeSaisieMembre() === 'unitaire'"
+              [class.on]="modeSaisieMembre() === 'unitaire'"
+              (click)="setModeSaisieMembre('unitaire')"
+            >
+              Un membre
+            </button>
+            <button
+              type="button"
+              class="membre-mode-tab"
+              role="tab"
+              [attr.aria-selected]="modeSaisieMembre() === 'bulk'"
+              [class.on]="modeSaisieMembre() === 'bulk'"
+              (click)="setModeSaisieMembre('bulk')"
+            >
+              En lot
+            </button>
+          </div>
+          @if (modeSaisieMembre() === 'unitaire') {
+            <div class="membre-search-row">
+              <div class="fl mb6 membre-search-main">
+                <label for="membre-input">Rechercher un membre</label>
+                <input
+                  id="membre-input"
+                  type="search"
+                  formControlName="membreSearch"
+                  placeholder="Code, nom, prénom ou téléphone…"
+                  autocomplete="off"
+                  (focus)="onMembreFocus()"
+                  (input)="onMembreInput()"
+                />
+              </div>
+              <div class="fl mb6 membre-search-code">
+                <label for="membre-code-num">N° code</label>
+                <input
+                  id="membre-code-num"
+                  type="text"
+                  formControlName="membreCodeNumero"
+                  placeholder="001"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  (keydown.enter)="onMembreCodeNumeroEnter($event)"
+                />
+              </div>
+            </div>
+            @if (rechercheMembreLoading()) {
+              <p class="recherche-hint">Recherche en cours…</p>
+            }
+            @if (membreListOpen() && !rechercheMembreLoading() && membreSearchHasQuery() && filteredMembres().length === 0) {
+              <p class="recherche-hint">Aucun membre trouvé.</p>
+            }
+            @if (membreListOpen() && filteredMembres().length > 0) {
+              <div class="membre-result" role="listbox">
+                @for (m of filteredMembres(); track m.id) {
+                  <button
+                    type="button"
+                    class="mr-item"
+                    [class.sel]="form.controls.membreId.value === m.id"
+                    (click)="selectMembre(m)"
+                  >
+                    <div class="mr-av" [style.background]="avatarColor(m.codeMembre)">{{ initials(m.nomComplet) }}</div>
+                    <div class="mr-txt">
+                      <div class="mr-name">{{ m.nomComplet }}</div>
+                      <div class="mr-meta">{{ m.codeMembre }}@if (m.telephone) { · {{ m.telephone }} }</div>
+                    </div>
+                    <span class="mr-badge" [class]="'pb-' + postePourCodeMembre(m.codeMembre).kind">{{
+                      posteLabel(m.codeMembre)
+                    }}</span>
+                  </button>
+                }
+              </div>
+            }
+          } @else {
+            <p class="bulk-mode-hint">
+              Cochez les membres à cotiser (10 par page). Le nombre de parts choisi plus bas s’applique à toute la sélection.
+            </p>
+            <div class="bulk-catalogue-toolbar">
+              <div class="fl bulk-filtre-fl">
+                <label for="bulk-filtre">Filtrer la liste</label>
+                <input
+                  id="bulk-filtre"
+                  type="search"
+                  [value]="bulkFiltre()"
+                  placeholder="Code, nom, prénom ou téléphone…"
+                  autocomplete="off"
+                  (input)="onBulkFiltreInput($event)"
+                />
+              </div>
+              <button type="button" class="bulk-page-select-btn" (click)="toggleSelectionPageBulk()">
+                @if (bulkPageToutSelectionnee()) {
+                  Désélectionner la page
+                } @else {
+                  Sélectionner la page
+                }
+              </button>
+            </div>
+            @if (membresBulkCatalogueLoading()) {
+              <p class="recherche-hint">Chargement des membres…</p>
+            } @else if (bulkCatalogueTotal() === 0) {
+              <p class="recherche-hint">Aucun membre{{ bulkFiltre() ? ' pour ce filtre' : '' }}.</p>
+            } @else {
+              <div class="bulk-catalogue-list membre-result" role="listbox" aria-label="Liste des membres">
+                @for (m of membresBulkPage(); track m.id) {
+                  <button
+                    type="button"
+                    class="mr-item bulk-catalogue-row"
+                    [class.sel]="isMembreBulkSelected(m.id)"
+                    [attr.aria-pressed]="isMembreBulkSelected(m.id)"
+                    (click)="toggleMembreBulk(m)"
+                  >
+                    <span class="mr-bulk-check" aria-hidden="true">{{ isMembreBulkSelected(m.id) ? '✓' : '' }}</span>
+                    <div class="mr-av" [style.background]="avatarColor(m.codeMembre)">{{ initials(m.nomComplet) }}</div>
+                    <div class="mr-txt">
+                      <div class="mr-name">{{ m.nomComplet }}</div>
+                      <div class="mr-meta">{{ m.codeMembre }}@if (m.telephone) { · {{ m.telephone }} }</div>
+                    </div>
+                    <span class="mr-badge" [class]="'pb-' + postePourCodeMembre(m.codeMembre).kind">{{
+                      posteLabel(m.codeMembre)
+                    }}</span>
+                  </button>
+                }
+              </div>
+              <app-list-pagination
+                [page]="bulkPage()"
+                [total]="bulkCatalogueTotal()"
+                [pageSize]="bulkPageSize"
+                unit="membre(s)"
+                (pageChange)="goBulkPage($event)"
+              />
+            }
+            @if (membresBulk().length > 0) {
+              <div class="bulk-membres-panel">
+                <div class="bulk-membres-head">
+                  <span class="bulk-membres-count">
+                    {{ bulkNbMembres() }} sélectionné{{ bulkNbMembres() > 1 ? 's' : '' }}
+                    @if (utiliseParts() && nbPartsPourBulk() > 0) {
+                      · {{ nbPartsPourBulk() }} part{{ nbPartsPourBulk() > 1 ? 's' : '' }} / membre
+                    }
+                  </span>
+                  <button type="button" class="bulk-membres-clear" (click)="viderMembresBulk()">Tout effacer</button>
+                </div>
+                <div class="bulk-membres-chips">
+                  @for (m of membresBulk(); track m.id) {
+                    <span class="bulk-chip">
+                      <span class="bulk-chip-name">{{ m.nomComplet }}</span>
+                      <span class="bulk-chip-code">{{ m.codeMembre }}</span>
+                      <button
+                        type="button"
+                        class="bulk-chip-remove"
+                        [attr.aria-label]="'Retirer ' + m.nomComplet"
+                        (click)="retirerMembreBulk(m.id)"
+                      >
+                        ×
+                      </button>
+                    </span>
+                  }
+                </div>
+                @if (bulkMontantTotalAffiche() > 0) {
+                  <p class="bulk-membres-total">
+                    Total lot :
+                    @if (utiliseParts() && nbPartsPourBulk() > 0) {
+                      {{ bulkNbMembres() }} × {{ nbPartsPourBulk() }} part{{ nbPartsPourBulk() > 1 ? 's' : '' }}
+                      ({{ formatFcfa(bulkMontantParMembreAffiche()) }})
+                    } @else {
+                      {{ bulkNbMembres() }} × ({{ formatFcfa(bulkMontantParMembreAffiche()) }})
+                    }
+                    =
+                    <strong>{{ formatFcfa(bulkMontantTotalAffiche()) }}</strong>
+                  </p>
+                }
+              </div>
+            }
+          }
+
+          <div class="sect-title mt18">📅 Période concernée</div>
+          <div class="form-grid">
+            @if (typeUi() === 'hebdo') {
+              <div class="fl">
+                <label for="semaine-sel">Semaine</label>
+                <select id="semaine-sel" formControlName="semaineKey">
+                  @for (s of semaineOptions(); track s.value) {
+                    <option [value]="s.value">{{ s.label }}</option>
+                  }
+                </select>
+              </div>
+            } @else {
+              <div class="fl">
+                <label for="mois-sel">Mois concerné</label>
+                <select id="mois-sel" formControlName="moisAnnee">
+                  @for (mo of moisOptions(); track mo.value) {
+                    <option [value]="mo.value">{{ mo.label }}</option>
+                  }
+                </select>
+              </div>
+            }
+            <div class="fl">
+              <label for="date-op">Date (jour J)</label>
+              <input id="date-op" type="date" formControlName="dateOperation" />
+            </div>
+          </div>
+
+          <div class="sect-title mt6">💵 {{ utiliseParts() ? 'Nombre de parts' : 'Montant' }}</div>
+          @if (utiliseParts() && plageParts(); as plage) {
+            <div class="parts-saisie-row">
+              <div class="fl parts-nb-fl">
+                <label for="nb-parts-select">Nombre de parts</label>
+                <select id="nb-parts-select" formControlName="nbParts">
+                  @for (n of optionsPartsListe(); track n) {
+                    <option [ngValue]="n">{{ n }} part{{ n > 1 ? 's' : '' }}</option>
+                  }
+                </select>
+                <span class="parts-plage-hint">{{ plage.min }} – {{ plage.max }} parts autorisées</span>
+              </div>
+              <div class="parts-montant-box">
+                <span class="parts-montant-lbl">Montant total</span>
+                <span class="parts-montant-val">{{ formatFcfa(montantDepuisPartsAffiche() ?? 0) }}</span>
+                <span class="parts-montant-detail">
+                  {{ form.controls.nbParts.value }} × {{ formatFcfa(regleActive().montantParPart!) }}
+                </span>
+              </div>
+            </div>
+          } @else {
+            <div class="fl mb10">
+              <label for="montant-input">Montant (FCFA)</label>
+              <input
+                id="montant-input"
+                type="number"
+                formControlName="montant"
+                [attr.min]="regleActive().montantMin"
+                [attr.max]="regleActive().montantMax"
+                step="1000"
+              />
+            </div>
+            <div class="presets">
+              @for (p of presetsMontant(); track p.montant) {
+                <button
+                  type="button"
+                  class="preset-btn"
+                  [class.on]="form.controls.montant.value === p.montant"
+                  (click)="setMontant(p.montant)"
+                >
+                  {{ p.label }}
+                </button>
+              }
+            </div>
+          }
+
+          <div class="sect-title mt12">🚫 Amende (optionnel)</div>
+          <label class="amende-opt-check">
+            <input type="checkbox" formControlName="amendeActive" (change)="toggleAmende()" />
+            <span>Appliquer une amende avec cette cotisation</span>
+          </label>
+          @if (form.controls.amendeActive.value) {
+            <div class="fl mb10">
+              <label for="amende-input">Montant amende (FCFA)</label>
+              <input
+                id="amende-input"
+                type="number"
+                formControlName="montantAmende"
+                [attr.min]="regleActive().montantAmendeMin"
+                [attr.max]="regleActive().montantAmendeMax"
+                [attr.step]="100"
+                placeholder="Choisir un montant…"
+              />
+            </div>
+            <div class="presets">
+              @for (p of presetsAmende(); track p) {
+                <button
+                  type="button"
+                  class="preset-btn preset-amende"
+                  [class.on]="form.controls.montantAmende.value === p"
+                  (click)="setMontantAmende(p)"
+                >
+                  {{ formatFcfa(p) }}
+                </button>
+              }
+            </div>
+          }
+
+          <div class="sect-title mt12">💳 Mode de paiement</div>
+          <div class="mode-paiement-choix">
+            @for (m of modesPaiement; track m.value) {
+              <button
+                type="button"
+                class="mode-paiement-btn"
+                [class.on]="form.controls.modePaiement.value === m.value"
+                [class.wave]="m.value === 'WAVE'"
+                [class.om]="m.value === 'ORANGE_MONEY'"
+                (click)="selectModePaiement(m.value)"
+              >
+                @if (m.logoUrl) {
+                  <span class="mode-paiement-logo-wrap" [class.om]="m.value === 'ORANGE_MONEY'">
+                    <img [src]="m.logoUrl" [alt]="m.label" class="mode-paiement-logo" />
+                  </span>
+                } @else {
+                  <span class="mode-paiement-ico" aria-hidden="true">💵</span>
+                }
+                <span class="mode-paiement-lbl">{{ m.label }}</span>
+              </button>
+            }
+          </div>
+          @if (modePaiementMobile(form.controls.modePaiement.value)) {
+            <div class="fl mt8">
+              <label for="cot-ref-paiement">N° transaction (Wave / Orange Money)</label>
+              <input
+                id="cot-ref-paiement"
+                type="text"
+                formControlName="referencePaiement"
+                placeholder="Ex. TXN-20260520-12345"
+                autocomplete="off"
+              />
+            </div>
+          }
+          @if (modePaiementMobile(form.controls.modePaiement.value)) {
+            <p class="paiement-hint">
+              Saisissez la référence affichée dans l’application Wave ou Orange Money après le paiement du membre.
+            </p>
+          }
+
+          <div class="fl mt12">
+            <label for="obs">Observation (optionnel)</label>
+            <input id="obs" type="text" formControlName="observation" placeholder="Ex. Rattrapage semaine 20…" />
+          </div>
+
+          <div class="sim" [class.green]="typeUi() === 'hebdo'" [class.pink]="typeUi() === 'mois'">
+            <div class="sim-title">🔍 Prévisualisation des mouvements comptables</div>
+            @if (modeSaisieMembre() === 'bulk' && bulkNbMembres() > 0) {
+              <p class="bulk-sim-hint">
+                Aperçu pour <strong>{{ selectedMembre()?.nomComplet ?? '—' }}</strong>
+                (1er membre) · {{ bulkNbMembres() }} cotisation{{ bulkNbMembres() > 1 ? 's' : '' }} identiques
+                @if (bulkMontantTotalAffiche() > 0) {
+                  · total lot <strong>{{ formatFcfa(bulkMontantTotalAffiche()) }}</strong>
+                }
+              </p>
+            }
+            @if (hasPreview()) {
+              @for (line of previewLignes(); track line.libelle) {
+                <div class="sim-row">
+                  <span>{{ line.libelle }}</span>
+                  <span [class]="previewMontantClass(line)">+ {{ formatFcfa(line.montant) }}</span>
+                </div>
+              }
+              <div class="sim-row sim-total">
+                <span><strong>Total crédit</strong></span>
+                <span class="cr-c"><strong>+ {{ formatFcfa(simTotalCredit()) }}</strong></span>
+              </div>
+            } @else {
+              <div class="sim-row">
+                <span>
+                  Cotisation — Épargne (<span id="sim-membre">{{ selectedMembre()?.nomComplet ?? '—' }}</span>) et Caisse
+                  organisation
+                  <span class="sim-detail">même montant crédité sur les deux comptes</span>
+                </span>
+                <span class="cr-c">+ {{ formatFcfa(simEpargne()) }}</span>
+              </div>
+              @if (simSolidarite() > 0) {
+                <div class="sim-row">
+                  <span>🤝 Solidarité auto (règle fixe)</span>
+                  <span class="or-c">+ {{ formatFcfa(simSolidarite()) }} (Mbr. Solidarité → Org. Solidarité)</span>
+                </div>
+              }
+              @if (simAmende() > 0) {
+                <div class="sim-row">
+                  <span>🚫 Amende (optionnelle)</span>
+                  <span class="pu-c">+ {{ formatFcfa(simAmende()) }}</span>
+                </div>
+              }
+              <div class="sim-row sim-total">
+                <span><strong>Total crédit</strong></span>
+                <span class="cr-c"><strong>+ {{ formatFcfa(simTotalCredit()) }}</strong></span>
+              </div>
+            }
+          </div>
+
+          <div class="form-actions">
+            <button type="button" class="btn-s" (click)="annuler()">Annuler</button>
+            <button type="button" class="btn-s" (click)="actualiserSim()">🔍 Actualiser</button>
+            <button
+              type="button"
+              [class.btn-p]="typeUi() === 'hebdo'"
+              [class.btn-pi]="typeUi() === 'mois'"
+              [disabled]="loading() || (modeSaisieMembre() === 'bulk' && bulkNbMembres() === 0)"
+              (click)="valider()"
+            >
+              @if (modeSaisieMembre() === 'bulk' && bulkNbMembres() > 0) {
+                ✅ Valider {{ bulkNbMembres() }} cotisation{{ bulkNbMembres() > 1 ? 's' : '' }}
+              } @else if (typeUi() === 'hebdo') {
+                ✅ Valider la cotisation
+              } @else {
+                ✅ Valider — Type Mois
+              }
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="right-panel">
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h">
+            <span class="card-title">{{ titreSuivi() }}{{ panneauLoading() ? '…' : '' }}</span>
+            <span class="card-action" tabindex="0" role="button" (click)="setType('historique')">Tout voir</span>
+          </div>
+          <div class="filters-row suivi-filters">
+            <select class="filter-select" [value]="filtreSuiviStatut()" (change)="onFiltreSuiviStatut($event)">
+              <option value="tous">Tous les statuts</option>
+              <option value="paye">Payés</option>
+              <option value="attente">En attente</option>
+            </select>
+            <input
+              type="search"
+              class="filter-search"
+              placeholder="Membre…"
+              [value]="filtreSuiviRecherche()"
+              (input)="onFiltreSuiviRecherche($event)"
+              aria-label="Filtrer le suivi"
+            />
+            <span class="filtre-count">{{ suiviFiltre().length }} membre(s)</span>
+          </div>
+          <div class="suivi-list">
+            @for (s of suiviFiltre(); track s.membreId) {
+              <div class="suivi-row">
+                <div class="suivi-av" [style.background]="s.avColor">{{ s.initials }}</div>
+                <div class="suivi-info">
+                  <div class="suivi-name">{{ s.nom }}</div>
+                  <div class="suivi-mois">{{ s.sousTitre }}</div>
+                </div>
+                @if (s.statut === 'paye') {
+                  <span class="badge b-green">✓ Payé</span>
+                } @else {
+                  <span class="badge b-red">⏳ En attente</span>
+                }
+              </div>
+            } @empty {
+              <p class="empty-filtre">
+                @if (panneauLoading()) {
+                  Chargement du suivi…
+                } @else {
+                  Aucun membre pour ces filtres.
+                }
+              </p>
+            }
+          </div>
+          <div class="suivi-stats">
+            <div class="suivi-st green">
+              <div class="n">{{ suiviStats().payes }}</div>
+              <div class="lbl">Payés</div>
+            </div>
+            <div class="suivi-st red">
+              <div class="n">{{ suiviStats().attente }}</div>
+              <div class="lbl">En attente</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h"><span class="card-title">🕐 Cotisations récentes</span></div>
+          <div class="op-list">
+            @for (op of cotisationsRecentes(); track op.libelle + op.meta) {
+              <div class="op-row">
+                <div class="op-ico {{ op.iconeClass }}">💰</div>
+                <div class="op-info">
+                  <div class="op-name">{{ op.libelle }}</div>
+                  <div class="op-meta">{{ op.meta }}</div>
+                </div>
+                <div class="op-amt" [class.cr-c]="op.iconeClass === 'g3'" [class.pi-c]="op.iconeClass === 'pi2'">
+                  +{{ formatFcfa(op.montant) }}
+                </div>
+              </div>
+            } @empty {
+              <p class="empty-filtre">Aucune cotisation récente.</p>
+            }
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h"><span class="card-title">📊 Aujourd'hui</span></div>
+          <div class="today-grid">
+            <div class="today-box g">
+              <div class="big">{{ resumeAujourdhui().nombre }}</div>
+              <div class="lbl">Cotisations saisies</div>
+            </div>
+            <div class="today-box or">
+              <div class="big">{{ formatFcfa(resumeAujourdhui().montant) }}</div>
+              <div class="lbl">FCFA collectés</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+  }
+  </form>
+</div>

@@ -1,0 +1,184 @@
+.param-page {
+  max-width: 1100px;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+.pt {
+  font-family: 'Playfair Display', serif;
+  font-size: 26px;
+  font-weight: 700;
+  color: var(--dk);
+}
+
+.ps {
+  font-size: 13px;
+  color: var(--md);
+  margin-top: 4px;
+  max-width: 520px;
+}
+
+.ph-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.btn-s,
+.btn-p {
+  border-radius: 10px;
+  padding: 10px 16px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+}
+
+.btn-s {
+  background: #fff;
+  border: 1.5px solid #e0e6e1;
+  color: var(--md);
+}
+
+.btn-p {
+  background: var(--g1);
+  color: #fff;
+}
+
+.btn-s:disabled,
+.btn-p:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.loading-msg {
+  color: var(--md);
+  font-size: 14px;
+}
+
+.comptes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.compte-card {
+  background: #fff;
+  border: 1px solid #eef1ef;
+  border-radius: var(--r);
+  box-shadow: var(--sh);
+  padding: 18px;
+}
+
+.compte-card.inactive {
+  opacity: 0.72;
+  border-style: dashed;
+}
+
+.cc-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.cc-ico {
+  font-size: 28px;
+  line-height: 1;
+}
+
+.cc-meta {
+  flex: 1;
+}
+
+.cc-type {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--md);
+}
+
+.cc-code {
+  font-size: 12px;
+  color: var(--g1);
+  font-weight: 600;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--md);
+  cursor: pointer;
+}
+
+.fl {
+  margin-bottom: 10px;
+}
+
+.fl label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--md);
+  margin-bottom: 6px;
+}
+
+.fl input[type='text'] {
+  width: 100%;
+  border: 1.5px solid #e0e6e1;
+  border-radius: 10px;
+  padding: 9px 12px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+}
+
+.cc-desc {
+  font-size: 12px;
+  color: var(--md);
+  line-height: 1.45;
+  margin: 0 0 12px;
+}
+
+.cc-solde {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 12px;
+  border-top: 1px solid #eef1ef;
+  font-size: 12px;
+  color: var(--md);
+}
+
+.cc-solde strong {
+  color: var(--g1);
+  font-size: 15px;
+}
+
+.toast {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  background: var(--dk);
+  color: #fff;
+  padding: 12px 18px;
+  border-radius: 10px;
+  font-size: 13px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.2s;
+  z-index: 100;
+}
+
+.toast.show {
+  opacity: 1;
+}

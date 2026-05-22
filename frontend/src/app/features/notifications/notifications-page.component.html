@@ -1,0 +1,339 @@
+<div class="notif-page">
+  <div class="notif-header">
+    <div>
+      <h1 class="notif-title">Centre de notifications</h1>
+      <p class="notif-sub">
+        <span>{{ unreadCount() }}</span> non lues · {{ auth.currentOrgNom() ?? 'Organisation' }}
+      </p>
+    </div>
+    <div class="notif-header-actions">
+      <select class="type-filtre" [value]="typeFiltre()" (change)="onTypeFiltreChange($event)">
+        <option value="ALL">Tous les types</option>
+        <option value="URGENCE">Urgences</option>
+        <option value="EMPRUNT">Emprunts</option>
+        <option value="COTISATION">Cotisations</option>
+        <option value="SYSTEME">Système</option>
+        @if (peutValiderDemandes()) {
+          <option value="A_VALIDER">À valider (membre)</option>
+        }
+      </select>
+      <button type="button" class="btn-s" (click)="marquerToutLu()" [disabled]="unreadCount() === 0">
+        ✓ Tout marquer lu
+      </button>
+    </div>
+  </div>
+
+  <div class="notif-tabs">
+    <button type="button" class="ntab" [class.on]="tab() === 'toutes'" (click)="setTab('toutes')">
+      Toutes <span class="cnt">{{ totalCount() }}</span>
+    </button>
+    <button type="button" class="ntab" [class.on]="tab() === 'nonlues'" (click)="setTab('nonlues')">
+      Non lues <span class="cnt">{{ unreadCount() }}</span>
+    </button>
+    <button type="button" class="ntab" [class.on]="tab() === 'urgences'" (click)="setTab('urgences')">
+      ⚠ Urgences <span class="cnt">{{ urgenceCount() }}</span>
+    </button>
+    <button type="button" class="ntab" [class.on]="tab() === 'lues'" (click)="setTab('lues')">
+      Lues <span class="cnt">{{ luesCount() }}</span>
+    </button>
+  </div>
+
+  <div class="notif-layout">
+    <div class="notif-list-col">
+      @if (filteredTotal() === 0) {
+        <div class="empty-state card">
+          <div class="empty-icon">🔔</div>
+          <div class="empty-title">Aucune notification</div>
+          <p class="empty-sub">Aucun élément ne correspond à ce filtre.</p>
+        </div>
+      }
+      @for (groupe of groupes(); track groupe.label) {
+        <div class="notif-group">
+          <div class="notif-group-label">{{ groupe.label }}</div>
+          @for (n of groupe.items; track n.id) {
+            <article
+              class="notif-item"
+              [class.unread]="!n.lu"
+              [class.read]="n.lu"
+              [class.urgence]="n.severite === 'urgence'"
+              [class.warning]="n.severite === 'warning'"
+              [class.info]="n.severite === 'info' || n.severite === 'success'"
+              (click)="marquerLu(n)"
+            >
+              @if (!n.lu) {
+                <span class="badge-new">Nouveau</span>
+              }
+              <div class="ni-ico" [class]="n.iconeClass" [class.muted]="n.lu">{{ n.icone }}</div>
+              <div class="ni-body">
+                <div class="ni-title" [class.read-title]="n.lu">{{ n.titre }}</div>
+                <p class="ni-desc">{{ n.description }}</p>
+                <div class="ni-footer">
+                  <span class="ni-time">{{ n.temps }}</span>
+                  <span class="ni-tag" [class]="n.tagClass">{{ n.tag }}</span>
+                  @if (n.actionRoute && n.actionLabel) {
+                    <a
+                      class="ni-action"
+                      [routerLink]="n.actionRoute"
+                      [queryParams]="n.actionQueryParams"
+                      (click)="$event.stopPropagation()"
+                    >
+                      {{ n.actionLabel }}
+                    </a>
+                  }
+                </div>
+              </div>
+              @if (n.demandeWorkflowActif && n.demandeId && peutValiderDemandes()) {
+                <div class="ni-workflow" (click)="$event.stopPropagation()">
+                  <button
+                    type="button"
+                    class="ni-wf-btn ni-wf-ok"
+                    [disabled]="traitementDemandeId() === n.demandeId"
+                    (click)="ouvrirApprobationDemande(n, $event)"
+                  >
+                    ✓ Approuver
+                  </button>
+                  <button
+                    type="button"
+                    class="ni-wf-btn ni-wf-ko"
+                    [disabled]="traitementDemandeId() === n.demandeId"
+                    (click)="ouvrirRejetDemande(n, $event)"
+                  >
+                    ✕ Rejeter
+                  </button>
+                </div>
+              }
+              <div class="ni-actions">
+                @if (n.lu) {
+                  <button
+                    type="button"
+                    class="ni-action-btn ni-mark-unread"
+                    (click)="marquerNonLu(n, $event)"
+                    aria-label="Marquer comme non lu"
+                    title="Marquer comme non lu"
+                  >
+                    ↻
+                  </button>
+                }
+                <button type="button" class="ni-close" (click)="dismiss(n.id, $event)" aria-label="Masquer">×</button>
+              </div>
+            </article>
+          }
+        </div>
+      }
+      <app-list-pagination
+        class="notif-pagination"
+        [page]="page()"
+        [total]="filteredTotal()"
+        [pageSize]="pageSize"
+        unit="notification(s)"
+        (pageChange)="page.set($event)"
+      />
+    </div>
+
+    @if (!estMembreSimple()) {
+    <aside class="right-panel">
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h"><span class="card-title">📊 Résumé</span></div>
+          <div class="stats-grid">
+            <div class="stat-mini" style="background: var(--re2)">
+              <div class="sm-val" style="color: var(--re)">{{ stats().urgences }}</div>
+              <div class="sm-lbl">Urgences</div>
+            </div>
+            <div class="stat-mini" style="background: var(--or3)">
+              <div class="sm-val" style="color: var(--or)">{{ stats().warnings }}</div>
+              <div class="sm-lbl">Avertissements</div>
+            </div>
+            <div class="stat-mini" style="background: var(--bl2)">
+              <div class="sm-val" style="color: var(--bl)">{{ stats().infos }}</div>
+              <div class="sm-lbl">Informations</div>
+            </div>
+            <div class="stat-mini" style="background: var(--g3)">
+              <div class="sm-val" style="color: var(--g1)">{{ stats().lues }}</div>
+              <div class="sm-lbl">Lues</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h"><span class="card-title">🚨 Actions requises</span></div>
+          <div class="actions-stack">
+            @if (peutValiderDemandes() && workflowEnAttenteCount() > 0) {
+              <div class="action-box action-g">
+                <div class="action-box-title">
+                  📲 {{ workflowEnAttenteCount() }} demande(s) membre à valider
+                </div>
+                <p class="action-box-text">
+                  Cotisations et remboursements mobile money soumis depuis « Mon compte » — approuvez ou rejetez ci-contre.
+                </p>
+                <button type="button" class="action-box-link action-box-btn" (click)="voirDemandesAValider()">
+                  Voir les demandes →
+                </button>
+              </div>
+            }
+            @if (urgenceCount() > 0) {
+              <div class="action-box action-re">
+                <div class="action-box-title">⚠ {{ urgenceCount() }} emprunt(s) en retard</div>
+                <p class="action-box-text">
+                  Contactez les membres concernés ou appliquez des pénalités depuis les remboursements.
+                </p>
+                <a
+                  class="action-box-link"
+                  [routerLink]="orgBase().concat(['operations', 'remboursements'])"
+                  [queryParams]="{ t: 'etale' }"
+                >
+                  Gérer les remboursements →
+                </a>
+              </div>
+            }
+            <div class="action-box action-or">
+              <div class="action-box-title">⏰ Cotisations à saisir</div>
+              <p class="action-box-text">Consultez le suivi des cotisations hebdomadaires pour les membres en retard.</p>
+              <a
+                class="action-box-link"
+                [routerLink]="orgBase().concat(['operations', 'cotisation-mois'])"
+                [queryParams]="{ t: 'hebdo' }"
+              >
+                Saisir les cotisations →
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h">
+            <span class="card-title">🔔 Mes préférences</span>
+            <a class="card-link" [routerLink]="orgBase().concat(['mon-profil'])">Modifier</a>
+          </div>
+          @for (p of preferences(); track p.id) {
+            <div class="pn-row">
+              <div class="pn-info">
+                <div class="pn-t">{{ p.titre }}</div>
+                <div class="pn-s">{{ p.sousTitre }}</div>
+              </div>
+              <button
+                type="button"
+                class="toggle"
+                [class.on]="p.actif"
+                (click)="togglePreference(p.id)"
+                [attr.aria-pressed]="p.actif"
+                [attr.aria-label]="p.titre"
+              ></button>
+            </div>
+          }
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h"><span class="card-title">⚡ Actions rapides</span></div>
+          <div class="quick-actions">
+            <a class="qa-item qa-g" [routerLink]="orgBase().concat(['operations', 'cotisation-mois'])" [queryParams]="{ t: 'hebdo' }">
+              <span class="qa-ico">💰</span>
+              <div>
+                <div class="qa-title">Saisir une cotisation</div>
+                <div class="qa-sub">Suivi hebdomadaire</div>
+              </div>
+              <span class="qa-arrow">→</span>
+            </a>
+            <a class="qa-item qa-re" [routerLink]="orgBase().concat(['operations', 'penalite-amende'])">
+              <span class="qa-ico">⚠</span>
+              <div>
+                <div class="qa-title">Appliquer une pénalité</div>
+                <div class="qa-sub">Membres en retard</div>
+              </div>
+              <span class="qa-arrow">→</span>
+            </a>
+            <a
+              class="qa-item qa-bl"
+              [routerLink]="orgBase().concat(['operations', 'remboursements'])"
+              [queryParams]="{ t: 'etale' }"
+            >
+              <span class="qa-ico">🔄</span>
+              <div>
+                <div class="qa-title">Enregistrer remboursement</div>
+                <div class="qa-sub">Emprunts en cours</div>
+              </div>
+              <span class="qa-arrow">→</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </aside>
+    }
+  </div>
+</div>
+
+@if (approbationDialog(); as dlg) {
+  <div class="wf-dialog-backdrop" (click)="fermerApprobationDemande()">
+    <div class="wf-dialog" role="dialog" aria-labelledby="wf-approve-title" (click)="$event.stopPropagation()">
+      <h3 id="wf-approve-title" class="wf-dialog-title">Approuver la cotisation</h3>
+      <p class="wf-dialog-desc">{{ dlg.notification.titre }}</p>
+      <p class="wf-dialog-desc muted">{{ dlg.notification.description }}</p>
+      <label class="wf-amende-check">
+        <input
+          type="checkbox"
+          [checked]="dlg.appliquerAmende"
+          (change)="toggleAmendeApprobation()"
+        />
+        <span>Appliquer une amende à la validation</span>
+      </label>
+      @if (dlg.appliquerAmende) {
+        <div class="wf-amende-field">
+          <label for="wf-amende-montant">Montant amende (FCFA)</label>
+          <input
+            id="wf-amende-montant"
+            type="number"
+            min="1"
+            step="100"
+            [value]="dlg.montantAmende ?? ''"
+            (input)="onMontantAmendeApprobationInput($event)"
+          />
+          @if (dlg.notification.montantAmendeMin != null && dlg.notification.montantAmendeMax != null) {
+            <p class="wf-amende-hint">
+              Plage autorisée :
+              {{ formatFcfa(dlg.notification.montantAmendeMin) }}
+              –
+              {{ formatFcfa(dlg.notification.montantAmendeMax) }}
+            </p>
+          }
+        </div>
+      }
+      <div class="wf-dialog-actions">
+        <button type="button" class="wf-btn wf-btn-cancel" (click)="fermerApprobationDemande()">Annuler</button>
+        <button
+          type="button"
+          class="wf-btn wf-btn-ok"
+          [disabled]="traitementDemandeId() === dlg.notification.demandeId"
+          (click)="confirmerApprobationDemande()"
+        >
+          Approuver
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (rejetDialog(); as dlg) {
+  <app-confirm-dialog
+    title="Rejeter la demande"
+    [paragraphs]="[
+      dlg.notification.titre,
+      dlg.notification.description,
+      'La demande ne sera pas comptabilisée tant qu\'elle n\'est pas approuvée.',
+    ]"
+    variant="danger"
+    confirmLabel="Rejeter"
+    cancelLabel="Annuler"
+    [showMotifField]="true"
+    motifLabel="Motif du rejet (optionnel)"
+    motifPlaceholder="Ex. référence de transaction incorrecte…"
+    [loading]="traitementDemandeId() === dlg.notification.demandeId"
+    (confirmedWithMotif)="confirmerRejetDemande($event)"
+    (cancelled)="fermerRejetDemande()"
+  />
+}

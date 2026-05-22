@@ -1,0 +1,14 @@
+spring:
+  devtools:
+    restart:
+      enabled: true
+      poll-interval: 1s
+      quiet-period: 400ms
+    livereload:
+      enabled: false
+
+logging:
+  level:
+    com.cotisapp: DEBUG
+  charset:
+    console: UTF-8

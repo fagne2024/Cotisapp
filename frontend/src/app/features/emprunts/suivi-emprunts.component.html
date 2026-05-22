@@ -1,0 +1,283 @@
+<div class="suivi-page">
+  <div class="page-header">
+    <div>
+      <div class="pt">{{ vueMembre() ? 'Mes emprunts' : 'Emprunts & Remboursements' }}</div>
+      <div class="ps">
+        @if (vueMembre()) {
+          Suivi de vos emprunts en cours et soldés
+        } @else {
+          Suivi complet de tous les emprunts
+          @if (auth.currentOrgNom(); as org) {
+            · {{ org }}
+          }
+        }
+      </div>
+    </div>
+    @if (!vueMembre()) {
+      <div class="header-actions">
+        <button type="button" class="btn-s" (click)="exporterExcel()">📊 Rapport Excel</button>
+        <a class="btn-p" [routerLink]="['/organisations', orgCourante()!, 'operations', 'emprunts']">+ Nouvel emprunt</a>
+      </div>
+    }
+  </div>
+
+  @if (loading()) {
+    <p class="loading-hint">Chargement des emprunts…</p>
+  } @else {
+    <div class="kpi-band">
+      <button
+        type="button"
+        class="kpi k-all"
+        [class.active]="kpiActive('tous')"
+        (click)="setKpi('tous')"
+      >
+        <div class="kpi-val">{{ kpi().totalActifs }}</div>
+        <div class="kpi-lbl">Total emprunts actifs</div>
+        <div class="kpi-sub">Cliquer pour voir tous</div>
+      </button>
+      <button type="button" class="kpi k-retard" [class.active]="kpiActive('retard')" (click)="setKpi('retard')">
+        <div class="kpi-val">{{ kpi().retard }}</div>
+        <div class="kpi-lbl">En retard</div>
+        <div class="kpi-sub">⚠ Action requise</div>
+      </button>
+      <button type="button" class="kpi k-encours" [class.active]="kpiActive('encours')" (click)="setKpi('encours')">
+        <div class="kpi-val">{{ kpi().encours }}</div>
+        <div class="kpi-lbl">En cours</div>
+        <div class="kpi-sub">Remboursements à venir</div>
+      </button>
+      <button type="button" class="kpi k-solde" [class.active]="kpiActive('soldes')" (click)="setKpi('soldes')">
+        <div class="kpi-val">{{ kpi().soldesMois }}</div>
+        <div class="kpi-lbl">Soldés ce mois</div>
+        <div class="kpi-sub">✓ Remboursés</div>
+      </button>
+      <button type="button" class="kpi k-montant" [class.active]="kpiActive('montant')" (click)="setKpi('montant')">
+        <div class="kpi-val">{{ formatFcfaCompact(kpi().encoursMontant) }}</div>
+        <div class="kpi-lbl">Encours total FCFA</div>
+        <div class="kpi-sub">Reste à rembourser</div>
+      </button>
+    </div>
+
+    <div class="tabs">
+      <button type="button" class="tab" [class.on]="tab() === 'tous'" (click)="setTab('tous')" title="Tous (Ctrl+1)">
+        Tous <span class="cnt">{{ compteurs().tous }}</span>
+      </button>
+      <button type="button" class="tab" [class.on]="tab() === 'etale'" (click)="setTab('etale')" title="Étalé (Ctrl+2)">
+        📈 Étalé <span class="cnt">{{ compteurs().etale }}</span>
+      </button>
+      <button type="button" class="tab" [class.on]="tab() === 'caisse'" (click)="setTab('caisse')" title="Caisse (Ctrl+3)">
+        🏦 Caisse <span class="cnt">{{ compteurs().caisse }}</span>
+      </button>
+      <button type="button" class="tab" [class.on]="tab() === 'sol'" (click)="setTab('sol')" title="Solidarité (Ctrl+4)">
+        🤝 Solidarité <span class="cnt">{{ compteurs().sol }}</span>
+      </button>
+      <button type="button" class="tab" [class.on]="tab() === 'soldes'" (click)="setTab('soldes')">
+        ✓ Soldés <span class="cnt">{{ compteurs().soldes }}</span>
+      </button>
+    </div>
+
+    <div class="filters-bar">
+      <div class="f-search">
+        <span class="search-ico" aria-hidden="true">🔍</span>
+        <input
+          [placeholder]="vueMembre() ? 'Référence ou type…' : 'Nom, numéro de membre…'"
+          [value]="recherche()"
+          (input)="onRecherche($event)"
+        />
+      </div>
+      <select class="f-select" [value]="filtreStatut()" (change)="onFiltreStatut($event)">
+        <option value="tous">Tous les statuts</option>
+        <option value="retard">En retard</option>
+        <option value="encours">En cours</option>
+        <option value="solde">Soldé</option>
+      </select>
+      <span class="count-label">{{ cartesFiltrees().length }} emprunt(s) affiché(s)</span>
+    </div>
+
+    @if (cartesFiltrees().length === 0) {
+      <p class="empty-hint">Aucun emprunt pour ces filtres.</p>
+    } @else {
+      <div class="emp-grid">
+        @for (c of cartesFiltrees(); track c.emprunt.id) {
+          <article class="emp-card" [class]="c.carteClass" (click)="ouvrirDetail(c)">
+            <div class="ec-header">
+              <div class="ec-mbr">
+                <div class="ec-av" [style.background]="c.avatarColor">{{ c.initials }}</div>
+                <div>
+                  <div class="ec-name">
+                    {{ c.emprunt.membreNom }}
+                    @if (c.posteSuffix) {
+                      <span class="ec-poste">{{ c.posteSuffix }}</span>
+                    }
+                  </div>
+                  <div class="ec-num">{{ c.emprunt.codeMembre }} · {{ c.reference }}</div>
+                </div>
+              </div>
+              <div class="ec-badges">
+                <span class="badge" [class]="c.typeBadgeClass">{{ c.typeBadgeLabel }}</span>
+                <span class="badge" [class]="c.statutBadgeClass">{{ c.statutBadgeLabel }}</span>
+              </div>
+            </div>
+            <div class="ec-body">
+              <div class="ec-stats">
+                <div class="ec-stat">
+                  <div class="es-val g1">{{ formatFcfa(c.montantInitial) }} F</div>
+                  <div class="es-lbl">{{ c.emprunt.typeEmprunt === 'CAISSE' ? 'Capital + frais' : 'Initial' }}</div>
+                </div>
+                <div class="ec-stat">
+                  <div class="es-val g2">{{ formatFcfa(c.montantRembourse) }} F</div>
+                  <div class="es-lbl">Remboursé</div>
+                </div>
+                <div class="ec-stat">
+                  <div class="es-val" [class.re]="c.enRetard" [class.bl]="!c.enRetard && c.emprunt.typeEmprunt === 'SOLIDARITE' && !c.solde" [class.or]="!c.enRetard && c.emprunt.typeEmprunt === 'CAISSE' && !c.solde" [class.g2]="!c.enRetard && !c.solde && c.emprunt.typeEmprunt === 'ETALE'">
+                    {{ formatFcfa(c.montantRestant) }} F
+                  </div>
+                  <div class="es-lbl">Restant</div>
+                </div>
+              </div>
+              <div class="prog-lbl">
+                <span>Progression</span>
+                <span [class]="'pct-' + c.progressColorClass">{{ c.progressPct }}%</span>
+              </div>
+              <div class="prog-bar">
+                <div class="prog-fill" [class]="c.progFillClass" [style.width.%]="c.progressPct"></div>
+              </div>
+              <div class="ec-alert" [class]="c.alerteClass">{{ c.alerteHtml }}</div>
+            </div>
+            <div class="ec-footer">
+              <span class="ec-echref">{{ c.footerEch }}</span>
+              <div class="ec-actions">
+                <button type="button" class="ec-btn view" (click)="ouvrirDetail(c); $event.stopPropagation()">
+                  👁 Détail
+                </button>
+                @if (!vueMembre() && !c.solde) {
+                  <button type="button" class="ec-btn remb" (click)="allerRemboursement(c, $event)">🔄 Rembourser</button>
+                }
+              </div>
+            </div>
+          </article>
+        }
+      </div>
+    }
+
+    @if (recapEcheances().length) {
+      <div class="card recap-card">
+        <div class="recap-head">
+          <span class="recap-title">📊 Tableau récapitulatif des échéances à venir</span>
+          @if (!vueMembre()) {
+            <button type="button" class="btn-s btn-sm" (click)="exporterExcel()">📥 Exporter</button>
+          }
+        </div>
+        <div class="table-scroll">
+          <table class="recap-table">
+            <thead>
+              <tr>
+                @if (!vueMembre()) {
+                  <th>Membre</th>
+                }
+                <th>Emprunt</th>
+                <th>Prochaine échéance</th>
+                <th>Montant dû</th>
+                <th>Statut</th>
+                @if (!vueMembre()) {
+                  <th>Action</th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (l of recapEcheances(); track l.empruntId) {
+                <tr [class]="l.rowClass">
+                  @if (!vueMembre()) {
+                    <td class="fw">
+                      {{ l.membreNom }}
+                      @if (l.posteSuffix) {
+                        <span class="poste-muted">{{ l.posteSuffix }}</span>
+                      }
+                    </td>
+                  }
+                  <td><span class="badge" [class]="l.typeBadgeClass">{{ l.typeBadgeLabel }}</span></td>
+                  <td [class.re-text]="l.enRetard">
+                    {{ l.dateLabel }}
+                    @if (l.dateRetardSuffix) {
+                      <span class="retard-suffix">{{ l.dateRetardSuffix }}</span>
+                    }
+                  </td>
+                  <td class="fw" [class.re-text]="l.enRetard">{{ formatFcfa(l.montantDu) }} F</td>
+                  <td><span class="badge" [class]="l.statutBadgeClass">{{ l.statutBadgeLabel }}</span></td>
+                  @if (!vueMembre()) {
+                    <td>
+                      @if (l.enRetard) {
+                        <button type="button" class="ec-btn remb sm" (click)="allerRemboursementParId(l.empruntId)">
+                          Rembourser
+                        </button>
+                      } @else {
+                        <button type="button" class="ec-btn view sm">Préparer</button>
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      </div>
+    }
+  }
+</div>
+
+@if (detailCarte(); as c) {
+  <div class="modal-ov show" (click)="onModalBackdrop($event)">
+    <div class="modal" role="dialog" aria-labelledby="modal-detail-title">
+      <div class="modal-head">
+        <h3 id="modal-detail-title">📋 Détail emprunt — {{ c.emprunt.membreNom }} ({{ c.emprunt.codeMembre }})</h3>
+        <button type="button" class="modal-close" (click)="fermerDetail()">×</button>
+      </div>
+      <div class="modal-body">
+        <div class="modal-kpis">
+          <div class="modal-kpi g3">
+            <div class="mk-val">{{ formatFcfa(c.montantInitial) }} F</div>
+            <div class="mk-lbl">Capital initial</div>
+          </div>
+          <div class="modal-kpi re2">
+            <div class="mk-val re">{{ formatFcfa(c.montantRestant) }} F</div>
+            <div class="mk-lbl">Reste à payer</div>
+          </div>
+          <div class="modal-kpi or3">
+            <div class="mk-val or">{{ formatFcfa(interetsTotauxModal(c)) }} F</div>
+            <div class="mk-lbl">Intérêts / frais (estim.)</div>
+          </div>
+        </div>
+        <div class="m-sect">📅 Tableau des échéances</div>
+        <table class="ech-table">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Date prévue</th>
+              <th>Capital</th>
+              <th>Total dû</th>
+              <th>Statut</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of modalEcheanceRows(c.emprunt); track row.numero) {
+              <tr [class]="row.rowClass">
+                <td>{{ row.numero }}</td>
+                <td>{{ row.dateLabel }}</td>
+                <td>{{ formatFcfa(row.capital) }} F</td>
+                <td>{{ formatFcfa(row.total) }} F</td>
+                <td><span class="badge" [class]="row.statutClass">{{ row.statutLabel }}</span></td>
+              </tr>
+            } @empty {
+              <tr><td colspan="5" class="empty-cell">Aucune échéance.</td></tr>
+            }
+          </tbody>
+        </table>
+        <div class="modal-actions">
+          <button type="button" class="btn-s" (click)="fermerDetail()">Fermer</button>
+          @if (!vueMembre() && !c.solde) {
+            <button type="button" class="btn-p" (click)="allerRemboursement(c); fermerDetail()">🔄 Aller au remboursement</button>
+          }
+        </div>
+      </div>
+    </div>
+  </div>
+}

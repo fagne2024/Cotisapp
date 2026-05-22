@@ -1,0 +1,367 @@
+<div class="comptes-page">
+  @if (loading()) {
+    <div class="loading-state">
+      <div class="loading-spinner"></div>
+      <p>Chargement des comptes…</p>
+    </div>
+  } @else {
+    <div class="comptes-layout" [class.releve-loading]="loadingReleve()">
+
+      <aside class="left-panel">
+        <div class="lp-head">
+          <h2 class="lp-title">Sélectionner un compte</h2>
+          <div class="ct-tabs">
+            <button
+              type="button"
+              class="ct-tab"
+              [class.on]="panelTab() === 'org'"
+              (click)="setPanelTab('org')"
+            >
+              Organisation
+            </button>
+            <button
+              type="button"
+              class="ct-tab"
+              [class.on]="panelTab() === 'mbr'"
+              (click)="setPanelTab('mbr')"
+            >
+              Membres
+            </button>
+          </div>
+        </div>
+
+        @if (panelTab() === 'org') {
+          <div class="lp-scroll">
+            <div class="section-lbl">Comptes principaux</div>
+            @for (card of synthese()?.comptesOrganisation ?? []; track card.compteId) {
+              <button
+                type="button"
+                [class]="compteBtnClass(card)"
+                (click)="selectCompteOrg(card)"
+              >
+                <div class="cb-icon" [style.background]="iconeFondOrg(card)">{{ card.icone }}</div>
+                <div class="cb-info">
+                  <div class="cb-label">{{ card.libelle }}</div>
+                  <div class="cb-type">{{ card.sousTitre }}</div>
+                </div>
+                <div class="cb-solde">
+                  <div class="cb-val" [style.color]="soldeCouleur(card)">{{ formatFcfa(n(card.solde)) }}</div>
+                  <div class="cb-unit">FCFA</div>
+                  <span class="cb-trend" [class]="trendClass(n(card.variationJour))">
+                    {{ trendLabel(n(card.variationJour)) }}
+                  </span>
+                </div>
+              </button>
+            }
+
+            @if (synthese(); as s) {
+              <div class="section-lbl">Synthèse globale</div>
+              <div class="synthese-card">
+                <div class="syn-lbl">Total actifs GIE</div>
+                <div class="syn-val">{{ formatFcfa(n(s.totalActifs)) }}</div>
+                <div class="syn-sub">Caisse + Banque + Solidarité + Intérêts + Amendes & pénalités</div>
+                <div class="syn-row">
+                  <span>💰 Encours emprunts :</span>
+                  <span class="syn-or">−{{ formatFcfa(n(s.encoursEmprunts)) }}</span>
+                </div>
+                <div class="syn-row">
+                  <span>📈 Variation du jour :</span>
+                  <span class="syn-up">{{ formatFcfa(n(s.variationJourGlobale)) }}</span>
+                </div>
+              </div>
+            }
+          </div>
+        } @else {
+          <div class="lp-scroll">
+            <div class="mb-search">
+              <span aria-hidden="true">🔍</span>
+              <input
+                type="search"
+                placeholder="Rechercher un membre…"
+                [value]="rechercheMembre()"
+                (input)="onRechercheMembreInput($any($event.target).value)"
+              />
+            </div>
+
+            @if (membresFiltresBureau().length) {
+              <div class="section-lbl">Bureau</div>
+              @for (m of membresBureauPaged(); track m.membreId) {
+                <button
+                  type="button"
+                  class="mb-item"
+                  [class.active]="isMembreActif(m)"
+                  (click)="selectMembre(m)"
+                >
+                  <div class="mb-av" [style.background]="m.avatarColor">{{ m.initials }}</div>
+                  <div class="mb-info">
+                    <div class="mb-name">{{ m.nomComplet }}</div>
+                    <div class="mb-num">{{ m.codeMembre }} · {{ m.posteLabel }}</div>
+                  </div>
+                  <div class="mb-total">{{ formatFcfa(n(m.totalSoldes)) }}</div>
+                </button>
+              }
+              <app-list-pagination
+                [page]="pageMembresBureau()"
+                [total]="membresFiltresBureau().length"
+                [pageSize]="pageSizeMembres"
+                unit="membre(s)"
+                (pageChange)="pageMembresBureau.set($event)"
+              />
+            }
+
+            @if (membresFiltresSimples().length) {
+              <div class="section-lbl">Membres simples</div>
+              @for (m of membresSimplesPaged(); track m.membreId) {
+                <button
+                  type="button"
+                  class="mb-item"
+                  [class.active]="isMembreActif(m)"
+                  (click)="selectMembre(m)"
+                >
+                  <div class="mb-av" [style.background]="m.avatarColor">{{ m.initials }}</div>
+                  <div class="mb-info">
+                    <div class="mb-name">{{ m.nomComplet }}</div>
+                    <div class="mb-num">{{ m.codeMembre }}</div>
+                  </div>
+                  <div class="mb-total">{{ formatFcfa(n(m.totalSoldes)) }}</div>
+                </button>
+              }
+              <app-list-pagination
+                [page]="pageMembresSimples()"
+                [total]="membresFiltresSimples().length"
+                [pageSize]="pageSizeMembres"
+                unit="membre(s)"
+                (pageChange)="pageMembresSimples.set($event)"
+              />
+            }
+
+            @if (!membresFiltresBureau().length && !membresFiltresSimples().length) {
+              <p class="empty-hint">Aucun membre trouvé.</p>
+            }
+          </div>
+        }
+      </aside>
+
+      @if (releve(); as r) {
+        <section class="right-panel">
+          <header class="rp-header">
+            <div class="rph-top">
+              <div class="rph-compte">
+                <div
+                  class="rph-ico"
+                  [style.background]="r.iconeBg"
+                  [class.rph-ico-text]="vueMembre()"
+                >
+                  {{ r.icone }}
+                </div>
+                <div>
+                  <h1 class="rph-name">{{ r.titre }}</h1>
+                  <p class="rph-meta">{{ r.meta }}</p>
+                </div>
+              </div>
+              <div class="rph-actions">
+                <button type="button" class="btn-s" (click)="exportPdf()" title="Exporter en PDF (Ctrl+E)">📄 Relevé PDF</button>
+                <button type="button" class="btn-or" (click)="exportExcel()" title="Exporter en Excel (Ctrl+Shift+E)">📊 Excel</button>
+              </div>
+            </div>
+
+            @if (vueMembre()) {
+              <div class="solde-hero">
+                <div class="sh-card sh-epargne">
+                  <div class="shc-val">{{ formatFcfa(n(r.soldeActuel)) }}</div>
+                  <div class="shc-lbl">💵 Épargne</div>
+                </div>
+                <div class="sh-card sh-solidarite">
+                  <div class="shc-val">{{ formatFcfa(n(r.soldeSolidarite)) }}</div>
+                  <div class="shc-lbl">🤝 Solidarité</div>
+                </div>
+                <div class="sh-card sh-depense">
+                  <div class="shc-val">{{ formatFcfa(n(r.soldeDepense)) }}</div>
+                  <div class="shc-lbl">📤 Dépense (emprunt)</div>
+                </div>
+                <div class="sh-card sh-penalite">
+                  <div class="shc-val">{{ formatFcfa(n(r.soldePenalitesAmendes)) }}</div>
+                  <div class="shc-lbl">⚠ Pénalité / 🚫 Amende</div>
+                </div>
+              </div>
+            } @else {
+              <div class="solde-hero">
+                <div class="sh-card sh-solde">
+                  <div class="shc-val">{{ formatFcfa(n(r.soldeActuel)) }}</div>
+                  <div class="shc-lbl">Solde actuel</div>
+                  <div class="shc-trend" [class]="trendClass(n(r.variationJour))">
+                    {{ variationJourLabel(n(r.variationJour)) }}
+                  </div>
+                </div>
+                <div class="sh-card sh-entrees">
+                  <div class="shc-val">+{{ formatFcfa(n(r.entreesMois)) }}</div>
+                  <div class="shc-lbl">Entrées ce mois</div>
+                </div>
+                <div class="sh-card sh-sorties">
+                  <div class="shc-val">−{{ formatFcfa(n(r.sortiesMois)) }}</div>
+                  <div class="shc-lbl">Sorties ce mois</div>
+                </div>
+                <div class="sh-card sh-variation">
+                  <div class="shc-val">{{ formatFcfa(n(r.variationMois)) }}</div>
+                  <div class="shc-lbl">Variation nette du mois</div>
+                </div>
+              </div>
+            }
+          </header>
+
+          <div class="releve-filters">
+            <span class="rf-lbl">Filtres :</span>
+            <select
+              class="rf-select"
+              [value]="filtreType()"
+              (change)="onFiltreTypeChange($any($event.target).value)"
+            >
+              <option value="">Tous les types</option>
+              <option value="cotisation">💰 Cotisation</option>
+              <option value="mois">📅 Cotisation Mois</option>
+              <option value="versement">📥 Versement</option>
+              <option value="emprunt">📋 Emprunt</option>
+              <option value="remboursement">🔄 Remboursement</option>
+              <option value="penalite">⚠ Pénalité</option>
+              <option value="amende">🚫 Amende</option>
+              <option value="depense">📤 Dépense</option>
+              <option value="banque">🏦 Banque</option>
+            </select>
+            <select
+              class="rf-select"
+              [value]="filtreStatut()"
+              (change)="onFiltreStatutChange($any($event.target).value)"
+            >
+              <option value="">Tous les statuts</option>
+              <option value="active">Active</option>
+              <option value="annulee">Annulée</option>
+            </select>
+            <input
+              type="date"
+              class="rf-date"
+              [value]="dateDebut()"
+              (change)="dateDebut.set($any($event.target).value); onDatesChange()"
+            />
+            <input
+              type="date"
+              class="rf-date"
+              [value]="dateFin()"
+              (change)="dateFin.set($any($event.target).value); onDatesChange()"
+            />
+            <div class="rf-search">
+              <span aria-hidden="true">🔍</span>
+              <input
+                type="search"
+                placeholder="Membre, référence…"
+                [value]="recherche()"
+                (input)="onRechercheInput($any($event.target).value)"
+              />
+            </div>
+            <span class="rf-count">{{ r.totaux.nbOperations }} opération(s)</span>
+          </div>
+
+          <div class="releve-wrap">
+            @if (!releveLignesTotal()) {
+              <p class="empty-releve">Aucune opération sur cette période.</p>
+            }
+            @for (g of releveGroupesPaged(); track g.date) {
+              <div class="releve-group">
+                <div class="rg-label">{{ g.label }}</div>
+                @for (l of g.lignes; track l.operationId) {
+                  <article class="releve-row" [class.annulee]="l.annulee">
+                    <div class="rr-ico" [style.background]="l.iconeBg">{{ l.icone }}</div>
+                    <div class="rr-info">
+                      <div class="rr-title">
+                        {{ l.titre }}
+                        @if (l.annulee) {
+                          <span class="annule-tag">[ANNULÉE]</span>
+                        }
+                      </div>
+                      <div class="rr-meta">
+                        @if (l.heureOperation) {
+                          <span>{{ l.heureOperation }}</span>
+                        }
+                        <span class="rr-tag" [class]="l.typeTagClass">{{ l.typeLibelle }}</span>
+                        @if (l.metaExtra) {
+                          <span>{{ l.metaExtra }}</span>
+                        }
+                        @if (l.reference) {
+                          <span class="rr-ref">Réf : {{ l.reference }}</span>
+                        }
+                      </div>
+                    </div>
+                    <div class="rr-right">
+                      <div
+                        class="rr-montant"
+                        [class]="montantClass(l.sens, l.annulee)"
+                      >
+                        {{ montantLigne(l.sens, n(l.montant), l.annulee) }}
+                      </div>
+                      <div class="rr-solde">
+                        @if (!l.annulee && l.soldeApres != null) {
+                          Solde : {{ formatFcfa(n(l.soldeApres)) }}
+                        } @else {
+                          —
+                        }
+                      </div>
+                      <span
+                        class="rr-statut"
+                        [class.stat-active]="!l.annulee"
+                        [class.stat-annulee]="l.annulee"
+                      >
+                        {{ l.annulee ? 'Annulée' : 'Active' }}
+                      </span>
+                    </div>
+                  </article>
+                }
+              </div>
+            }
+          </div>
+          <app-list-pagination
+            class="releve-pagination"
+            [page]="pageReleve()"
+            [total]="releveLignesTotal()"
+            [pageSize]="pageSizeReleve"
+            unit="opération(s)"
+            (pageChange)="pageReleve.set($event)"
+          />
+
+          <footer class="total-bar">
+            <div class="tb-items">
+              <div class="tb-item">
+                <div class="tbi-val">+{{ formatFcfa(n(r.totaux.entrees)) }}</div>
+                <div class="tbi-lbl">Entrées (période)</div>
+              </div>
+              <div class="tb-item">
+                <div class="tbi-val">−{{ formatFcfa(n(r.totaux.sorties)) }}</div>
+                <div class="tbi-lbl">Sorties (période)</div>
+              </div>
+              <div class="tb-item">
+                <div class="tbi-val tbi-up">{{ formatFcfa(n(r.totaux.variationNette)) }}</div>
+                <div class="tbi-lbl">Variation nette</div>
+              </div>
+              <div class="tb-item">
+                <div class="tbi-val">{{ r.totaux.nbOperations }}</div>
+                <div class="tbi-lbl">
+                  @if (r.totaux.nbAnnulees > 0) {
+                    dont {{ r.totaux.nbAnnulees }} annulée(s)
+                  } @else {
+                    opérations
+                  }
+                </div>
+              </div>
+            </div>
+            <div class="tb-actions-bar">
+              <button type="button" class="btn-bar" (click)="exportPdf()" title="Exporter en PDF (Ctrl+E)">📄 Exporter</button>
+              <button type="button" class="btn-bar" (click)="imprimer()" title="Imprimer (Ctrl+P)">🖨 Imprimer</button>
+            </div>
+          </footer>
+        </section>
+      } @else {
+        <section class="right-panel empty-panel">
+          <p>Sélectionnez un compte pour afficher le relevé.</p>
+        </section>
+      }
+    </div>
+  }
+</div>

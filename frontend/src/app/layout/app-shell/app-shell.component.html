@@ -1,0 +1,374 @@
+<div class="shell">
+  <aside class="sidebar">
+    <div class="s-logo">
+      <div class="s-logo-top">
+        <div class="s-icon" aria-hidden="true">🤝</div>
+        <div class="s-app">CotisApp</div>
+      </div>
+      <div class="s-org">{{ auth.currentOrgNom() ?? 'Organisation' }}</div>
+      <span class="s-badge">{{ roleLabel() }}</span>
+    </div>
+
+    <nav class="nav-scroll" aria-label="Navigation principale">
+      @if (estMembreSimple()) {
+        <div class="nav-section">
+          <div class="nav-lbl">Mon espace</div>
+          <a
+            class="ni"
+            routerLinkActive="on"
+            [routerLink]="['/organisations', orgShell()!, 'mon-compte']"
+            [routerLinkActiveOptions]="{ exact: true }"
+          >
+            <span class="ico">👤</span>Mon compte
+          </a>
+          <a
+            class="ni"
+            routerLinkActive="on"
+            [routerLink]="['/organisations', orgShell()!, 'mon-profil']"
+            [routerLinkActiveOptions]="{ exact: true }"
+          >
+            <span class="ico">⚙</span>Mon profil
+          </a>
+          <a
+            class="ni"
+            routerLinkActive="on"
+            [routerLink]="['/organisations', orgShell()!, 'operations', 'emprunts', 'suivi']"
+          >
+            <span class="ico">💰</span>Mes emprunts
+          </a>
+          <a
+            class="ni"
+            routerLinkActive="on"
+            [routerLink]="notificationsLink()"
+            [routerLinkActiveOptions]="{ exact: true }"
+          >
+            <span class="ico">🔔</span>Notifications
+            @if (notifUnreadCount() > 0) {
+              <span class="notif-count">{{ notifUnreadCount() }}</span>
+            }
+          </a>
+        </div>
+        <div class="s-restricted">
+          <strong>Accès limité</strong><br />
+          En tant que membre, vous n'avez accès qu'à vos propres données. Pour toute question, contactez votre
+          Admin GIE.
+        </div>
+      } @else if (estMembreBureau()) {
+      <div class="nav-section">
+        <div class="nav-lbl">Principal</div>
+        @if (peutMenu('membres')) {
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'membres']"
+          [routerLinkActiveOptions]="{ exact: true }"
+        >
+          <span class="ico">👥</span>Membres
+        </a>
+        }
+        @if (peutMenu('comptes')) {
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'gestion', 'comptes']"
+          [routerLinkActiveOptions]="{ exact: true }"
+        >
+          <span class="ico">🏦</span>Comptes & Relevés
+        </a>
+        }
+      </div>
+
+      @if (peutMenu('cotisations') || peutMenu('emprunts') || peutMenu('remboursements')) {
+      <div class="nav-section">
+        <div class="nav-lbl">Opérations</div>
+        @if (peutMenu('cotisations')) {
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'operations', 'cotisation-mois']"
+          [queryParams]="{ t: 'hebdo' }"
+          [routerLinkActiveOptions]="cotisationLinkActiveOpts"
+        >
+          <span class="ico">💰</span>Cotisation
+        </a>
+        }
+        @if (peutMenu('emprunts')) {
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'operations', 'emprunts']"
+          [routerLinkActiveOptions]="{ exact: true }"
+          ><span class="ico">📋</span>Emprunts</a
+        >
+        }
+        @if (peutMenu('remboursements')) {
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'operations', 'remboursements']"
+          [queryParams]="{ t: 'etale' }"
+          [routerLinkActiveOptions]="remboursementLinkActiveOpts"
+        >
+          <span class="ico">🔄</span>Remboursement
+        </a>
+        }
+      </div>
+      }
+
+      @if (
+        peutMenu('rapports') ||
+        peutMenu('exercices') ||
+        peutMenu('tresorerie') ||
+        peutMenu('parametrage') ||
+        peutMenu('utilisateurs') ||
+        peutMenu('notifications')
+      ) {
+      <div class="nav-section">
+        <div class="nav-lbl">Gestion</div>
+        @if (peutMenu('rapports')) {
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'rapports']"
+          [routerLinkActiveOptions]="{ exact: true }"
+          ><span class="ico">📈</span>Rapports</a
+        >
+        }
+        @if (peutMenu('exercices')) {
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'gestion', 'exercices']"
+          [routerLinkActiveOptions]="{ exact: true }"
+          ><span class="ico">📆</span>Exercices</a
+        >
+        }
+        @if (peutMenu('tresorerie')) {
+        <a
+          class="ni"
+          [class.on]="isTresorerieRoute()"
+          [routerLink]="['/organisations', orgShell()!, 'gestion', 'tresorerie']"
+          ><span class="ico">💰</span>Trésorerie</a
+        >
+        }
+        @if (peutMenu('parametrage')) {
+        <a
+          class="ni"
+          [class.on]="isParametrageRoute()"
+          [routerLink]="['/organisations', orgShell()!, 'parametrage', 'regles']"
+          ><span class="ico">⚙</span>Paramétrage</a
+        >
+        }
+        @if (peutMenu('utilisateurs')) {
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'gestion', 'utilisateurs']"
+          [routerLinkActiveOptions]="{ exact: false }"
+          ><span class="ico">🔐</span>Utilisateurs &amp; Droits</a
+        >
+        }
+        @if (peutMenu('notifications')) {
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="notificationsLink()"
+          [routerLinkActiveOptions]="{ exact: true }"
+        >
+          <span class="ico">🔔</span>Notifications
+          @if (notifUnreadCount() > 0) {
+            <span class="notif-count">{{ notifUnreadCount() }}</span>
+          }
+        </a>
+        }
+      </div>
+      }
+
+      <div class="nav-section">
+        <div class="nav-lbl">Mon compte</div>
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'mon-profil']"
+          [routerLinkActiveOptions]="{ exact: true }"
+        >
+          <span class="ico">👤</span>Mon profil
+        </a>
+      </div>
+      } @else {
+      <div class="nav-section">
+        <div class="nav-lbl">Principal</div>
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'dashboard']"
+          [routerLinkActiveOptions]="{ exact: true }"
+        >
+          <span class="ico">📊</span>Tableau de bord
+        </a>
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'membres']"
+          [routerLinkActiveOptions]="{ exact: true }"
+        >
+          <span class="ico">👥</span>Membres
+        </a>
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'gestion', 'comptes']"
+          [routerLinkActiveOptions]="{ exact: true }"
+        >
+          <span class="ico">🏦</span>Comptes & Relevés
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-lbl">Opérations</div>
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'operations', 'cotisation-mois']"
+          [queryParams]="{ t: 'hebdo' }"
+          [routerLinkActiveOptions]="cotisationLinkActiveOpts"
+        >
+          <span class="ico">💰</span>Cotisation
+        </a>
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'operations', 'emprunts']"
+          [routerLinkActiveOptions]="{ exact: true }"
+          ><span class="ico">📋</span>Emprunts</a
+        >
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'operations', 'remboursements']"
+          [queryParams]="{ t: 'etale' }"
+          [routerLinkActiveOptions]="remboursementLinkActiveOpts"
+        >
+          <span class="ico">🔄</span>Remboursement
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-lbl">Gestion</div>
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'rapports']"
+          [routerLinkActiveOptions]="{ exact: true }"
+          ><span class="ico">📈</span>Rapports</a
+        >
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'gestion', 'exercices']"
+          [routerLinkActiveOptions]="{ exact: true }"
+          ><span class="ico">📆</span>Exercices</a
+        >
+        <a
+          class="ni"
+          [class.on]="isTresorerieRoute()"
+          [routerLink]="['/organisations', orgShell()!, 'gestion', 'tresorerie']"
+          ><span class="ico">💰</span>Trésorerie</a
+        >
+        <a
+          class="ni"
+          [class.on]="isParametrageRoute()"
+          [routerLink]="['/organisations', orgShell()!, 'parametrage', 'regles']"
+          ><span class="ico">⚙</span>Paramétrage</a
+        >
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'gestion', 'utilisateurs']"
+          [routerLinkActiveOptions]="{ exact: false }"
+          ><span class="ico">🔐</span>Utilisateurs &amp; Droits</a
+        >
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="notificationsLink()"
+          [routerLinkActiveOptions]="{ exact: true }"
+        >
+          <span class="ico">🔔</span>Notifications
+          @if (notifUnreadCount() > 0) {
+            <span class="notif-count">{{ notifUnreadCount() }}</span>
+          }
+        </a>
+      </div>
+
+      <div class="nav-section">
+        <div class="nav-lbl">Mon compte</div>
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'mon-profil']"
+          [routerLinkActiveOptions]="{ exact: true }"
+        >
+          <span class="ico">👤</span>Mon profil
+        </a>
+      </div>
+      }
+    </nav>
+
+    <div class="s-user">
+      <div class="av" [style.background]="'var(--or2)'" [style.color]="'var(--g1)'">{{ initials() }}</div>
+      <div class="s-user-text">
+        <div class="s-user-name">{{ auth.nomComplet() }}</div>
+        <div class="s-user-meta">{{ roleLabel() }}</div>
+      </div>
+      <button type="button" class="s-logout" (click)="logout()" aria-label="Se déconnecter">⏻</button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <div class="tb-title">{{ pageTitle() }}</div>
+      <div class="tb-search">
+        <span class="tb-search-ico" aria-hidden="true">🔍</span>
+        <input type="search" placeholder="Rechercher membre, opération…" />
+      </div>
+      <div class="tb-actions">
+        <a
+          class="tb-btn"
+          aria-label="Notifications"
+          [routerLink]="notificationsLink()"
+        >
+          🔔
+          @if (notifUnreadCount() > 0) {
+            <span class="tb-dot"></span>
+          }
+        </a>
+        <button type="button" class="tb-btn" aria-label="Calendrier">📅</button>
+        <div class="tb-av">{{ initials() }}</div>
+      </div>
+    </header>
+
+    <div class="shell-content">
+      <router-outlet />
+    </div>
+  </div>
+</div>
+
+<nav class="mobile-nav" aria-label="Navigation mobile">
+  <a [routerLink]="accueilLink()" routerLinkActive="mob-on">Accueil</a>
+  @if (!estMembreBureau() || peutMenu('membres')) {
+  <a [routerLink]="['/organisations', orgShell()!, 'membres']" routerLinkActive="mob-on">Membres</a>
+  }
+  <a
+    [routerLink]="['/organisations', orgShell()!, 'operations', 'cotisation-mois']"
+    [queryParams]="{ t: 'mois' }"
+    routerLinkActive="mob-on"
+    >Mois</a
+  >
+  <a
+    [routerLink]="['/organisations', orgShell()!, 'operations', 'remboursements']"
+    [queryParams]="{ t: 'etale' }"
+    routerLinkActive="mob-on"
+    >Remb.</a
+  >
+</nav>

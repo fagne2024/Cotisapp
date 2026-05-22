@@ -1,0 +1,129 @@
+:host {
+  display: block;
+}
+
+.notify-root {
+  position: fixed;
+  inset: 0;
+  z-index: 20000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  box-sizing: border-box;
+}
+
+.notify-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 20, 0.5);
+  backdrop-filter: blur(2px);
+  animation: notify-fade-in 0.2s ease;
+}
+
+.notify-popup {
+  position: relative;
+  z-index: 1;
+  width: min(440px, 100%);
+  max-height: min(80vh, 520px);
+  overflow-y: auto;
+  padding: 28px 26px 24px;
+  border-radius: 16px;
+  background: #fff;
+  box-shadow: 0 24px 64px rgba(0, 0, 0, 0.28);
+  text-align: center;
+  animation: notify-pop-in 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.notify-icon {
+  font-size: 40px;
+  line-height: 1;
+  margin-bottom: 12px;
+}
+
+.notify-title {
+  margin: 0 0 10px;
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22px;
+  font-weight: 700;
+  color: #1c1c1e;
+}
+
+.notify-message {
+  margin: 0 0 22px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: #4a5568;
+  white-space: pre-wrap;
+}
+
+.notify-btn {
+  min-width: 132px;
+  padding: 11px 28px;
+  border: none;
+  border-radius: 10px;
+  font-family: 'DM Sans', sans-serif;
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  cursor: pointer;
+  background: #1a5c3a;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 14px rgba(26, 92, 58, 0.25);
+  }
+}
+
+.notify-popup.success {
+  border-top: 4px solid #1a5c3a;
+
+  .notify-btn {
+    background: #1a5c3a;
+  }
+}
+
+.notify-popup.error {
+  border-top: 4px solid #c0392b;
+
+  .notify-btn {
+    background: #c0392b;
+
+    &:hover {
+      box-shadow: 0 4px 14px rgba(192, 57, 43, 0.3);
+    }
+  }
+}
+
+.notify-popup.info {
+  border-top: 4px solid #1e6fa8;
+
+  .notify-btn {
+    background: #1e6fa8;
+
+    &:hover {
+      box-shadow: 0 4px 14px rgba(30, 111, 168, 0.3);
+    }
+  }
+}
+
+@keyframes notify-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes notify-pop-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}

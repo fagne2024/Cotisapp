@@ -1,0 +1,21 @@
+@if (notify.state().visible) {
+  <div class="notify-root" role="presentation">
+    <div class="notify-overlay" (click)="notify.dismiss()"></div>
+    <div
+      class="notify-popup"
+      [class.success]="notify.state().kind === 'success'"
+      [class.error]="notify.state().kind === 'error'"
+      [class.info]="notify.state().kind === 'info'"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="notify-title"
+      aria-describedby="notify-message"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="notify-icon" aria-hidden="true">{{ iconForKind() }}</div>
+      <h2 id="notify-title" class="notify-title">{{ notify.state().title }}</h2>
+      <p id="notify-message" class="notify-message">{{ notify.state().message }}</p>
+      <button #okBtn type="button" class="notify-btn" (click)="notify.dismiss()">OK</button>
+    </div>
+  </div>
+}

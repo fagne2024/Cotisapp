@@ -1,0 +1,229 @@
+<section class="mco-card" [class.is-open]="sectionOuverte()">
+  <button
+    type="button"
+    class="mco-toggle"
+    (click)="toggleSection()"
+    [attr.aria-expanded]="sectionOuverte()"
+    aria-controls="mco-panel"
+  >
+    <span class="mco-toggle-text">
+      <span class="mco-title">💳 Cotiser ou rembourser</span>
+      <span class="mco-sub">Paiement mobile — validation par l'administrateur (Admin GIE)</span>
+    </span>
+    <span class="mco-chevron" aria-hidden="true">{{ sectionOuverte() ? '▲' : '▼' }}</span>
+  </button>
+
+  @if (sectionOuverte()) {
+    <div id="mco-panel" class="mco-panel">
+      @if (demandesEnAttente().length > 0) {
+        <div class="mco-pending-box">
+          <span class="mco-pending-title">En attente de validation ({{ demandesEnAttente().length }})</span>
+          <ul class="mco-pending-list">
+            @for (d of demandesEnAttente(); track d.id) {
+              <li>{{ d.libelleResume ?? d.typeDemande }} — {{ formatFcfa(d.montant) }}</li>
+            }
+          </ul>
+        </div>
+      }
+      @if (demandesRejetees().length > 0) {
+        <div class="mco-rejected-box">
+          <span class="mco-rejected-title">Demandes rejetées ({{ demandesRejetees().length }})</span>
+          <ul class="mco-rejected-list">
+            @for (d of demandesRejetees(); track d.id) {
+              <li class="mco-rejected-item">
+                <span class="mco-rejected-line">{{ d.libelleResume ?? d.typeDemande }} — {{ formatFcfa(d.montant) }}</span>
+                @if (d.motifRefus) {
+                  <span class="mco-rejected-motif">Motif : {{ d.motifRefus }}</span>
+                }
+              </li>
+            }
+          </ul>
+        </div>
+      }
+      <div class="mco-tabs" role="tablist">
+        <button
+          type="button"
+          class="mco-tab"
+          role="tab"
+          [class.on]="panel() === 'cotis'"
+          (click)="setPanel('cotis')"
+        >
+          💰 Cotiser
+        </button>
+        <button
+          type="button"
+          class="mco-tab"
+          role="tab"
+          [class.on]="panel() === 'remb'"
+          (click)="setPanel('remb')"
+        >
+          🔄 Rembourser
+        </button>
+      </div>
+
+      @if (panel() === 'cotis') {
+        <form [formGroup]="formCotis" class="mco-form" (ngSubmit)="$event.preventDefault()">
+          <div class="mco-subtabs">
+            <button type="button" class="mco-subtab" [class.on]="cotisType() === 'hebdo'" (click)="setCotisType('hebdo')">
+              Hebdomadaire
+            </button>
+            <button type="button" class="mco-subtab" [class.on]="cotisType() === 'mois'" (click)="setCotisType('mois')">
+              Mensuelle
+            </button>
+          </div>
+
+          <div class="mco-grid">
+            @if (cotisType() === 'hebdo') {
+              <div class="fl">
+                <label for="mco-semaine">Semaine</label>
+                <select id="mco-semaine" formControlName="semaineKey">
+                  @for (s of semaineOptions; track s.value) {
+                    <option [value]="s.value">{{ s.label }}</option>
+                  }
+                </select>
+              </div>
+            } @else {
+              <div class="fl">
+                <label for="mco-mois">Mois</label>
+                <select id="mco-mois" formControlName="moisAnnee">
+                  @for (mo of moisOptions; track mo.value) {
+                    <option [value]="mo.value">{{ mo.label }}</option>
+                  }
+                </select>
+              </div>
+            }
+            <div class="fl">
+              <label for="mco-date-cotis">Date</label>
+              <input id="mco-date-cotis" type="date" formControlName="dateOperation" />
+            </div>
+          </div>
+
+          @if (utiliseParts() && plageParts(); as plage) {
+            <div class="mco-parts-row">
+              <div class="fl">
+                <label for="mco-parts">Nombre de parts</label>
+                <select id="mco-parts" formControlName="nbParts" (change)="onNbPartsChange()">
+                  @for (n of optionsPartsListe(); track n) {
+                    <option [ngValue]="n">{{ n }} part{{ n > 1 ? 's' : '' }}</option>
+                  }
+                </select>
+                <span class="mco-hint">{{ plage.min }} – {{ plage.max }} parts</span>
+              </div>
+              <div class="mco-montant-box">
+                <span class="mco-montant-lbl">Montant</span>
+                <span class="mco-montant-val">{{ formatFcfa(montantDepuisPartsAffiche()) }}</span>
+              </div>
+            </div>
+          }
+
+          <div class="mco-sect">Mode de paiement</div>
+          <div class="mode-paiement-choix">
+            @for (m of modesPaiement; track m.value) {
+              <button
+                type="button"
+                class="mode-paiement-btn"
+                [class.on]="formCotis.controls.modePaiement.value === m.value"
+                [class.wave]="m.value === 'WAVE'"
+                [class.om]="m.value === 'ORANGE_MONEY'"
+                (click)="selectModeCotis(m.value)"
+              >
+                <span class="mode-paiement-logo-wrap" [class.om]="m.value === 'ORANGE_MONEY'">
+                  <img [src]="m.logoUrl" [alt]="m.label" class="mode-paiement-logo" />
+                </span>
+                <span class="mode-paiement-lbl">{{ m.label }}</span>
+              </button>
+            }
+          </div>
+          <div class="fl mt8">
+            <label for="mco-ref-cotis">N° transaction (Wave / Orange Money)</label>
+            <input
+              id="mco-ref-cotis"
+              type="text"
+              formControlName="referencePaiement"
+              placeholder="Référence affichée dans l’app mobile"
+              autocomplete="off"
+            />
+          </div>
+          <p class="paiement-hint">Effectuez le paiement dans Wave ou Orange Money, puis saisissez la référence ici.</p>
+
+          <div class="fl mt8">
+            <label for="mco-obs-cotis">Observation (optionnel)</label>
+            <input id="mco-obs-cotis" type="text" formControlName="observation" />
+          </div>
+
+          <button type="button" class="btn-p mco-submit" [disabled]="loading()" (click)="validerCotisation()">
+            📲 Envoyer la demande de cotisation
+          </button>
+        </form>
+      } @else {
+        <form [formGroup]="formRemb" class="mco-form" (ngSubmit)="$event.preventDefault()">
+          @if (empruntsEnCours().length === 0) {
+            <p class="mco-empty">Aucun emprunt en cours à rembourser.</p>
+          } @else {
+            <div class="fl">
+              <label for="mco-emprunt">Emprunt</label>
+              <select id="mco-emprunt" formControlName="empruntId" (change)="onEmpruntRembChange()">
+                <option [ngValue]="null">Choisir…</option>
+                @for (e of empruntsEnCours(); track e.id) {
+                  <option [ngValue]="e.id">
+                    {{ typeEmpruntLabel(e.typeEmprunt) }} — reste {{ formatFcfa(e.montantRestant) }}
+                  </option>
+                }
+              </select>
+            </div>
+
+            <div class="mco-grid">
+              <div class="fl">
+                <label for="mco-montant-remb">Montant (FCFA)</label>
+                <input id="mco-montant-remb" type="number" formControlName="montant" min="1" step="100" />
+              </div>
+              <div class="fl">
+                <label for="mco-date-remb">Date de paiement</label>
+                <input id="mco-date-remb" type="date" formControlName="datePaiement" />
+              </div>
+            </div>
+
+            <div class="mco-sect">Mode de paiement</div>
+            <div class="mode-paiement-choix">
+              @for (m of modesPaiement; track m.value) {
+                <button
+                  type="button"
+                  class="mode-paiement-btn"
+                  [class.on]="formRemb.controls.modePaiement.value === m.value"
+                  [class.wave]="m.value === 'WAVE'"
+                  [class.om]="m.value === 'ORANGE_MONEY'"
+                  (click)="selectModeRemb(m.value)"
+                >
+                  <span class="mode-paiement-logo-wrap" [class.om]="m.value === 'ORANGE_MONEY'">
+                    <img [src]="m.logoUrl" [alt]="m.label" class="mode-paiement-logo" />
+                  </span>
+                  <span class="mode-paiement-lbl">{{ m.label }}</span>
+                </button>
+              }
+            </div>
+            <div class="fl mt8">
+              <label for="mco-ref-remb">N° transaction (Wave / Orange Money)</label>
+              <input
+                id="mco-ref-remb"
+                type="text"
+                formControlName="referencePaiement"
+                placeholder="Référence affichée dans l’app mobile"
+                autocomplete="off"
+              />
+            </div>
+            <p class="paiement-hint">Après votre paiement mobile, indiquez la référence de transaction.</p>
+
+            <div class="fl mt8">
+              <label for="mco-obs-remb">Observation (optionnel)</label>
+              <input id="mco-obs-remb" type="text" formControlName="observation" />
+            </div>
+
+            <button type="button" class="btn-p mco-submit" [disabled]="loading()" (click)="validerRemboursement()">
+              📲 Envoyer la demande de remboursement
+            </button>
+          }
+        </form>
+      }
+    </div>
+  }
+</section>

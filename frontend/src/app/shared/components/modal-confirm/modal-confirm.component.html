@@ -1,0 +1,28 @@
+@if (confirm.state().visible) {
+  <div class="modal-confirm-root" role="presentation">
+    <div class="modal-confirm-overlay" (click)="confirm.cancel()"></div>
+    <div
+      class="modal-confirm-popup"
+      [class.danger]="confirm.state().variant === 'danger'"
+      role="alertdialog"
+      aria-modal="true"
+      aria-labelledby="modal-confirm-title"
+      aria-describedby="modal-confirm-message"
+      (click)="$event.stopPropagation()"
+    >
+      <div class="modal-confirm-icon" aria-hidden="true">
+        {{ confirm.state().variant === 'danger' ? '⚠' : '?' }}
+      </div>
+      <h2 id="modal-confirm-title" class="modal-confirm-title">{{ confirm.state().title }}</h2>
+      <p id="modal-confirm-message" class="modal-confirm-message">{{ confirm.state().message }}</p>
+      <div class="modal-confirm-actions">
+        <button #cancelBtn type="button" class="modal-confirm-btn modal-confirm-btn--cancel" (click)="confirm.cancel()">
+          {{ confirm.state().cancelLabel }}
+        </button>
+        <button type="button" class="modal-confirm-btn modal-confirm-btn--ok" (click)="confirm.accept()">
+          {{ confirm.state().confirmLabel }}
+        </button>
+      </div>
+    </div>
+  </div>
+}

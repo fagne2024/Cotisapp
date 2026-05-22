@@ -1,0 +1,639 @@
+<div class="emprunts-page">
+  <form [formGroup]="form" (ngSubmit)="$event.preventDefault()">
+    <div class="page-header">
+      <div>
+        <div class="pt">Gestion des emprunts</div>
+        <div class="ps">
+          @if (typeUi() === 'historique') {
+            Historique des octrois d'emprunt (étalé, caisse, solidarité)
+          } @else {
+            {{ sousTitre() }}
+          }
+        </div>
+      </div>
+      <div class="page-header-actions">
+        <button type="button" class="btn-p btn-suivi" (click)="allerAuSuiviEmprunts()">
+          Suivi des emprunts
+        </button>
+      </div>
+    </div>
+
+    <div class="suivi-cta-bar">
+      <p class="suivi-cta-text">Consultez l'ensemble des emprunts en cours, les retards et les échéances à venir.</p>
+      <button type="button" class="btn-p btn-suivi-outline" (click)="allerAuSuiviEmprunts()">
+        Ouvrir le suivi des emprunts
+      </button>
+    </div>
+
+    <div class="page-tabs page-tabs-with-suivi">
+      <button type="button" class="page-tab" [class.on-etale]="typeUi() === 'etale'" (click)="setType('etale')" title="Étalé (Ctrl+1)">Étalé</button>
+      <button type="button" class="page-tab" [class.on-caisse]="typeUi() === 'caisse'" (click)="setType('caisse')" title="Caisse (Ctrl+2)">Caisse</button>
+      <button type="button" class="page-tab" [class.on-sol]="typeUi() === 'sol'" (click)="setType('sol')" title="Solidarité (Ctrl+3)">Solidarité</button>
+      <button type="button" class="page-tab" [class.on-hist]="typeUi() === 'historique'" (click)="setType('historique')" title="Historique (Ctrl+4)">Historique</button>
+      <button type="button" class="page-tab page-tab-suivi" (click)="allerAuSuiviEmprunts()">
+        Suivi des emprunts
+      </button>
+    </div>
+
+    @if (typeUi() === 'historique') {
+      <div class="historique-panel">
+        <div class="card">
+          <div class="card-pad">
+            <div class="card-h historique-h">
+              <span class="card-title">📋 Tous les emprunts accordés</span>
+              <button type="button" class="btn-refresh" (click)="chargerHistorique()">Actualiser</button>
+            </div>
+            <div class="filters-row historique-filters">
+              <select class="filter-select" [value]="filtreHistType()" (change)="onFiltreHistType($event)">
+                <option value="tous">Tous les types</option>
+                <option value="ETALE">Étalé</option>
+                <option value="CAISSE">Caisse</option>
+                <option value="SOLIDARITE">Solidarité</option>
+              </select>
+              <input type="search" class="filter-search" placeholder="Membre, code…" [value]="filtreHistRecherche()" (input)="onFiltreHistRecherche($event)" />
+              <span class="filtre-count">{{ historiqueFiltre().length }} ligne(s)</span>
+            </div>
+            <div class="filters-row historique-dates">
+              <label class="hist-date-lbl">Du <input type="date" class="filter-date" [value]="filtreHistDateDebut()" (change)="onFiltreHistDateDebut($event)" /></label>
+              <label class="hist-date-lbl">Au <input type="date" class="filter-date" [value]="filtreHistDateFin()" (change)="onFiltreHistDateFin($event)" /></label>
+              @if (filtreHistDateDebut() || filtreHistDateFin()) {
+                <button type="button" class="btn-date-clear" (click)="reinitialiserFiltreHistDates()">Effacer dates</button>
+              }
+            </div>
+            <div class="hist-summary hist-summary-3">
+              <div class="hist-sum green"><div class="n">{{ historiqueTotaux().etale }}</div><div class="lbl">Étalé</div><div class="sub">{{ formatFcfa(historiqueTotaux().montantEtale) }}</div></div>
+              <div class="hist-sum or"><div class="n">{{ historiqueTotaux().caisse }}</div><div class="lbl">Caisse</div><div class="sub">{{ formatFcfa(historiqueTotaux().montantCaisse) }}</div></div>
+              <div class="hist-sum bl"><div class="n">{{ historiqueTotaux().solidarite }}</div><div class="lbl">Solidarité</div><div class="sub">{{ formatFcfa(historiqueTotaux().montantSolidarite) }}</div></div>
+            </div>
+            <div class="table-wrap">
+              <table class="hist-table">
+                <thead><tr><th>Membre</th><th>Type</th><th>Capital</th><th>Frais</th><th>Total</th><th>Éch.</th><th>Date</th><th class="th-actions">Actions</th></tr></thead>
+                <tbody>
+                  @if (historiqueLoading()) {
+                    <tr><td colspan="8" class="empty-filtre"><div class="loading-state-inline"><div class="spinner-small"></div><span>Chargement…</span></div></td></tr>
+                  } @else {
+                    @for (h of historiqueFiltre(); track h.ligneId) {
+                      <tr [class.hist-row-annulee]="h.annulee">
+                        <td><div class="h-name">{{ h.membreNom }}</div><div class="h-code">{{ h.codeMembre }}</div></td>
+                        <td>
+                          @if (h.typeEmprunt === 'ETALE') { <span class="badge b-green">Étalé</span> }
+                          @else if (h.typeEmprunt === 'CAISSE') { <span class="badge b-or">Caisse</span> }
+                          @else { <span class="badge b-blue">Solidarité</span> }
+                        </td>
+                        <td>{{ formatFcfa(h.montantCapital) }}</td>
+                        <td>{{ h.montantFrais > 0 ? formatFcfa(h.montantFrais) : '—' }}</td>
+                        <td class="db-c">−{{ formatFcfa(h.montantTotal) }}</td>
+                        <td>{{ h.nbEcheances ?? '—' }}</td>
+                        <td>{{ h.dateLabel }}</td>
+                        <td class="h-actions">
+                          @if (h.annulable) {
+                            <button
+                              type="button"
+                              class="btn-annuler"
+                              [disabled]="estAnnulationEnCours(h.operationId)"
+                              (click)="confirmerAnnulationEmprunt(h)"
+                            >
+                              @if (estAnnulationEnCours(h.operationId)) { … } @else { Annuler }
+                            </button>
+                          } @else if (h.annulee) {
+                            <span class="hist-action-muted">—</span>
+                          }
+                        </td>
+                      </tr>
+                    } @empty {
+                      <tr><td colspan="8" class="empty-filtre">Aucun emprunt accordé.</td></tr>
+                    }
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    } @else {
+    <div class="main-grid">
+      <div>
+        <div class="card">
+          <div class="card-pad">
+            <div class="sect-title">📋 Type d'emprunt</div>
+
+            <div class="type-selector">
+              <button
+                type="button"
+                class="ts-card"
+                [class.on-etale]="typeUi() === 'etale'"
+                (click)="setType('etale')"
+              >
+                <div class="ts-icon">📈</div>
+                <div class="ts-label">Étalé / Financement</div>
+                <div class="ts-sub">Remboursement en plusieurs échéances avec intérêts</div>
+              </button>
+              <button
+                type="button"
+                class="ts-card"
+                [class.on-caisse]="typeUi() === 'caisse'"
+                (click)="setType('caisse')"
+              >
+                <div class="ts-icon">🏦</div>
+                <div class="ts-label">Caisse</div>
+                <div class="ts-sub">Depuis la caisse · Frais portés par le membre</div>
+              </button>
+              <button type="button" class="ts-card" [class.on-sol]="typeUi() === 'sol'" (click)="setType('sol')">
+                <div class="ts-icon">🤝</div>
+                <div class="ts-label">Solidarité</div>
+                <div class="ts-sub">Depuis le fonds solidarité · Sans frais</div>
+              </button>
+            </div>
+
+            <div class="regle-info" [class.etale]="typeUi() === 'etale'" [class.caisse]="typeUi() === 'caisse'" [class.sol]="typeUi() === 'sol'">
+              <div class="ri-title">
+                ⚙ Règle paramétrage —
+                <span>{{ regleActive().libelle }}</span>
+                @if (!regleActive().actif) {
+                  <span class="ri-inactif">(inactive)</span>
+                }
+              </div>
+              <div class="ri-grid">
+                <div class="ri-item">
+                  <div class="ri-label">Montant autorisé</div>
+                  <div class="ri-val ri-strong">
+                    {{ formatFcfa(montantMin()) }} – {{ formatFcfa(montantMax()) }}
+                  </div>
+                </div>
+                <div class="ri-item">
+                  <div class="ri-label">Frais</div>
+                  <div class="ri-val ri-strong">{{ libelleFraisEmprunt(regleActive()) }}</div>
+                </div>
+                <div class="ri-item">
+                  <div class="ri-label">Échéances</div>
+                  <div class="ri-val ri-strong">
+                    @if (typeUi() === 'etale') {
+                      {{ nbEcheancesMin() }} – {{ nbEcheancesMax() }} (déf. {{ regleActive().nbEcheancesDefaut }})
+                    } @else {
+                      {{ regleActive().nbEcheancesDefaut ?? 1 }}
+                    }
+                  </div>
+                </div>
+                <div class="ri-item">
+                  <div class="ri-label">Pénalité retard</div>
+                  <div class="ri-val ri-or">{{ libellePenaliteEmprunt(regleActive()) }}</div>
+                </div>
+              </div>
+              <a class="ri-link" [routerLink]="lienParametrageRegles()"
+                >Modifier dans Paramétrage →</a
+              >
+            </div>
+
+            <div class="sect-title">👤 Membre{{ modeSaisieMembre() === 'bulk' ? 's' : '' }} bénéficiaire{{ modeSaisieMembre() === 'bulk' ? 's' : '' }}</div>
+            <div class="membre-mode-tabs" role="tablist" aria-label="Mode de sélection des membres">
+              <button
+                type="button"
+                class="membre-mode-tab"
+                role="tab"
+                [attr.aria-selected]="modeSaisieMembre() === 'unitaire'"
+                [class.on]="modeSaisieMembre() === 'unitaire'"
+                (click)="setModeSaisieMembre('unitaire')"
+              >
+                Un membre
+              </button>
+              <button
+                type="button"
+                class="membre-mode-tab"
+                role="tab"
+                [attr.aria-selected]="modeSaisieMembre() === 'bulk'"
+                [class.on]="modeSaisieMembre() === 'bulk'"
+                (click)="setModeSaisieMembre('bulk')"
+              >
+                En lot
+              </button>
+            </div>
+            @if (modeSaisieMembre() === 'unitaire') {
+              <div class="membre-search-row">
+                <div class="fl mb6 membre-search-main">
+                  <label for="membre-input">Rechercher un membre</label>
+                  <input
+                    id="membre-input"
+                    type="search"
+                    formControlName="membreSearch"
+                    placeholder="Code, nom, prénom ou téléphone…"
+                    autocomplete="off"
+                    (focus)="onMembreFocus()"
+                    (input)="onMembreInput()"
+                  />
+                </div>
+                <div class="fl mb6 membre-search-code">
+                  <label for="membre-code-num">N° code</label>
+                  <input
+                    id="membre-code-num"
+                    type="text"
+                    formControlName="membreCodeNumero"
+                    placeholder="001"
+                    inputmode="numeric"
+                    autocomplete="off"
+                    (keydown.enter)="onMembreCodeNumeroEnter($event)"
+                  />
+                </div>
+              </div>
+              @if (rechercheMembreLoading()) {
+                <p class="recherche-hint">Recherche en cours…</p>
+              }
+              @if (membreListOpen() && !rechercheMembreLoading() && membreSearchHasQuery() && filteredMembres().length === 0) {
+                <p class="recherche-hint">Aucun membre trouvé.</p>
+              }
+              @if (membreListOpen() && filteredMembres().length > 0) {
+                <div class="membre-result" role="listbox">
+                  @for (m of filteredMembres(); track m.id) {
+                    <button
+                      type="button"
+                      class="mr-item"
+                      [class.sel]="form.controls.membreId.value === m.id"
+                      (click)="selectMembre(m)"
+                    >
+                      <div class="mr-av" [style.background]="avatarColor(m.codeMembre)">{{ initials(m.nomComplet) }}</div>
+                      <div class="mr-txt">
+                        <div class="mr-name">{{ m.nomComplet }}</div>
+                        <div class="mr-meta">{{ m.codeMembre }}@if (m.telephone) { · {{ m.telephone }} }</div>
+                      </div>
+                      <span class="mr-badge" [class]="'pb-' + postePourCodeMembre(m.codeMembre).kind">{{
+                        posteLabel(m.codeMembre)
+                      }}</span>
+                    </button>
+                  }
+                </div>
+              }
+            } @else {
+              <p class="bulk-mode-hint">
+                Cochez les membres à qui accorder le même emprunt ({{ typeUi() === 'etale' ? 'étalé' : typeUi() === 'caisse' ? 'caisse' : 'solidarité' }}, montant et paramètres ci-dessous).
+              </p>
+              <div class="bulk-catalogue-toolbar">
+                <div class="fl bulk-filtre-fl">
+                  <label for="emp-bulk-filtre">Filtrer la liste</label>
+                  <input
+                    id="emp-bulk-filtre"
+                    type="search"
+                    [value]="bulkFiltre()"
+                    placeholder="Code, nom, prénom ou téléphone…"
+                    autocomplete="off"
+                    (input)="onBulkFiltreInput($event)"
+                  />
+                </div>
+                <button type="button" class="bulk-page-select-btn" (click)="toggleSelectionPageBulk()">
+                  @if (bulkPageToutSelectionnee()) {
+                    Désélectionner la page
+                  } @else {
+                    Sélectionner la page
+                  }
+                </button>
+              </div>
+              @if (membresBulkCatalogueLoading()) {
+                <p class="recherche-hint">Chargement des membres…</p>
+              } @else if (bulkCatalogueTotal() === 0) {
+                <p class="recherche-hint">Aucun membre{{ bulkFiltre() ? ' pour ce filtre' : '' }}.</p>
+              } @else {
+                <div class="bulk-catalogue-list membre-result" role="listbox">
+                  @for (m of membresBulkPage(); track m.id) {
+                    <button
+                      type="button"
+                      class="mr-item bulk-catalogue-row"
+                      [class.sel]="isMembreBulkSelected(m.id)"
+                      (click)="toggleMembreBulk(m)"
+                    >
+                      <span class="mr-bulk-check" aria-hidden="true">{{ isMembreBulkSelected(m.id) ? '✓' : '' }}</span>
+                      <div class="mr-av" [style.background]="avatarColor(m.codeMembre)">{{ initials(m.nomComplet) }}</div>
+                      <div class="mr-txt">
+                        <div class="mr-name">{{ m.nomComplet }}</div>
+                        <div class="mr-meta">{{ m.codeMembre }}@if (m.telephone) { · {{ m.telephone }} }</div>
+                      </div>
+                      <span class="mr-badge" [class]="'pb-' + postePourCodeMembre(m.codeMembre).kind">{{
+                        posteLabel(m.codeMembre)
+                      }}</span>
+                    </button>
+                  }
+                </div>
+                <app-list-pagination
+                  [page]="bulkPage()"
+                  [total]="bulkCatalogueTotal()"
+                  [pageSize]="bulkPageSize"
+                  unit="membre(s)"
+                  (pageChange)="goBulkPage($event)"
+                />
+              }
+              @if (membresBulk().length > 0) {
+                <div class="bulk-membres-panel">
+                  <div class="bulk-membres-head">
+                    <span class="bulk-membres-count">
+                      {{ bulkNbMembres() }} sélectionné{{ bulkNbMembres() > 1 ? 's' : '' }}
+                      @if (bulkMontantParMembre() > 0) {
+                        · {{ formatFcfa(bulkMontantParMembre()) }} / membre
+                        @if (typeUi() === 'etale' && bulkNbEcheancesSaisi() > 0) {
+                          · {{ bulkNbEcheancesSaisi() }} échéance{{ bulkNbEcheancesSaisi() > 1 ? 's' : '' }}
+                        }
+                      }
+                    </span>
+                    <button type="button" class="bulk-membres-clear" (click)="viderMembresBulk()">Tout effacer</button>
+                  </div>
+                  <div class="bulk-membres-chips">
+                    @for (m of membresBulk(); track m.id) {
+                      <span class="bulk-chip">
+                        <span class="bulk-chip-name">{{ m.nomComplet }}</span>
+                        <span class="bulk-chip-code">{{ m.codeMembre }}</span>
+                        <button
+                          type="button"
+                          class="bulk-chip-remove"
+                          [attr.aria-label]="'Retirer ' + m.nomComplet"
+                          (click)="retirerMembreBulk(m.id)"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    }
+                  </div>
+                  @if (bulkMontantTotalLot() > 0) {
+                    <p class="bulk-membres-total">
+                      Total lot : {{ bulkNbMembres() }} × ({{ formatFcfa(bulkMontantParMembre()) }}) =
+                      <strong>{{ formatFcfa(bulkMontantTotalLot()) }}</strong>
+                      @if (simFrais() > 0) {
+                        <span class="bulk-total-hint"> — total remboursement (capital + frais)</span>
+                      }
+                    </p>
+                  }
+                </div>
+              }
+            }
+
+            @if (modeSaisieMembre() === 'unitaire' && empruntEnCoursMembreSelectionne(); as encours) {
+              <p class="field-error emprunt-encours-alert" role="alert">
+                Ce membre a déjà un emprunt
+                {{ encours.typeEmprunt === 'ETALE' ? 'étalé' : encours.typeEmprunt === 'CAISSE' ? 'caisse' : 'solidarité' }}
+                en cours (n° {{ encours.id }}). Remboursez-le avant d'en octroyer un autre du même type.
+              </p>
+            }
+
+            <div class="sect-title mt18">💰 Paramètres de l'emprunt</div>
+            <div class="form-grid">
+              <div class="fl">
+                <label for="montant"
+                  >Montant emprunté (FCFA) — {{ formatFcfa(montantMin()) }} à {{ formatFcfa(montantMax()) }}</label
+                >
+                <input
+                  id="montant"
+                  type="number"
+                  formControlName="montant"
+                  [min]="montantMin()"
+                  [max]="montantMax()"
+                />
+              </div>
+              @if (typeUi() === 'etale') {
+                <div class="fl">
+                  <label for="nech"
+                    >Nombre d'échéances ({{ nbEcheancesMin() }} – {{ nbEcheancesMax() }})</label
+                  >
+                  <input
+                    id="nech"
+                    type="number"
+                    formControlName="nbEcheances"
+                    [min]="nbEcheancesMin()"
+                    [max]="nbEcheancesMax()"
+                  />
+                </div>
+              }
+              <div class="fl">
+                <label for="d-octroi">Date d'octroi</label>
+                <input id="d-octroi" type="date" formControlName="dateOctroi" />
+              </div>
+              <div class="fl span2">
+                <label for="motif">Motif / Description</label>
+                <input id="motif" type="text" formControlName="motif" placeholder="Ex. Achat matériel, fonds roulement…" />
+              </div>
+            </div>
+
+            <div class="sim" [class.etale]="typeUi() === 'etale'" [class.caisse]="typeUi() === 'caisse'" [class.sol]="typeUi() === 'sol'">
+              <div class="sim-title">
+                @if (typeUi() === 'etale') {
+                  📊 Calcul automatique — Emprunt Étalé
+                } @else if (typeUi() === 'caisse') {
+                  📊 Calcul automatique — Emprunt Caisse
+                } @else {
+                  📊 Calcul automatique — Emprunt Solidarité
+                }
+              </div>
+              <div class="sim-row">
+                <span>Montant emprunté</span>
+                <span class="sim-strong">{{ formatFcfa(form.controls.montant.value) }}</span>
+              </div>
+              <div class="sim-row">
+                <span>{{ simFrais() > 0 ? simFraisLabel() : 'Frais' }}</span>
+                @if (simFrais() > 0) {
+                  <span class="or-c">{{ formatFcfa(simFrais()) }}</span>
+                } @else {
+                  <span>Aucun frais</span>
+                }
+              </div>
+              <div class="sim-row">
+                <span>Total à rembourser</span>
+                <span class="sim-strong">{{ formatFcfa(simTotal()) }}</span>
+              </div>
+              <div class="sim-row">
+                @if (simPaiementUnique()) {
+                  <span>{{ simFrais() > 0 ? 'Paiement unique (nominal + frais)' : 'Paiement unique' }}</span>
+                } @else {
+                  <span>Montant / échéance</span>
+                }
+                <span class="sim-strong ech-val">{{ formatFcfa(simPerEch()) }}</span>
+              </div>
+              <div class="sim-row">
+                <span>Pénalité retard (paramétrage)</span>
+                <span class="or-c">{{ formatFcfa(simPenalite()) }}</span>
+              </div>
+              <div class="mv-block">
+                <div class="mv-title">MOUVEMENTS COMPTABLES</div>
+                <div class="sim-row">
+                  <span>Organisation · {{ typeUi() === 'sol' ? 'Solidarité' : 'Caisse' }}</span>
+                  <span class="db-c">{{ simMv1() }}</span>
+                </div>
+                <div class="sim-row">
+                  <span>Membre · {{ compteMembreSimLabel() }} ({{ selectedMembre()?.nomComplet ?? '—' }})</span>
+                  <span class="cr-c">{{ simMv2() }}</span>
+                </div>
+                @if (simFrais() > 0) {
+                  <div class="sim-row">
+                    <span>Organisation · Caisse ({{ simFraisLabel() }}, jusqu'au solde)</span>
+                    <span class="cr-c">+ {{ formatFcfa(simFrais()) }}</span>
+                  </div>
+                }
+                <div class="sim-note" [class.sim-note-warn]="simAvanceCaisse() > 0">{{ simNote() }}</div>
+              </div>
+            </div>
+
+            @if (echRows().length) {
+              <div class="ech-wrap-box">
+                <div class="ech-title">📅 Échéancier prévisionnel</div>
+                <div class="ech-wrap">
+                  <div class="ech-head"><span>#</span><span>Date prévue</span><span>Capital</span><span>Total dû</span></div>
+                  @for (r of echRows(); track r.numero) {
+                    <div class="ech-row">
+                      <div class="ech-num" [class.or]="r.numClass === 'or'" [class.bl]="r.numClass === 'bl'">{{ r.numero }}</div>
+                      <span>{{ r.dateLabel }}</span>
+                      <span>{{ formatFcfa(r.capital) }}</span>
+                      <span class="ech-total">{{ formatFcfa(r.total) }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            <div class="form-actions">
+              <button type="button" class="btn-s" (click)="annuler()">Annuler</button>
+              <button type="button" class="btn-s" (click)="recalc()">🔄 Recalculer</button>
+              <button
+                type="button"
+                class="btn-p"
+                [disabled]="enregistrement() || (modeSaisieMembre() === 'unitaire' && octroiBloqueEmpruntEnCours())"
+                (click)="valider()"
+              >
+                @if (enregistrement()) {
+                  Enregistrement…
+                } @else if (modeSaisieMembre() === 'bulk' && bulkNbMembres() > 0) {
+                  ✅ Accorder {{ bulkNbMembres() }} emprunt{{ bulkNbMembres() > 1 ? 's' : '' }}
+                } @else {
+                  ✅ Accorder l'emprunt
+                }
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="right-panel">
+        <div class="card">
+          <div class="card-inner">
+            <div class="card-h">
+              <span class="card-title">📋 Emprunts en cours</span>
+              <button type="button" class="card-action card-action-btn" (click)="allerAuSuiviEmprunts()">
+                Suivi complet
+              </button>
+            </div>
+            <div class="filters-row">
+              <select class="filter-select" [value]="filtrePanelType()" (change)="onFiltrePanelType($event)">
+                <option value="tous">Tous types</option>
+                <option value="ETALE">Étalé</option>
+                <option value="CAISSE">Caisse</option>
+                <option value="SOLIDARITE">Solidarité</option>
+              </select>
+              <select class="filter-select" [value]="filtrePanelStatut()" (change)="onFiltrePanelStatut($event)">
+                <option value="tous">Tous statuts</option>
+                <option value="retard">En retard</option>
+                <option value="cours">En cours</option>
+              </select>
+              <input
+                type="search"
+                class="filter-search"
+                placeholder="Membre…"
+                [value]="filtrePanelRecherche()"
+                (input)="onFiltrePanelRecherche($event)"
+                aria-label="Filtrer les emprunts"
+              />
+              <span class="filtre-count">{{ panelItemsFiltres().length }} emprunt(s)</span>
+            </div>
+            @for (item of panelItemsFiltres(); track item.empruntId) {
+              <div
+                class="emp-item"
+                [class]="item.itemClass"
+                role="button"
+                tabindex="0"
+                (click)="rembourserEmprunt(item)"
+                (keydown.enter)="rembourserEmprunt(item)"
+              >
+                <div class="ei-top">
+                  <span class="ei-name">{{ item.nom }}</span>
+                  <span class="badge" [class]="item.badgeClass">{{ item.badgeText }}</span>
+                </div>
+                <div class="ei-sub">{{ item.sousTitre }}</div>
+                <div class="prog-lbl">
+                  <span>{{ formatFcfa(item.rembourse) }} / {{ formatFcfa(item.total) }}</span>
+                  <span>{{ panelProgressPct(item) }}%</span>
+                </div>
+                <div class="prog-bar">
+                  <div class="prog-fill" [class]="item.progClass" [style.width.%]="panelProgressPct(item)"></div>
+                </div>
+                <button type="button" class="btn-remb-panel" (click)="$event.stopPropagation(); rembourserEmprunt(item)">
+                  ↩ Rembourser
+                </button>
+              </div>
+            } @empty {
+              <p class="empty-filtre">Aucun emprunt pour ces filtres.</p>
+            }
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-inner">
+            <div class="card-h"><span class="card-title">💰 Disponibilités</span></div>
+            <div class="disp-list">
+              <div class="disp-row g3">
+                <span>🏦 Caisse disponible</span>
+                <span class="disp-val g1">{{ soldeCaisseOrg() != null ? formatFcfa(soldeCaisseOrg()!) : '—' }}</span>
+              </div>
+              <div class="disp-row bl2">
+                <span>🤝 Fonds Solidarité</span>
+                <span class="disp-val bl">{{ soldeSolidariteOrg() != null ? formatFcfa(soldeSolidariteOrg()!) : '—' }}</span>
+              </div>
+              <div class="disp-row gray">
+                <span>📋 Total encours</span>
+                <span class="disp-val re">− {{ formatFcfa(totalEncours()) }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-inner">
+            <div class="card-h"><span class="card-title">📊 Stats emprunts</span></div>
+            @if (emprunts().length === 0) {
+              <div class="stats-grid">
+                <div class="st g3"><div class="st-n g1">8</div><div class="st-l">En cours</div></div>
+                <div class="st re2"><div class="st-n re">2</div><div class="st-l">En retard</div></div>
+                <div class="st or3"><div class="st-n or">3</div><div class="st-l">Soldés ce mois</div></div>
+                <div class="st bl2"><div class="st-n bl">2</div><div class="st-l">Solidarité</div></div>
+              </div>
+            } @else {
+              <div class="stats-grid">
+                <div class="st g3">
+                  <div class="st-n g1">{{ enCoursCount() }}</div>
+                  <div class="st-l">En cours</div>
+                </div>
+                <div class="st re2">
+                  <div class="st-n re">{{ retardCount() }}</div>
+                  <div class="st-l">En retard</div>
+                </div>
+                <div class="st or3">
+                  <div class="st-n or">—</div>
+                  <div class="st-l">Soldés ce mois</div>
+                </div>
+                <div class="st bl2">
+                  <div class="st-n bl">{{ countSolidarite() }}</div>
+                  <div class="st-l">Solidarité</div>
+                </div>
+              </div>
+            }
+          </div>
+        </div>
+      </div>
+    </div>
+    }
+  </form>
+</div>
+
+@if (confirmDialog(); as dlg) {
+  <app-confirm-dialog
+    [title]="dlg.title"
+    [paragraphs]="dlg.paragraphs"
+    [variant]="dlg.variant"
+    [showCancel]="dlg.showCancel"
+    [confirmLabel]="dlg.confirmLabel"
+    [loading]="enregistrement()"
+    (confirmed)="onConfirmDialogOk()"
+    (cancelled)="onConfirmDialogCancel()"
+  />
+}
+

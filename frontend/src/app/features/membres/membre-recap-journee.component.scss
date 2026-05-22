@@ -1,0 +1,56 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+:host {
+  display: block;
+}
+
+.membre-recap-section {
+  margin: 28px 0 8px;
+  animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.membre-recap-heading {
+  font-size: 1.15rem;
+  font-weight: 700;
+  color: var(--dk, #1c1c1e);
+  margin: 0 0 6px;
+}
+
+.membre-recap-sub {
+  font-size: 13px;
+  color: var(--md, #4a5568);
+  margin: 0 0 16px;
+}
+
+.membre-recap-embed.recap-page {
+  margin: 0;
+  min-height: 520px;
+  border: 1px solid #e8ede9;
+  border-radius: 12px;
+  overflow: hidden;
+  background: var(--cr, #f7f9f7);
+}
+
+.membre-recap-embed .recap-layout {
+  min-height: 520px;
+  grid-template-columns: 240px 1fr;
+}
+
+@media (max-width: 960px) {
+  .membre-recap-embed .recap-layout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.cm-card-solo {
+  max-width: 480px;
+}

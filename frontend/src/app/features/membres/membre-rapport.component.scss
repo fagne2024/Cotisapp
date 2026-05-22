@@ -1,0 +1,67 @@
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fiche-topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tb-back {
+  color: var(--g2, #2d7a52);
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tb-subtitle {
+  font-size: 13px;
+  color: #64748b;
+}
+
+.fiche-loading,
+.fiche-err {
+  padding: 24px;
+  text-align: center;
+  color: #64748b;
+}
+
+.hero-member {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 8px;
+}
+
+.hero-member .hero-av {
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 18px;
+}
+
+.hero-member-name {
+  font-size: 20px;
+  font-weight: 700;
+}
+
+.hero-member-meta {
+  font-size: 13px;
+  color: #64748b;
+  margin-top: 4px;
+}

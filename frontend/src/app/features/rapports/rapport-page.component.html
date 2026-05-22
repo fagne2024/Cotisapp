@@ -1,0 +1,380 @@
+<div class="rapport-page">
+  <div class="page-header">
+    <div>
+      <div class="pt">Rapports & Analyses</div>
+      <div class="ps">{{ orgNom() }} · Données au {{ dateRapport() }}</div>
+    </div>
+    <div class="header-actions">
+      <select class="f-select" [value]="periode()" (change)="onPeriodeChange($event)">
+        @for (p of periodes(); track p.value) {
+          <option [value]="p.value">{{ p.label }}</option>
+        }
+      </select>
+      <button type="button" class="btn-s" (click)="exportToast('PDF')">📄 Exporter PDF</button>
+      <button type="button" class="btn-or" (click)="exportToast('Excel')">📊 Exporter Excel</button>
+    </div>
+  </div>
+
+  <div class="rapport-hero">
+    <div class="rh-inner">
+      <div class="rh-top">
+        <div>
+          <div class="rh-title">Rapport mensuel — {{ periodeLabel() }}</div>
+          <div class="rh-sub">
+            {{ orgNom() }} · Généré le {{ dateRapport() }} · {{ nbMembresActifs() }} membres actifs ·
+            {{ nbMembresBureau() }} membres du bureau
+          </div>
+        </div>
+        <div class="rh-actions">
+          <button type="button" class="rh-btn" (click)="imprimer()">🖨 Imprimer</button>
+          <button type="button" class="rh-btn gold" (click)="exportToast('Excel')">📊 Excel</button>
+          <button type="button" class="rh-btn" (click)="exportToast('PDF')">📄 PDF</button>
+        </div>
+      </div>
+      <div class="rh-stats">
+        @for (s of heroStats(); track s.label) {
+          <div class="rh-stat">
+            <div class="rh-stat-val">{{ s.valeur }}</div>
+            <div class="rh-stat-lbl">{{ s.label }}</div>
+            <div class="rh-stat-trend">{{ s.trend }}</div>
+          </div>
+        }
+      </div>
+    </div>
+  </div>
+
+  <div class="tabs-bar">
+    <button type="button" class="tab" [class.on]="tabUi() === 'cotis'" (click)="setTab('cotis')">
+      💰 Cotisations
+    </button>
+    <button type="button" class="tab" [class.on]="tabUi() === 'empr'" (click)="setTab('empr')">
+      📋 Emprunts
+    </button>
+    <button type="button" class="tab" [class.on]="tabUi() === 'membres'" (click)="setTab('membres')">
+      👥 Par membre
+    </button>
+    <button type="button" class="tab" [class.on]="tabUi() === 'depenses'" (click)="setTab('depenses')">
+      📤 Dépenses
+    </button>
+  </div>
+
+  @if (tabUi() === 'cotis') {
+    <div class="dash-grid">
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h">
+            <span class="card-title">📈 Cotisations par semaine — {{ periodeLabel() }}</span>
+          </div>
+          <div class="chart-area">
+            @for (b of chartBars(); track b.label) {
+              <div class="bar-col">
+                <div
+                  class="bar"
+                  [style.height.%]="b.heightPct"
+                  [class.bar-warn]="b.belowTarget"
+                ></div>
+                <div class="bar-val">{{ b.valeurLabel }}</div>
+                <div class="bar-lbl">{{ b.label }}</div>
+              </div>
+            }
+          </div>
+          <div class="chart-legend">
+            <span class="leg-item"><span class="leg-dot g"></span>Hebdomadaire</span>
+            <span class="leg-item"><span class="leg-dot or"></span>En dessous objectif</span>
+            <span class="leg-total">Total période : {{ totalCotisations() }}</span>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h"><span class="card-title">📊 Taux de participation</span></div>
+          <div class="participation-big">
+            <div class="part-pct">{{ partPct() }}%</div>
+            <div class="part-lbl">{{ partMembresLabel() }}</div>
+          </div>
+          <div class="prog-block">
+            <div class="prog-lbl"><span>Hebdomadaire</span><span>{{ hebdoProgLabel() }}</span></div>
+            <div class="prog-bar"><div class="prog-fill" [style.width.%]="hebdoProgPct()"></div></div>
+          </div>
+          <div class="prog-block">
+            <div class="prog-lbl"><span>Type Mois</span><span>{{ moisProgLabel() }}</span></div>
+            <div class="prog-bar"><div class="prog-fill" [style.width.%]="moisProgPct()"></div></div>
+          </div>
+          <div class="prog-block">
+            <div class="prog-lbl"><span>{{ bureauProgLabel() }}</span><span>{{ bureauProgCount() }}</span></div>
+            <div class="prog-bar"><div class="prog-fill" [style.width.%]="bureauProgPct()"></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-inner">
+        <div class="card-h">
+          <span class="card-title">📋 Cotisations détaillées par membre — {{ periodeLabel() }}</span>
+          <div class="card-h-actions">
+            <select class="f-select f-sm" [value]="filtrePoste()" (change)="onFiltrePosteChange($event)">
+              <option value="tous">Tous les postes</option>
+              <option value="bureau">Bureau</option>
+              <option value="simple">Membres simples</option>
+            </select>
+            <select class="f-select f-sm" [value]="filtreStatutCotis()" (change)="onFiltreStatutCotisChange($event)">
+              <option value="tous">Tous statuts</option>
+              <option value="complet">Complet</option>
+              <option value="partiel">Partiel</option>
+              <option value="manque">Manque</option>
+            </select>
+            <input
+              type="search"
+              class="filter-search f-sm"
+              placeholder="Membre…"
+              [value]="filtreRecherche()"
+              (input)="onFiltreRecherche($event)"
+              aria-label="Rechercher"
+            />
+            <span class="card-action" role="button" tabindex="0" (click)="exportToast('Excel')">Exporter</span>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="rep-table">
+            <thead>
+              <tr>
+                <th>Membre</th>
+                <th>Poste</th>
+                <th>Hebdo (semaines)</th>
+                <th>Mois</th>
+                <th>Solidarité</th>
+                <th>Total période</th>
+                <th>Statut</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (r of cotisationsFiltreesPaged(); track r.code) {
+                <tr>
+                  <td>
+                    <div class="membre-cell">
+                      <div class="mc-av" [style.background]="r.avColor">{{ r.initials }}</div>
+                      <div>
+                        <div class="mc-name">{{ r.nom }}</div>
+                        <div class="mc-code">{{ r.code }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td><span class="badge" [class]="r.posteBadgeClass">{{ r.posteLabel }}</span></td>
+                  <td><span class="cr-c fw">{{ r.hebdo }}</span></td>
+                  <td><span class="or-c fw">{{ r.mois }}</span></td>
+                  <td class="or-txt">{{ r.solidarite }}</td>
+                  <td><span class="cr-c fw lg">{{ r.total }}</span></td>
+                  <td><span class="badge" [class]="statutBadgeClass(r)">{{ r.statutLabel }}</span></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-list-pagination
+          [page]="pageCotis()"
+          [pageSize]="pageSize"
+          [total]="cotisationsFiltrees().length"
+          unit="membre(s)"
+          (pageChange)="onPageCotisChange($event)"
+        />
+        <div class="table-footer">
+          <span>TOTAL général — {{ nbMembresActifs() }} membres</span>
+          <span class="cr-c">{{ totalCotisations() }} collectés</span>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (tabUi() === 'empr') {
+    <div class="dash-grid2">
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h">
+            <span class="card-title">📋 Emprunts actifs</span>
+            <div class="card-h-filters">
+              <select class="f-select f-sm" [value]="filtreEmprStatut()" (change)="onFiltreEmprStatutChange($event)">
+                <option value="tous">Tous</option>
+                <option value="retard">En retard</option>
+                <option value="sol">Solidarité</option>
+                <option value="cours">En cours</option>
+              </select>
+              <input
+                type="search"
+                class="filter-search f-sm"
+                placeholder="Membre…"
+                [value]="filtreRecherche()"
+                (input)="onFiltreRecherche($event)"
+                aria-label="Rechercher"
+              />
+            </div>
+          </div>
+          <div class="emp-cards">
+            @for (e of empruntsCardsFiltresPaged(); track e.nom) {
+              <div
+                class="emp-card"
+                [class.re2]="e.borderClass === 'retard'"
+                [class.border-sol]="e.borderClass === 'sol'"
+                [class.border-cours]="e.borderClass === 'cours'"
+              >
+                <div class="emp-top">
+                  <span class="emp-name">{{ e.nom }}</span>
+                  <span class="badge" [class]="e.badgeClass">{{ e.badge }}</span>
+                </div>
+                <div class="emp-detail">{{ e.detail }}</div>
+                <div class="prog-lbl">
+                  <span>{{ e.rembourse }} / {{ e.total }}</span>
+                  <span>{{ e.pct }}%</span>
+                </div>
+                <div class="prog-bar">
+                  <div class="prog-fill" [class]="e.barClass" [style.width.%]="e.pct"></div>
+                </div>
+              </div>
+            }
+          </div>
+          <app-list-pagination
+            [page]="pageEmpr()"
+            [pageSize]="pageSize"
+            [total]="empruntsCardsFiltres().length"
+            unit="emprunt(s)"
+            (pageChange)="onPageEmprChange($event)"
+          />
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-inner">
+          <div class="card-h"><span class="card-title">📊 Synthèse emprunts</span></div>
+          <div class="synth-grid">
+            @if (synth(); as s) {
+            <div class="synth-box g3"><div class="synth-n g1">{{ s.enCours }}</div><div class="synth-l">En cours</div></div>
+            <div class="synth-box re2"><div class="synth-n re">{{ s.enRetard }}</div><div class="synth-l">En retard</div></div>
+            <div class="synth-box or3"><div class="synth-n or">{{ s.soldesMois }}</div><div class="synth-l">Soldés (période)</div></div>
+            <div class="synth-box bl2"><div class="synth-n bl">{{ formatMontant(s.encoursTotal) }}</div>            <div class="synth-l">Encours total</div></div>
+            }
+          </div>
+          <div class="synth-recap">
+            <div class="synth-line">
+              <span>Remboursements reçus (période)</span
+              ><span class="cr-c fw">{{ formatMontant(synth()?.remboursementsMois ?? 0) }}</span>
+            </div>
+            <div class="synth-line">
+              <span>Frais restants (emprunts)</span
+              ><span class="or-c fw">{{ formatMontant(synth()?.fraisRestants ?? 0) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  }
+
+  @if (tabUi() === 'membres') {
+    <div class="card">
+      <div class="card-inner">
+        <div class="card-h">
+          <span class="card-title">👥 Situation financière par membre</span>
+          <span class="card-action" role="button" tabindex="0" (click)="exportToast('Excel')">Exporter Excel</span>
+        </div>
+        <div class="table-wrap">
+          <table class="rep-table">
+            <thead>
+              <tr>
+                <th>Membre</th>
+                <th>Poste</th>
+                <th>Épargne</th>
+                <th>Solidarité</th>
+                <th>Pénalité</th>
+                <th>Amende</th>
+                <th>Emprunt</th>
+                <th>Situation</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (m of membresFinancierFiltresPaged(); track m.code) {
+                <tr>
+                  <td>
+                    <div class="membre-cell">
+                      <div class="mc-av" [style.background]="m.avColor">{{ m.initials }}</div>
+                      <div>
+                        <div class="mc-name">{{ m.nom }}</div>
+                        <div class="mc-code">{{ m.code }}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td>
+                    <span class="badge" [class]="m.posteHtml">
+                      @if (m.posteHtml === 'b-pu') { 👑 Présidente }
+                      @else if (m.posteHtml === 'b-green') { 💼 Trésorière }
+                      @else { 👤 Simple }
+                    </span>
+                  </td>
+                  <td class="cr-c fw">{{ m.epargne }}</td>
+                  <td class="or-txt fw">{{ m.solidarite }}</td>
+                  <td [class]="m.penalite === '0 F' ? 'lt' : 'db-c fw'">{{ m.penalite }}</td>
+                  <td class="lt">{{ m.amende }}</td>
+                  <td [class]="m.emprunt === '—' ? 'lt' : 'db-c fw'">{{ m.emprunt }}</td>
+                  <td><span class="badge" [class]="m.situationClass">{{ m.situation }}</span></td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-list-pagination
+          [page]="pageMembres()"
+          [pageSize]="pageSize"
+          [total]="membresFinancierFiltres().length"
+          unit="membre(s)"
+          (pageChange)="onPageMembresChange($event)"
+        />
+      </div>
+    </div>
+  }
+
+  @if (tabUi() === 'depenses') {
+    <div class="card">
+      <div class="card-inner">
+        <div class="card-h">
+          <span class="card-title">📤 Rapport des dépenses — {{ periodeLabel() }}</span>
+          <span class="card-action" role="button" tabindex="0" (click)="exportToast('Excel')">Exporter</span>
+        </div>
+        <div class="table-wrap">
+          <table class="rep-table">
+            <thead>
+              <tr>
+                <th>Catégorie</th>
+                <th>Bénéficiaire</th>
+                <th>Description</th>
+                <th>Montant</th>
+                <th>Date</th>
+                <th>Saisi par</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (d of depensesRapportFiltresPaged(); track d.categorie + d.dateLabel) {
+                <tr>
+                  <td>{{ d.categorie }}</td>
+                  <td>{{ d.beneficiaire }}</td>
+                  <td class="desc-sm">{{ d.description }}</td>
+                  <td class="db-c fw">{{ formatFcfa(d.montant) }}</td>
+                  <td class="date-lt">{{ d.dateLabel }}</td>
+                  <td class="desc-sm">{{ d.saisiPar }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <app-list-pagination
+          [page]="pageDepenses()"
+          [pageSize]="pageSize"
+          [total]="depensesRapportFiltres().length"
+          unit="dépense(s)"
+          (pageChange)="onPageDepensesChange($event)"
+        />
+        <div class="table-footer">
+          <span>TOTAL dépenses — {{ periodeLabel() }}</span>
+          <span class="db-c">{{ formatFcfa(totalDepenses()) }}</span>
+        </div>
+      </div>
+    </div>
+  }
+</div>
+
