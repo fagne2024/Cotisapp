@@ -5,7 +5,7 @@
       <span class="tb-search-ico" aria-hidden="true">🔍</span>
       <input
         type="search"
-        placeholder="Rechercher une organisation…"
+        placeholder="Rechercher une organisation ou un admin GIE…"
         [value]="searchQuery()"
         (input)="onSearch($event)"
         aria-label="Rechercher une organisation"
@@ -115,6 +115,99 @@
           </div>
         </div>
 
+        <div class="card" id="admins-gie">
+          <div class="card-inner">
+            <div class="card-h">
+              <div class="card-h-text">
+                <span class="card-title">🔐 Administrateurs GIE</span>
+                <span class="card-sub">Réinitialisation mot de passe et Google Authenticator</span>
+              </div>
+            </div>
+            <div class="table-wrap">
+              <table class="org-table admins-gie-table">
+                <thead>
+                  <tr>
+                    <th>Organisation</th>
+                    <th>Administrateur</th>
+                    <th>E-mail</th>
+                    <th>2FA</th>
+                    <th>Compte</th>
+                    <th>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  @for (org of filteredAdminsGie(); track org.id) {
+                    <tr [class.row-muted]="!org.actif">
+                      <td>
+                        <div class="cell-main">{{ org.nom }}</div>
+                        <div class="cell-sub">{{ org.code }}</div>
+                      </td>
+                      <td>
+                        @if (org.adminUtilisateurId) {
+                          <div class="cell-main">{{ adminLibelle(org) }}</div>
+                        } @else {
+                          <div class="cell-sub">Aucun administrateur</div>
+                        }
+                      </td>
+                      <td>
+                        <div class="cell-main">{{ org.adminEmail }}</div>
+                      </td>
+                      <td>
+                        @if (!org.adminUtilisateurId) {
+                          <span class="badge b-or">—</span>
+                        } @else if (org.adminTwoFactorEnabled) {
+                          <span class="badge b-green">✓ Activée</span>
+                        } @else {
+                          <span class="badge b-or">Non configurée</span>
+                        }
+                      </td>
+                      <td>
+                        @if (!org.adminUtilisateurId) {
+                          <span class="badge b-or">—</span>
+                        } @else if (org.adminActif) {
+                          <span class="badge b-green">Actif</span>
+                        } @else {
+                          <span class="badge b-or">Inactif</span>
+                        }
+                      </td>
+                      <td>
+                        <div class="row-actions">
+                          @if (org.adminUtilisateurId) {
+                            <button
+                              type="button"
+                              class="ra-btn reset"
+                              (click)="openResetMdpModal(org)"
+                              title="Réinitialiser le mot de passe"
+                            >
+                              🔑 Mot de passe
+                            </button>
+                            <button
+                              type="button"
+                              class="ra-btn twofa"
+                              (click)="openReset2faModal(org)"
+                              title="Réinitialiser Google Authenticator"
+                            >
+                              📱 Google Auth
+                            </button>
+                          } @else {
+                            <button type="button" class="ra-btn view" (click)="openEditModal(org)">
+                              ✏ Créer l'admin
+                            </button>
+                          }
+                        </div>
+                      </td>
+                    </tr>
+                  } @empty {
+                    <tr>
+                      <td colspan="6" class="empty-cell">Aucun administrateur trouvé.</td>
+                    </tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
         <div class="card">
           <div class="card-inner">
             <div class="card-h">
@@ -156,7 +249,7 @@
                         </div>
                       </td>
                       <td>
-                        <div class="cell-main">{{ org.adminNom }}</div>
+                        <div class="cell-main">{{ adminLibelle(org) }}</div>
                         <div class="cell-sub">{{ org.adminEmail }}</div>
                       </td>
                       <td>
@@ -253,7 +346,12 @@
           </div>
           <div class="fl">
             <label for="admin-email">Email</label>
-            <input id="admin-email" type="email" formControlName="adminEmail" placeholder="admin.gie@exemple.sn" />
+            <input
+              id="admin-email"
+              type="email"
+              formControlName="adminEmail"
+              placeholder="admin.gie&#64;exemple.sn"
+            />
           </div>
           <div class="fl">
             <label for="admin-mdp">Mot de passe</label>
@@ -261,7 +359,7 @@
               id="admin-mdp"
               type="password"
               formControlName="adminMotDePasse"
-              placeholder="Laisser vide = Admin&#64;2026"
+              [attr.placeholder]="'Laisser vide = ' + mdpDefautLibelle"
               autocomplete="new-password"
             />
           </div>
@@ -477,6 +575,81 @@
       <div class="modal-foot">
         <button type="button" class="btn-s" (click)="closeDeleteConfirm()" [disabled]="saving()">Annuler</button>
         <button type="button" class="btn-del-solid" (click)="submitDelete()" [disabled]="saving()">Supprimer</button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (resetMdpTarget()) {
+  <div class="modal-overlay show" (click)="overlayClick($event, 'resetMdp')">
+    <div class="modal" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3>🔑 Réinitialiser le mot de passe</h3>
+        <button type="button" class="modal-close" (click)="closeResetMdpModal()" aria-label="Fermer">×</button>
+      </div>
+      <form [formGroup]="resetMdpForm" class="modal-body" (ngSubmit)="submitResetMdp()">
+        <p class="logo-upload-hint">
+          Admin GIE de <strong>{{ resetMdpTarget()!.nom }}</strong> ({{ resetMdpTarget()!.adminEmail }}).
+        </p>
+        <div class="fl">
+          <label for="reset-mdp">Nouveau mot de passe</label>
+          <input
+            id="reset-mdp"
+            type="password"
+            formControlName="motDePasse"
+            [attr.placeholder]="'Laisser vide = ' + mdpDefautLibelle"
+            autocomplete="new-password"
+          />
+        </div>
+        <div class="reset-mdp-actions">
+          <button type="button" class="btn-s" (click)="appliquerMdpParDefaut()">
+            Utiliser {{ mdpDefautLibelle }}
+          </button>
+        </div>
+        <label class="check-row">
+          <input type="checkbox" formControlName="forcerChangement" />
+          <span>Forcer le changement à la prochaine connexion</span>
+        </label>
+        @if (formError()) {
+          <p class="err-msg mt">{{ formError() }}</p>
+        }
+      </form>
+      <div class="modal-foot">
+        <button type="button" class="btn-s" (click)="closeResetMdpModal()" [disabled]="saving()">Annuler</button>
+        <button type="button" class="btn-p" (click)="submitResetMdp()" [disabled]="saving()">
+          {{ saving() ? 'Enregistrement…' : 'Réinitialiser' }}
+        </button>
+      </div>
+    </div>
+  </div>
+}
+
+@if (reset2faTarget()) {
+  <div class="modal-overlay show" (click)="overlayClick($event, 'reset2fa')">
+    <div class="modal modal-sm" role="dialog" aria-modal="true" (click)="$event.stopPropagation()">
+      <div class="modal-head">
+        <h3>📱 Réinitialiser Google Authenticator</h3>
+        <button type="button" class="modal-close" (click)="closeReset2faModal()" aria-label="Fermer">×</button>
+      </div>
+      <div class="modal-body">
+        <p>
+          Désactiver la double authentification pour
+          <strong>{{ adminLibelle(reset2faTarget()!) }}</strong>
+          ({{ reset2faTarget()!.adminEmail }}) — organisation
+          <strong>{{ reset2faTarget()!.nom }}</strong>.
+        </p>
+        <p class="logo-upload-hint">
+          L'administrateur pourra se reconnecter avec son mot de passe seul, puis scanner un nouveau QR code.
+        </p>
+        @if (formError()) {
+          <p class="err-msg mt">{{ formError() }}</p>
+        }
+      </div>
+      <div class="modal-foot">
+        <button type="button" class="btn-s" (click)="closeReset2faModal()" [disabled]="saving()">Annuler</button>
+        <button type="button" class="btn-p" (click)="submitReset2fa()" [disabled]="saving()">
+          {{ saving() ? 'Réinitialisation…' : 'Réinitialiser la 2FA' }}
+        </button>
       </div>
     </div>
   </div>

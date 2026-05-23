@@ -20,6 +20,12 @@ app-root {
   display: block;
 }
 
+/* Composant chargé par le routeur (frère de router-outlet) */
+router-outlet + * {
+  display: block;
+  min-height: 100%;
+}
+
 app-notification-popup,
 app-modal-confirm {
   position: relative;

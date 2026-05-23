@@ -4,6 +4,7 @@ import com.cotisapp.dto.request.CreerJourneeReunionRequest;
 import com.cotisapp.dto.response.JourneeReunionResponse;
 import com.cotisapp.dto.response.RecapJourneeResponse;
 import com.cotisapp.service.RecapJourneeService;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -29,7 +30,7 @@ public class RecapJourneeController {
     @PostMapping
     public JourneeReunionResponse creer(
             @PathVariable Long orgId,
-            @RequestBody CreerJourneeReunionRequest request) {
+            @Valid @RequestBody CreerJourneeReunionRequest request) {
         return recapJourneeService.creer(orgId, request);
     }
 

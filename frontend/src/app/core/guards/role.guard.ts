@@ -46,6 +46,5 @@ export const roleGuard: CanActivateFn = (route) => {
     return true;
   }
 
-  router.navigate(['/403']);
-  return false;
+  return router.createUrlTree(['/403']);
 };

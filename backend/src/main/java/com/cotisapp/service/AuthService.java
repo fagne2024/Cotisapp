@@ -159,6 +159,10 @@ public class AuthService {
         if (!totpService.verifyUtilisateur(u, request.getCode())) {
             throw new BusinessException("Code incorrect. Vérifiez Google Authenticator et réessayez.");
         }
+        if (totpService.isPlainSecretStored(u.getTotpSecret())) {
+            u.setTotpSecret(totpService.encryptSecretIfNeeded(u.getTotpSecret()));
+            utilisateurRepository.save(u);
+        }
 
         String orgNom = null;
         if (claims.organisationId() != null) {

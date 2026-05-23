@@ -29,8 +29,10 @@ public class ParametrageClotureExerciceRequest {
     private ModeRepartitionCloture modeRepartition;
     private ModeAgregationPostesCloture modeAgregationPostes;
     private ModeCalculProrataCloture modeCalculProrata;
+    @Valid
     private List<MembrePourcentageRepartitionRequest> pourcentagesRepartition;
     private Boolean exclureMembresPretEnCours;
+    @Valid
     private List<PostePartageClotureRequest> postesPartage;
     @NotNull
     private TypeModeCalcul fraisClotureType;

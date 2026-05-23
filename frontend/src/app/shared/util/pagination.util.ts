@@ -1,9 +1,12 @@
 export function paginateSlice<T>(items: readonly T[], page: number, pageSize: number): T[] {
-  const start = (page - 1) * pageSize;
+  if (pageSize < 1) return [];
+  const safePage = Math.max(1, page);
+  const start = (safePage - 1) * pageSize;
   return items.slice(start, start + pageSize);
 }
 
 export function paginationTotalPages(total: number, pageSize: number): number {
+  if (pageSize < 1) return 1;
   return Math.max(1, Math.ceil(total / pageSize));
 }
 
@@ -19,8 +22,9 @@ export function buildPageNumbers(current: number, totalPages: number): number[] 
 
 export function buildRangeLabel(page: number, total: number, pageSize: number, unit: string): string {
   if (total === 0) return `Aucun ${unit}`;
-  const a = (page - 1) * pageSize + 1;
-  const b = Math.min(page * pageSize, total);
+  const safePage = Math.max(1, page);
+  const a = (safePage - 1) * pageSize + 1;
+  const b = Math.min(safePage * pageSize, total);
   return `Affichage ${a}–${b} sur ${total} ${unit}`;
 }
 

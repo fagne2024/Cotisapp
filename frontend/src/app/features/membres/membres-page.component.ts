@@ -23,6 +23,7 @@ import {
 } from './membres-poste.util';
 import { mapSoldesParMembre, SoldesMembreLigne, SOLDES_VIDES } from './membres-soldes.util';
 import { downloadCsv } from '../../shared/util/csv-download.util';
+import { formatFcfa } from '../../core/utils/currency.util';
 
 export interface MembreRow {
   raw: MembreDto;
@@ -867,9 +868,7 @@ export class MembresPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  formatFcfa(n: number): string {
-    return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n)} F`;
-  }
+  readonly formatFcfa = formatFcfa;
 
   /** Affiche le solde ou « — » si le compte n’existe pas (0 sans mouvement affiché comme 0 F). */
   formatSoldeCompte(montant: number): string {

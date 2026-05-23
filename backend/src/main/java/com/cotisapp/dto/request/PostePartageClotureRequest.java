@@ -3,13 +3,16 @@ package com.cotisapp.dto.request;
 import com.cotisapp.domain.enums.TypeCompte;
 import com.cotisapp.domain.enums.TypeOperation;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
 public class PostePartageClotureRequest {
     @NotBlank
+    @Size(max = 50)
     private String code;
     @NotBlank
+    @Size(max = 255)
     private String libelle;
     private boolean actif;
     private boolean builtIn;

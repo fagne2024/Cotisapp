@@ -15,6 +15,7 @@ public class CreateOrganisationRequest {
     @NotBlank
     private String nom;
     private String description;
+    @Valid
     private ComptesOrganisationSelection comptes = new ComptesOrganisationSelection();
     @Valid
     private List<CreateCompteModeleMembreRequest> modelesComptePersonnalises = new ArrayList<>();

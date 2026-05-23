@@ -58,12 +58,8 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneric(Exception ex) {
-        log.error("Erreur serveur", ex);
-        Throwable root = ex;
-        while (root.getCause() != null) {
-            root = root.getCause();
-        }
-        String msg = root.getMessage() != null ? root.getMessage() : "Erreur interne du serveur";
-        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("message", msg));
+        log.error("Erreur serveur inattendue", ex);
+        return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(Map.of("message", "Une erreur interne est survenue. Veuillez réessayer ou contacter le support."));
     }
 }

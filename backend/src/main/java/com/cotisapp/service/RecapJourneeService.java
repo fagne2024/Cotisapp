@@ -48,6 +48,7 @@ public class RecapJourneeService {
     private final MouvementCompteRepository mouvementCompteRepository;
     private final MembreRepository membreRepository;
     private final OperationPlanadGuardService operationPlanadGuardService;
+    private final PlanadOuvertureService planadOuvertureService;
 
     @Transactional
     public void synchroniserJourneesDepuisOperations(Long orgId, Long exerciceId) {
@@ -134,6 +135,7 @@ public class RecapJourneeService {
         j.setStatut(StatutPlanad.CLOTURE);
         j.setDateCloture(LocalDate.now());
         journeeReunionRepository.save(j);
+        planadOuvertureService.ouvrirPlanadSuivantApresCloture(orgId, j.getExerciceId(), j.getDateReunion());
         return toJourneeResponse(j, orgId);
     }
 
@@ -214,15 +216,7 @@ public class RecapJourneeService {
 
     private JourneeReunion creerJourneePourDate(Long orgId, Long exerciceId, LocalDate date) {
         operationPlanadGuardService.verifierPeutOuvrirNouveauPlanad(exerciceId);
-        Organisation org = organisationRepository.findById(orgId).orElseThrow();
-        int numero = journeeReunionRepository.findMaxNumero(exerciceId) + 1;
-        return journeeReunionRepository.save(JourneeReunion.builder()
-                .organisationId(orgId)
-                .exerciceId(exerciceId)
-                .numero(numero)
-                .dateReunion(date)
-                .libelle(libelleJournee(org.getCode(), numero))
-                .build());
+        return planadOuvertureService.creerPlanadOuvert(orgId, exerciceId, date);
     }
 
     private void verifierMembre(Long orgId, Long membreId) {

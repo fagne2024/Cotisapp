@@ -33,9 +33,11 @@ export class SuperadminShellComponent implements OnInit {
   readonly organisations = signal<OrganisationDto[]>([]);
 
   readonly initials = computed(() => {
-    const name = this.auth.nomComplet();
+    const name = this.auth.nomComplet().trim();
+    if (!name) return '?';
     return name
       .split(' ')
+      .filter((p) => p.length > 0)
       .map((p) => p[0])
       .join('')
       .slice(0, 2)
@@ -103,6 +105,7 @@ export class SuperadminShellComponent implements OnInit {
         this.organisations.set(list);
         this.syncRouteOrg();
       },
+      error: () => this.syncRouteOrg(),
     });
     this.syncRouteOrg();
   }

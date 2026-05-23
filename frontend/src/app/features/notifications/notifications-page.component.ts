@@ -1,4 +1,4 @@
-import { Component, computed, effect, inject, signal, HostListener, untracked } from '@angular/core';
+import { Component, computed, effect, inject, signal, untracked } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { DroitAccesService } from '../../core/services/droit-acces.service';
@@ -6,6 +6,7 @@ import { AppNotificationsService } from '../../core/services/app-notifications.s
 import { NotificationService } from '../../core/services/notification.service';
 import { organisationCouranteId } from '../../core/util/org-route.util';
 import { buildOrgRoute } from '../../core/util/notifications-route.util';
+import { formatFcfa } from '../../core/utils/currency.util';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import { ListPaginationComponent } from '../../shared/components/list-pagination/list-pagination.component';
 import {
@@ -297,7 +298,7 @@ export class NotificationsPageComponent {
           montantAmende != null && montantAmende > 0
             ? ` Amende : ${this.formatFcfa(montantAmende)}.`
             : '';
-        this.notify.show((res?.message ?? 'Demande approuvée et comptabilisée.') + suffix);
+        this.notify.show('Demande approuvée et comptabilisée.' + suffix);
       },
       error: (err) => {
         this.traitementDemandeId.set(null);
@@ -307,9 +308,7 @@ export class NotificationsPageComponent {
     });
   }
 
-  formatFcfa(n: number): string {
-    return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n) + ' FCFA';
-  }
+  readonly formatFcfa = formatFcfa;
 
   ouvrirRejetDemande(n: NotificationItem, event: Event): void {
     event.stopPropagation();
@@ -335,7 +334,7 @@ export class NotificationsPageComponent {
       next: (res) => {
         this.traitementDemandeId.set(null);
         this.fermerRejetDemande();
-        this.notify.show(res?.message ?? 'Demande rejetée.');
+        this.notify.show('Demande rejetée.');
       },
       error: (err) => {
         this.traitementDemandeId.set(null);

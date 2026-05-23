@@ -12,5 +12,6 @@ public class ChangeMotDePasseInitialRequest {
     private String nouveauMotDePasse;
 
     @NotBlank
+    @Size(min = 8, max = 128)
     private String confirmationMotDePasse;
 }

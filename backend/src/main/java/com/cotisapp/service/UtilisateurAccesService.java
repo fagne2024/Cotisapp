@@ -19,6 +19,7 @@ import com.cotisapp.repository.UtilisateurRepository;
 import com.cotisapp.repository.UtilisateurRoleRepository;
 import com.cotisapp.util.TelephoneUtil;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -41,6 +42,9 @@ public class UtilisateurAccesService {
 
     private static final DateTimeFormatter DATE_HEURE =
             DateTimeFormatter.ofPattern("d/MM/yyyy HH:mm", Locale.FRENCH);
+
+    @Value("${cotisapp.init.mdp-defaut:Admin@2026}")
+    private String mdpDefaut;
 
     private final UtilisateurRoleRepository utilisateurRoleRepository;
     private final UtilisateurRepository utilisateurRepository;
@@ -129,8 +133,9 @@ public class UtilisateurAccesService {
             throw new BusinessException("Un utilisateur avec cet email existe déjà");
         }
         String pwd = request.getMotDePasse();
-        if (pwd == null || pwd.isBlank()) {
-            pwd = "Admin@2026";
+        boolean pwdGenere = pwd == null || pwd.isBlank();
+        if (pwdGenere) {
+            pwd = mdpDefaut;
         }
         Utilisateur user = utilisateurRepository.save(Utilisateur.builder()
                 .email(request.getEmail().trim().toLowerCase())
@@ -138,7 +143,7 @@ public class UtilisateurAccesService {
                 .prenom(request.getPrenom().trim())
                 .nom(request.getNom().trim())
                 .actif(Boolean.TRUE.equals(request.getCompteActif()))
-                .doitChangerMotDePasse(false)
+                .doitChangerMotDePasse(pwdGenere)
                 .build());
 
         if (utilisateurRoleRepository.findFirstByOrganisationIdAndRole(organisationId, Role.ADMIN_GIE).isPresent()) {
@@ -250,7 +255,7 @@ public class UtilisateurAccesService {
 
         String pwd = request.getMotDePasse();
         if (pwd == null || pwd.isBlank()) {
-            pwd = "Admin@2026";
+            pwd = mdpDefaut;
         }
         user.setMotDePasse(passwordEncoder.encode(pwd));
         user.setDoitChangerMotDePasse(Boolean.TRUE.equals(request.getForcerChangement()));

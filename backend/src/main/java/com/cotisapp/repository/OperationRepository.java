@@ -189,6 +189,19 @@ public interface OperationRepository extends JpaRepository<Operation, Long> {
             @Param("exerciceId") Long exerciceId,
             @Param("date") LocalDate date);
 
+    @Query("""
+            SELECT MIN(o.dateOperation) FROM Operation o
+            WHERE o.organisationId = :orgId
+              AND o.exerciceId = :exerciceId
+              AND o.dateOperation > :apresDate
+              AND o.annulee = false
+              AND o.operationOrigineId IS NULL
+            """)
+    Optional<LocalDate> findMinDateOperationApres(
+            @Param("orgId") Long orgId,
+            @Param("exerciceId") Long exerciceId,
+            @Param("apresDate") LocalDate apresDate);
+
     List<Operation> findByOrganisationIdAndExerciceIdOrderByDateCreationDesc(
             Long organisationId, Long exerciceId);
 

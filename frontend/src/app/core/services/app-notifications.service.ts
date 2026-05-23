@@ -1,10 +1,11 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
+import { EMPTY, catchError, switchMap } from 'rxjs';
+import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { NotificationItem } from '../../features/notifications/notifications-demo.util';
 import { buildOrgRoute } from '../util/notifications-route.util';
-import { tap } from 'rxjs/operators';
 
 export interface NotificationDto {
   id: string;
@@ -55,15 +56,14 @@ export class AppNotificationsService {
     return this.http
       .get<NotificationDto[]>(`${environment.apiUrl}/organisations/${orgId}/notifications`)
       .pipe(
-        tap({
-          next: (list) => {
-            this.items.set(list.map((d) => this.toItem(d, orgId)));
-            this.loading.set(false);
-          },
-          error: () => {
-            this.items.set([]);
-            this.loading.set(false);
-          },
+        tap((list) => {
+          this.items.set(list.map((d) => this.toItem(d, orgId)));
+          this.loading.set(false);
+        }),
+        catchError(() => {
+          this.items.set([]);
+          this.loading.set(false);
+          return EMPTY;
         })
       );
   }
@@ -73,15 +73,12 @@ export class AppNotificationsService {
     return this.http
       .put<void>(`${environment.apiUrl}/organisations/${orgId}/notifications/${encoded}/lire`, null)
       .pipe(
-        tap(() => {
+        tap(() =>
           this.items.update((list) =>
-            list.map((n) =>
-              n.id === cle
-                ? { ...n, lu: true, tagClass: 'tag-muted' as const, groupe: n.groupe.includes('Lues') ? n.groupe : n.groupe }
-                : n
-            )
-          );
-        })
+            list.map((n) => (n.id === cle ? { ...n, lu: true, tagClass: 'tag-muted' as const } : n))
+          )
+        ),
+        catchError(() => EMPTY)
       );
   }
 
@@ -90,29 +87,30 @@ export class AppNotificationsService {
     return this.http
       .put<void>(`${environment.apiUrl}/organisations/${orgId}/notifications/${encoded}/non-lire`, null)
       .pipe(
-        tap(() => {
-          this.items.update((list) =>
-            list.map((n) =>
-              n.id === cle
-                ? { ...n, lu: false, tagClass: 'tag-re' as const }
-                : n
-            )
-          );
-        })
+        // Recharge la liste pour récupérer le tagClass d'origine du serveur
+        // (deviner la couleur localement serait incorrect si elle a changé)
+        switchMap(() => this.charger(orgId)),
+        catchError(() => EMPTY)
       );
   }
 
   marquerToutLu(orgId: number) {
     return this.http
       .put<void>(`${environment.apiUrl}/organisations/${orgId}/notifications/lire-tout`, null)
-      .pipe(tap(() => this.charger(orgId).subscribe()));
+      .pipe(
+        switchMap(() => this.charger(orgId)),
+        catchError(() => EMPTY)
+      );
   }
 
   masquer(orgId: number, cle: string) {
     const encoded = encodeURIComponent(cle);
     return this.http
       .put<void>(`${environment.apiUrl}/organisations/${orgId}/notifications/${encoded}/masquer`, null)
-      .pipe(tap(() => this.items.update((list) => list.filter((n) => n.id !== cle))));
+      .pipe(
+        tap(() => this.items.update((list) => list.filter((n) => n.id !== cle))),
+        catchError(() => EMPTY)
+      );
   }
 
   /** Retire immédiatement la notification d'une demande approuvée ou rejetée. */
@@ -131,12 +129,9 @@ export class AppNotificationsService {
         payload
       )
       .pipe(
-        tap({
-          next: () => {
-            this.retirerDemandeTraitee(demandeId);
-            this.charger(orgId).subscribe();
-          },
-        })
+        tap(() => this.retirerDemandeTraitee(demandeId)),
+        switchMap(() => this.charger(orgId)),
+        catchError(() => EMPTY)
       );
   }
 
@@ -147,12 +142,9 @@ export class AppNotificationsService {
         { motif }
       )
       .pipe(
-        tap({
-          next: () => {
-            this.retirerDemandeTraitee(demandeId);
-            this.charger(orgId).subscribe();
-          },
-        })
+        tap(() => this.retirerDemandeTraitee(demandeId)),
+        switchMap(() => this.charger(orgId)),
+        catchError(() => EMPTY)
       );
   }
 

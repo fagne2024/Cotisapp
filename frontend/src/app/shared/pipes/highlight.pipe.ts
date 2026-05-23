@@ -8,16 +8,15 @@ import { DomSanitizer, SafeHtml } from '@angular/platform-browser';
 export class HighlightPipe implements PipeTransform {
   constructor(private sanitizer: DomSanitizer) {}
 
-  transform(text: string, query: string): SafeHtml {
+  transform(text: string | null | undefined, query: string): SafeHtml {
     if (!query || !text) {
-      return text;
+      return text ?? '';
     }
 
     const queryLower = query.toLowerCase();
     const textLower = text.toLowerCase();
 
     // Find all occurrences of the query
-    let result = text;
     let lastIndex = 0;
     let highlighted = '';
 

@@ -57,7 +57,7 @@ public class TwoFactorService {
         if (u.getTotpSecret() == null) {
             throw new BusinessException("Aucune configuration en cours. Relancez l'activation.");
         }
-        String plain = totpService.decryptSecret(u.getTotpSecret());
+        String plain = totpService.resolvePlainSecret(u.getTotpSecret());
         if (!totpService.verifyPlainSecret(plain, request.getCode())) {
             throw new BusinessException("Code incorrect. Vérifiez l'heure de votre téléphone et réessayez.");
         }

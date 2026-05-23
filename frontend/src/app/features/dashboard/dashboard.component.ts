@@ -5,7 +5,8 @@ import { DashboardDto, DashboardService } from '../../core/services/dashboard.se
 import { EmpruntService, EmpruntDto } from '../../core/services/emprunt.service';
 import { MembreDto } from '../../core/services/membre.service';
 import { buildChartViewModel, ligneBureau, operationDashboardVersLigne } from './dashboard.util';
-import { interval, Subscription } from 'rxjs';
+import { formatFcfa } from '../../core/utils/currency.util';
+import { forkJoin, interval, Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 
 @Component({
@@ -94,19 +95,19 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private loadDashboardData(): void {
     const id = this.auth.currentOrgId();
     if (id == null) return;
-    this.dashboardService.obtenir(id).subscribe({
-      next: (data) => {
-        this.dashboard.set(data);
+    forkJoin({
+      dashboard: this.dashboardService.obtenir(id),
+      emprunts: this.empruntService.lister(id),
+    }).subscribe({
+      next: ({ dashboard, emprunts }) => {
+        this.dashboard.set(dashboard);
+        this.emprunts.set(emprunts);
         this.loading.set(false);
       },
       error: () => {
         this.loadError.set(true);
         this.loading.set(false);
       },
-    });
-    this.empruntService.lister(id).subscribe({
-      next: (list) => this.emprunts.set(list),
-      error: () => this.emprunts.set([]),
     });
   }
 
@@ -340,9 +341,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
     return head + extra;
   }
 
-  formatFcfa(n: number): string {
-    return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n)} F`;
-  }
+  readonly formatFcfa = formatFcfa;
 
   formatFcfaUnit(n: number): string {
     return new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n);
@@ -367,10 +366,6 @@ export class DashboardComponent implements OnInit, OnDestroy {
       d.setHours(0, 0, 0, 0);
       return d < t;
     });
-  }
-
-  formatFcfaCompact(n: number): string {
-    return `${new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 }).format(n)} F`;
   }
 
   private isoWeek(d: Date): number {

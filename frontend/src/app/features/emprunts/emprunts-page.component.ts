@@ -292,9 +292,6 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
   readonly sousTitre = computed(() => {
     const ec = this.enCoursCount();
     const rt = this.retardCount();
-    if (this.emprunts().length === 0) {
-      return '8 en cours · 2 en retard · Choisissez le type d\'emprunt';
-    }
     return `${ec} en cours · ${rt} en retard · Choisissez le type d'emprunt`;
   });
 
@@ -507,7 +504,7 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
   chargerHistorique(): void {
     if (this.orgId < 1) return;
     this.historiqueLoading.set(true);
-    this.empruntService.listerHistorique(this.orgId).subscribe({
+    this.sub.add(this.empruntService.listerHistorique(this.orgId).subscribe({
       next: (lignes) => {
         this.historiqueLignes.set(
           (lignes ?? []).map((l) => ({
@@ -527,7 +524,7 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
           typeof msg === 'string' ? msg : 'Impossible de charger l\'historique des emprunts.'
         );
       },
-    });
+    }));
   }
 
   private dateOperationIso(value: string | unknown): string {
@@ -596,9 +593,12 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
         this.annulationOperationId.set(null);
         this.notify.success(res.message ?? 'Emprunt annulé.');
         this.chargerHistorique();
-        this.empruntService.lister(this.orgId).subscribe({
-          next: (list) => this.emprunts.set(list),
-        });
+        this.sub.add(
+          this.empruntService.lister(this.orgId).subscribe({
+            next: (list) => this.emprunts.set(list),
+            error: () => {},
+          })
+        );
       },
       error: (err) => {
         this.annulationOperationId.set(null);
@@ -1101,7 +1101,6 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
       return;
     }
     if (this.form.invalid || this.form.controls.membreId.value == null) {
-      const r = this.regleActive();
       this.showToast(
         `Vérifiez le membre et le montant (${formatFcfa(this.montantMin())} – ${formatFcfa(this.montantMax())}).`
       );
@@ -1284,10 +1283,12 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
           } else {
             this.showToast('✅ Emprunt accordé avec succès.');
           }
-          this.empruntService.lister(this.orgId).subscribe({
-            next: (list) => this.emprunts.set(list),
-            error: () => this.emprunts.set([]),
-          });
+          this.sub.add(
+            this.empruntService.lister(this.orgId).subscribe({
+              next: (list) => this.emprunts.set(list),
+              error: () => this.emprunts.set([]),
+            })
+          );
           if (this.typeUi() === 'historique') {
             this.chargerHistorique();
           }
@@ -1362,13 +1363,4 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   }
 
-  private addMonthsLabel(isoDate: string, add: number): string {
-    const d = new Date(isoDate + 'T12:00:00');
-    d.setMonth(d.getMonth() + add);
-    return new Intl.DateTimeFormat('fr-FR', {
-      day: 'numeric',
-      month: 'short',
-      year: 'numeric',
-    }).format(d);
-  }
 }

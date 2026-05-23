@@ -20,7 +20,7 @@ describe('membre-code-lookup.util', () => {
       { id: 1, codeMembre: 'PLANAD-001', nomComplet: 'A' },
       { id: 2, codeMembre: 'PLANAD-002', nomComplet: 'B' },
     ] as Parameters<typeof filtrerMembresParNumeroCode>[0];
-    expect(filtrerMembresParNumeroCode(list, '001')).toHaveLength(1);
+    expect(filtrerMembresParNumeroCode(list, '001')).toHaveSize(1);
     expect(filtrerMembresParNumeroCode(list, '001')[0].id).toBe(1);
   });
 });

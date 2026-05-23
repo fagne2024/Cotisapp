@@ -50,9 +50,11 @@ export class AppShellComponent implements OnInit {
   }
 
   readonly initials = computed(() => {
-    const name = this.auth.nomComplet();
+    const name = this.auth.nomComplet().trim();
+    if (!name) return '?';
     return name
       .split(' ')
+      .filter((p) => p.length > 0)
       .map((p) => p[0])
       .join('')
       .slice(0, 2)

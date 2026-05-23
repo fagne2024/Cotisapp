@@ -25,4 +25,11 @@ class TotpServiceTest {
         String decrypted = totpService.decryptSecret(encrypted);
         assertThat(decrypted).isEqualTo(secret);
     }
+
+    @Test
+    void resolvePlainSecret_acceptsLegacyBase32InClear() {
+        String plain = "JBSWY3DPEHPK3PXP";
+        assertThat(totpService.resolvePlainSecret(plain)).isEqualTo(plain);
+        assertThat(totpService.isPlainSecretStored(plain)).isTrue();
+    }
 }

@@ -13,6 +13,7 @@ import com.cotisapp.service.RegleInitialisationService;
 import com.cotisapp.service.TypeProfilInitialisationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
 import org.springframework.context.annotation.Profile;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -26,7 +27,9 @@ public class DataInitializer implements CommandLineRunner {
 
     public static final String EMAIL_SUPERADMIN = "superadmin@cotisapp.sn";
     public static final String EMAIL_ADMIN = "admin@cotisapp.sn";
-    public static final String MDP_DEFAUT = "Admin@2026";
+
+    @Value("${cotisapp.init.mdp-defaut:Admin@2026}")
+    private String mdpDefaut;
 
     private final UtilisateurRepository utilisateurRepository;
     private final UtilisateurRoleRepository utilisateurRoleRepository;
@@ -45,6 +48,7 @@ public class DataInitializer implements CommandLineRunner {
 
         assurerUtilisateur(EMAIL_SUPERADMIN, "Super", "Admin", Role.SUPERADMIN);
         assurerUtilisateur(EMAIL_ADMIN, "Admin", "Plateforme", Role.SUPERADMIN);
+        log.info("Comptes système : {} et {}", EMAIL_SUPERADMIN, EMAIL_ADMIN);
 
         organisationRepository.findAll().forEach(org -> {
             if (org.getExerciceCourantId() == null) {
@@ -55,26 +59,20 @@ public class DataInitializer implements CommandLineRunner {
             compteService.ensureCompteOrganisationInteret(org.getId());
             compteService.ensureCompteOrganisationAmendes(org.getId());
         });
-
-        log.info(
-                "Comptes par défaut : {} et {} (mot de passe : {})",
-                EMAIL_SUPERADMIN,
-                EMAIL_ADMIN,
-                MDP_DEFAUT);
     }
 
     private void assurerUtilisateur(String email, String prenom, String nom, Role role) {
-        String pwdHash = passwordEncoder.encode(MDP_DEFAUT);
         Utilisateur user = utilisateurRepository.findByEmail(email).orElseGet(() -> {
             log.info("Création du compte {}", email);
             return utilisateurRepository.save(Utilisateur.builder()
                     .email(email)
-                    .motDePasse(pwdHash)
+                    .motDePasse(passwordEncoder.encode(mdpDefaut))
                     .nom(nom)
                     .prenom(prenom)
+                    .doitChangerMotDePasse(true)
                     .build());
         });
-        user.setMotDePasse(pwdHash);
+        // Ne pas écraser le mot de passe d'un compte existant
         user.setNom(nom);
         user.setPrenom(prenom);
         utilisateurRepository.save(user);

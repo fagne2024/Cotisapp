@@ -50,8 +50,8 @@ describe('recap-journee-filtre.util', () => {
   });
 
   const journees = [
-    { id: 1, numero: 1, dateReunion: '2026-05-17', libelle: 'PLANAD n°1', nbOperations: 12 },
-    { id: 2, numero: 12, dateReunion: '2026-05-10', libelle: 'PLANAD n°12', nbOperations: 5 },
+    { id: 1, numero: 1, dateReunion: '2026-05-17', libelle: 'PLANAD n°1', statut: 'OUVERT' as const, nbOperations: 12, nbCotisations: 0, nbEmprunts: 0, nbRemboursements: 0 },
+    { id: 2, numero: 12, dateReunion: '2026-05-10', libelle: 'PLANAD n°12', statut: 'OUVERT' as const, nbOperations: 5, nbCotisations: 0, nbEmprunts: 0, nbRemboursements: 0 },
   ];
 
   it('filtre les journées par numéro PLANAD', () => {

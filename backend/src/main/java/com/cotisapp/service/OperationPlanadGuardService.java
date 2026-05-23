@@ -15,6 +15,7 @@ import java.time.LocalDate;
 public class OperationPlanadGuardService {
 
     private final JourneeReunionRepository journeeReunionRepository;
+    private final PlanadOuvertureService planadOuvertureService;
 
     @Transactional(readOnly = true)
     public void verifierDateOperationAutorisee(Long orgId, Long exerciceId, LocalDate dateOperation) {
@@ -44,6 +45,8 @@ public class OperationPlanadGuardService {
         if (!lierAuPlanadOuvert) {
             return;
         }
+
+        planadOuvertureService.assurerPlanadOuvertPourDate(orgId, exerciceId, dateOperation);
 
         journeeReunionRepository.findPlanadOuvert(exerciceId).ifPresent(ouvert -> {
             if (!ouvert.getDateReunion().equals(dateOperation)) {

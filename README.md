@@ -86,7 +86,7 @@ npm install
 npm start
 ```
 
-Ouvrir http://localhost:4284 — connexion admin → écran **Opération — Type Mois**.
+Ouvrir http://localhost:4200 — connexion admin → écran **Opération — Type Mois**.
 
 ### 4. Tests backend
 

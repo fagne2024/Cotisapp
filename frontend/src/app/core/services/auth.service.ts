@@ -100,6 +100,11 @@ export class AuthService {
     this.viderSession();
   }
 
+  /** Vide la session localement sans appel réseau (utilisé par l'intercepteur 401). */
+  clearSession(): void {
+    this.viderSession();
+  }
+
   private viderSession(): void {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
@@ -142,6 +147,10 @@ export class AuthService {
         });
       }
       this.router.navigate(['/organisations', res.organisationId, 'dashboard']);
+    } else {
+      // Réponse incomplète du backend (organisationId absent pour un rôle non SUPERADMIN)
+      // → on redirige vers /login avec un paramètre d'erreur pour informer l'utilisateur
+      this.router.navigate(['/login'], { queryParams: { erreur: 'session' } });
     }
   }
 
@@ -170,7 +179,9 @@ export class AuthService {
     try {
       const u = JSON.parse(raw) as AuthUser;
       if (u.role === 'MEMBRE' && u.compteBureau === undefined) {
+        // Valeur manquante dans une session ancienne : on la déduit et on la repersiste
         u.compteBureau = u.membreId == null;
+        localStorage.setItem(USER_KEY, JSON.stringify(u));
       }
       return u;
     } catch {

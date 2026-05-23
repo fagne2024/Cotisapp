@@ -26,6 +26,9 @@ class OperationPlanadGuardServiceTest {
     @Mock
     private JourneeReunionRepository journeeReunionRepository;
 
+    @Mock
+    private PlanadOuvertureService planadOuvertureService;
+
     @InjectMocks
     private OperationPlanadGuardService guardService;
 

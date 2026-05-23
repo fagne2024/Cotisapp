@@ -14,14 +14,20 @@ import dev.samstevens.totp.secret.SecretGenerator;
 import dev.samstevens.totp.time.SystemTimeProvider;
 import dev.samstevens.totp.time.TimeProvider;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import java.util.Base64;
+import java.util.regex.Pattern;
 
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class TotpService {
+
+    /** Secret TOTP Base32 (Google Authenticator), 16 à 32 caractères. */
+    private static final Pattern PLAIN_TOTP_SECRET = Pattern.compile("^[A-Z2-7]{16,32}$");
 
     private final TotpSecretCipher totpSecretCipher;
 
@@ -80,8 +86,24 @@ public class TotpService {
         if (!Boolean.TRUE.equals(utilisateur.getTotpEnabled())) {
             return false;
         }
-        String plain = decryptSecret(utilisateur.getTotpSecret());
+        String plain = resolvePlainSecret(utilisateur.getTotpSecret());
         return verifyPlainSecret(plain, code);
+    }
+
+    /** Indique si le secret en base est encore en clair (migration vers chiffrement AES). */
+    public boolean isPlainSecretStored(String stored) {
+        return stored != null && isPlainBase32Secret(normalizeBase32(stored));
+    }
+
+    /** Ré-enregistre le secret chiffré si la base contient encore du Base32 en clair. */
+    public String encryptSecretIfNeeded(String stored) {
+        if (stored == null || stored.isBlank()) {
+            return stored;
+        }
+        if (isPlainSecretStored(stored)) {
+            return encryptSecret(normalizeBase32(stored));
+        }
+        return stored;
     }
 
     public String encryptSecret(String plainSecret) {
@@ -89,6 +111,37 @@ public class TotpService {
     }
 
     public String decryptSecret(String encrypted) {
-        return totpSecretCipher.decrypt(encrypted);
+        return resolvePlainSecret(encrypted);
+    }
+
+    /**
+     * Déchiffre le secret ou accepte un ancien enregistrement Base32 en clair.
+     * Si le déchiffrement échoue (clé serveur changée), message orienté admin.
+     */
+    public String resolvePlainSecret(String stored) {
+        if (stored == null || stored.isBlank()) {
+            return null;
+        }
+        String trimmed = stored.trim();
+        if (isPlainBase32Secret(normalizeBase32(trimmed))) {
+            return normalizeBase32(trimmed);
+        }
+        try {
+            return totpSecretCipher.decrypt(trimmed);
+        } catch (IllegalStateException e) {
+            log.warn("Échec déchiffrement secret TOTP (clé ou format invalide): {}", e.getMessage());
+            throw new BusinessException(
+                    "La double authentification de ce compte doit être reconfigurée. "
+                            + "Demandez à l'administrateur GIE de la réinitialiser (Utilisateurs & Droits), "
+                            + "puis configurez-la à nouveau avec Google Authenticator.");
+        }
+    }
+
+    private static String normalizeBase32(String value) {
+        return value.replaceAll("\\s", "").toUpperCase();
+    }
+
+    private static boolean isPlainBase32Secret(String normalized) {
+        return normalized != null && PLAIN_TOTP_SECRET.matcher(normalized).matches();
     }
 }

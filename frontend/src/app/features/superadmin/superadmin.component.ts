@@ -34,6 +34,8 @@ export class SuperadminComponent implements OnInit, OnDestroy {
   private readonly saContext = inject(SuperadminContextService);
 
   readonly formatFcfa = formatFcfa;
+  /** Affichage template (évite le caractère @ interprété comme bloc Angular). */
+  readonly mdpDefautLibelle = 'Admin@2026';
   readonly vue = signal<SuperadminVueGlobaleDto | null>(null);
   readonly loading = signal(true);
   readonly error = signal<string | null>(null);
@@ -51,18 +53,22 @@ export class SuperadminComponent implements OnInit, OnDestroy {
   readonly logoFichier = signal<File | null>(null);
   readonly logoApercuLocal = signal<string | null>(null);
   readonly uploadingLogo = signal(false);
-  readonly filteredOrgs = computed(() => {
+  readonly filteredOrgs = computed(() => this.filterOrganisations(this.vue()?.organisations ?? []));
+
+  /** Liste des organisations avec filtre recherche (vue admins GIE). */
+  readonly filteredAdminsGie = computed(() => this.filterOrganisations(this.vue()?.organisations ?? []));
+
+  private filterOrganisations(list: OrganisationResumeDto[]): OrganisationResumeDto[] {
     const q = this.searchQuery().trim().toLowerCase();
-    const list = this.vue()?.organisations ?? [];
     if (!q) return list;
     return list.filter(
       (o) =>
         o.nom.toLowerCase().includes(q) ||
         o.code.toLowerCase().includes(q) ||
-        o.adminNom.toLowerCase().includes(q) ||
+        this.adminLibelle(o).toLowerCase().includes(q) ||
         o.adminEmail.toLowerCase().includes(q)
     );
-  });
+  }
 
   readonly chartMax = computed(() => {
     const bars = this.vue()?.cotisationsParOrganisation ?? [];
@@ -107,6 +113,14 @@ export class SuperadminComponent implements OnInit, OnDestroy {
 
   ngOnInit(): void {
     this.loadData();
+  }
+
+  adminLibelle(org: OrganisationResumeDto): string {
+    if (!org.adminUtilisateurId) return '—';
+    const p = (org.adminPrenom ?? '').trim();
+    const n = (org.adminNom ?? '').trim();
+    if (p && n && n !== '—') return `${p} ${n}`;
+    return n && n !== '—' ? n : p || '—';
   }
 
   ngOnDestroy(): void {
@@ -427,6 +441,7 @@ export class SuperadminComponent implements OnInit, OnDestroy {
         next: () => {
           this.saving.set(false);
           this.resetMdpTarget.set(null);
+          this.loadData();
           this.showToast(`Mot de passe administrateur mis à jour pour « ${org.nom} ».`);
         },
         error: (err) => this.handleApiError(err, 'Impossible de réinitialiser le mot de passe.'),

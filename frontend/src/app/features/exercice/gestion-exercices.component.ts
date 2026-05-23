@@ -179,7 +179,9 @@ export class GestionExercicesComponent implements OnInit {
     void this.confirmDialog
       .confirm({
         title: 'Clôturer le PLANAD',
-        message: `Clôturer le ${j.libelle} ? Aucune nouvelle opération ne sera possible sur cette date.`,
+        message:
+          `Clôturer le ${j.libelle} ? Aucune nouvelle opération ne sera possible sur cette date. ` +
+          `Le PLANAD suivant s'ouvrira automatiquement sur la date de la première opération ultérieure, si elle existe.`,
         confirmLabel: 'Clôturer',
         variant: 'danger',
       })
