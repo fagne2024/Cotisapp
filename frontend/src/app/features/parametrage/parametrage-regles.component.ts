@@ -16,6 +16,7 @@ import {
   reglePaiementUniquePossible,
   simulerEmpruntDepuisRegle,
 } from './regle-emprunt-calcul.util';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { organisationCouranteId } from '../../core/util/org-route.util';
 import { formatFcfa } from '../../core/utils/currency.util';
@@ -78,6 +79,7 @@ export class ParametrageReglesComponent implements OnInit {
   private readonly fb = inject(FormBuilder);
   private readonly regleService = inject(RegleOperationService);
   private readonly notify = inject(NotificationService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
 
   readonly formatFcfa = formatFcfa;
   readonly modePartsActif = modePartsActif;
@@ -552,22 +554,37 @@ export class ParametrageReglesComponent implements OnInit {
 
   reinitialiser(): void {
     const orgId = this.orgId();
-    if (!orgId || !confirm('Réinitialiser toutes les règles aux valeurs par défaut ?')) return;
-    this.loading.set(true);
-    this.regleService.reinitialiser(orgId).subscribe({
-      next: (list) => {
-        this.regles.set(list);
-        if (list.length) {
-          this.selectRegle(list[0]);
+    if (!orgId) {
+      return;
+    }
+    void this.confirmDialog
+      .confirm({
+        title: 'Réinitialiser les règles',
+        message:
+          'Réinitialiser toutes les règles aux valeurs par défaut ? Les paramètres actuels seront remplacés.',
+        confirmLabel: 'Réinitialiser',
+        variant: 'danger',
+      })
+      .then((ok) => {
+        if (!ok) {
+          return;
         }
-        this.loading.set(false);
-        this.showToast('Règles réinitialisées aux valeurs par défaut');
-      },
-      error: () => {
-        this.loading.set(false);
-        this.showToast('Erreur lors de la réinitialisation');
-      },
-    });
+        this.loading.set(true);
+        this.regleService.reinitialiser(orgId).subscribe({
+          next: (list) => {
+            this.regles.set(list);
+            if (list.length) {
+              this.selectRegle(list[0]);
+            }
+            this.loading.set(false);
+            this.showToast('Règles réinitialisées aux valeurs par défaut');
+          },
+          error: () => {
+            this.loading.set(false);
+            this.showToast('Erreur lors de la réinitialisation');
+          },
+        });
+      });
   }
 
   simuler(): void {

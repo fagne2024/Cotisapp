@@ -591,33 +591,24 @@
         <div class="card">
           <div class="card-inner">
             <div class="card-h"><span class="card-title">📊 Stats emprunts</span></div>
-            @if (emprunts().length === 0) {
-              <div class="stats-grid">
-                <div class="st g3"><div class="st-n g1">8</div><div class="st-l">En cours</div></div>
-                <div class="st re2"><div class="st-n re">2</div><div class="st-l">En retard</div></div>
-                <div class="st or3"><div class="st-n or">3</div><div class="st-l">Soldés ce mois</div></div>
-                <div class="st bl2"><div class="st-n bl">2</div><div class="st-l">Solidarité</div></div>
+            <div class="stats-grid">
+              <div class="st g3">
+                <div class="st-n g1">{{ statsEmprunts().enCours }}</div>
+                <div class="st-l">En cours</div>
               </div>
-            } @else {
-              <div class="stats-grid">
-                <div class="st g3">
-                  <div class="st-n g1">{{ enCoursCount() }}</div>
-                  <div class="st-l">En cours</div>
-                </div>
-                <div class="st re2">
-                  <div class="st-n re">{{ retardCount() }}</div>
-                  <div class="st-l">En retard</div>
-                </div>
-                <div class="st or3">
-                  <div class="st-n or">—</div>
-                  <div class="st-l">Soldés ce mois</div>
-                </div>
-                <div class="st bl2">
-                  <div class="st-n bl">{{ countSolidarite() }}</div>
-                  <div class="st-l">Solidarité</div>
-                </div>
+              <div class="st re2">
+                <div class="st-n re">{{ statsEmprunts().retard }}</div>
+                <div class="st-l">En retard</div>
               </div>
-            }
+              <div class="st or3">
+                <div class="st-n or">{{ statsEmprunts().soldesMois }}</div>
+                <div class="st-l">Soldés ce mois</div>
+              </div>
+              <div class="st bl2">
+                <div class="st-n bl">{{ statsQuatriemeValeur() }}</div>
+                <div class="st-l">{{ statsQuatriemeLibelle() }}</div>
+              </div>
+            </div>
           </div>
         </div>
       </div>

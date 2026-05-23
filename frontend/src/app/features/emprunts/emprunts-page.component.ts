@@ -1,7 +1,7 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal, HostListener } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { concatMap, from, of, Subscription } from 'rxjs';
+import { concatMap, forkJoin, from, of, Subscription } from 'rxjs';
 import { catchError, debounceTime, distinctUntilChanged, finalize, map, startWith, switchMap, toArray } from 'rxjs/operators';
 import { AuthService } from '../../core/services/auth.service';
 import {
@@ -38,6 +38,7 @@ import { postePourCodeMembre } from '../membres/membres-poste.util';
 import { FilterQueryNav, qpEnum, qpString } from '../../shared/util/filter-query.util';
 import { matchTextQuery } from '../../shared/util/filter.util';
 import { empruntEnRetard } from '../remboursements/remboursement-emprunt.util';
+import { empruntSoldeCeMois } from './suivi-emprunts.util';
 import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import {
@@ -122,6 +123,8 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
   readonly membresRecherche = signal<MembreDto[]>([]);
   readonly rechercheMembreLoading = signal(false);
   readonly emprunts = signal<EmpruntDto[]>([]);
+  /** En cours + soldés (stats « soldés ce mois »). */
+  readonly empruntsSuivi = signal<EmpruntDto[]>([]);
   readonly membreListOpen = signal(false);
   readonly enregistrement = signal(false);
   readonly confirmDialog = signal<ConfirmDialogView | null>(null);
@@ -265,10 +268,44 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
     }
   });
 
-  readonly enCoursCount = computed(() => this.emprunts().filter((e) => e.statut === 'EN_COURS').length);
-  readonly retardCount = computed(() =>
-    this.emprunts().filter((e) => e.statut === 'EN_COURS' && this.empruntEnRetard(e)).length
-  );
+  readonly statsEmprunts = computed(() => {
+    const encours = this.emprunts();
+    const suivi = this.empruntsSuivi();
+    return {
+      enCours: encours.length,
+      retard: encours.filter((e) => this.empruntEnRetard(e)).length,
+      soldesMois: suivi.filter((e) => empruntSoldeCeMois(e)).length,
+      solidariteEnCours: encours.filter((e) => e.typeEmprunt === 'SOLIDARITE').length,
+      caisseEnCours: encours.filter((e) => e.typeEmprunt === 'CAISSE').length,
+      etaleEnCours: encours.filter((e) => e.typeEmprunt === 'ETALE').length,
+    };
+  });
+
+  readonly enCoursCount = computed(() => this.statsEmprunts().enCours);
+  readonly retardCount = computed(() => this.statsEmprunts().retard);
+
+  readonly statsQuatriemeLibelle = computed(() => {
+    switch (this.typeUi()) {
+      case 'caisse':
+        return 'Caisse';
+      case 'sol':
+        return 'Solidarité';
+      default:
+        return 'Étalé';
+    }
+  });
+
+  readonly statsQuatriemeValeur = computed(() => {
+    const s = this.statsEmprunts();
+    switch (this.typeUi()) {
+      case 'caisse':
+        return s.caisseEnCours;
+      case 'sol':
+        return s.solidariteEnCours;
+      default:
+        return s.etaleEnCours;
+    }
+  });
 
   readonly filtrePanelType = signal<'tous' | TypeEmprunt>('tous');
   readonly filtrePanelStatut = signal<'tous' | 'retard' | 'cours'>('tous');
@@ -290,9 +327,16 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
   });
 
   readonly sousTitre = computed(() => {
-    const ec = this.enCoursCount();
-    const rt = this.retardCount();
-    return `${ec} en cours · ${rt} en retard · Choisissez le type d'emprunt`;
+    const tab = this.typeUi();
+    if (tab === 'historique') {
+      return '';
+    }
+    const type = this.typeEmpruntApi(tab);
+    const enc = this.emprunts().filter((e) => e.typeEmprunt === type);
+    const rt = enc.filter((e) => this.empruntEnRetard(e)).length;
+    const lib =
+      tab === 'sol' ? 'solidarité' : tab === 'caisse' ? 'caisse' : 'étalé';
+    return `${enc.length} ${lib} en cours · ${rt} en retard · Octroyez un nouvel emprunt`;
   });
 
   readonly echRows = signal<EcheancierRow[]>([]);
@@ -349,6 +393,7 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
           if (tab === 'historique') {
             this.chargerHistorique();
           } else {
+            this.syncFiltrePanelAvecType(tab);
             this.appliquerContraintesRegle();
             this.recalc();
           }
@@ -403,12 +448,8 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
         })
     );
 
-    this.sub.add(
-      this.empruntService.lister(this.orgId).subscribe({
-        next: (list) => this.emprunts.set(list),
-        error: () => this.emprunts.set([]),
-      })
-    );
+    this.chargerEmprunts();
+    this.syncFiltrePanelAvecType(this.typeUi());
 
     this.sub.add(
       this.dashboardService.obtenir(this.orgId).subscribe({
@@ -494,6 +535,38 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
+  }
+
+  private chargerEmprunts(): void {
+    if (this.orgId < 1) {
+      this.emprunts.set([]);
+      this.empruntsSuivi.set([]);
+      return;
+    }
+    this.sub.add(
+      forkJoin({
+        encours: this.empruntService.lister(this.orgId),
+        suivi: this.empruntService.listerSuivi(this.orgId),
+      }).subscribe({
+        next: ({ encours, suivi }) => {
+          this.emprunts.set(encours ?? []);
+          this.empruntsSuivi.set(suivi ?? []);
+        },
+        error: () => {
+          this.emprunts.set([]);
+          this.empruntsSuivi.set([]);
+        },
+      })
+    );
+  }
+
+  private syncFiltrePanelAvecType(tab: EmpruntPageTab): void {
+    if (tab === 'historique') {
+      return;
+    }
+    const ft: 'tous' | TypeEmprunt =
+      tab === 'sol' ? 'SOLIDARITE' : tab === 'caisse' ? 'CAISSE' : 'ETALE';
+    this.filtrePanelType.set(ft);
   }
 
   private parsePageTab(raw: string | null): EmpruntPageTab {
@@ -593,12 +666,7 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
         this.annulationOperationId.set(null);
         this.notify.success(res.message ?? 'Emprunt annulé.');
         this.chargerHistorique();
-        this.sub.add(
-          this.empruntService.lister(this.orgId).subscribe({
-            next: (list) => this.emprunts.set(list),
-            error: () => {},
-          })
-        );
+        this.chargerEmprunts();
       },
       error: (err) => {
         this.annulationOperationId.set(null);
@@ -1067,10 +1135,6 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
     }
   }
 
-  countSolidarite(): number {
-    return this.emprunts().filter((e) => e.typeEmprunt === 'SOLIDARITE').length;
-  }
-
   annuler(): void {
     const r = this.regleActive();
     this.form.reset({
@@ -1234,10 +1298,7 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
       .subscribe((results) => {
         const ok = results.filter((r) => r.ok);
         const ko = results.filter((r) => !r.ok);
-        this.empruntService.lister(this.orgId).subscribe({
-          next: (list) => this.emprunts.set(list),
-          error: () => this.emprunts.set([]),
-        });
+        this.chargerEmprunts();
         if (ko.length === 0) {
           this.showToast(
             `✅ ${ok.length} emprunt${ok.length > 1 ? 's' : ''} accordé${ok.length > 1 ? 's' : ''}.`
@@ -1283,12 +1344,7 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
           } else {
             this.showToast('✅ Emprunt accordé avec succès.');
           }
-          this.sub.add(
-            this.empruntService.lister(this.orgId).subscribe({
-              next: (list) => this.emprunts.set(list),
-              error: () => this.emprunts.set([]),
-            })
-          );
+          this.chargerEmprunts();
           if (this.typeUi() === 'historique') {
             this.chargerHistorique();
           }
