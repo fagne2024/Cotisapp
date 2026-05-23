@@ -343,7 +343,8 @@
             }
           } @else {
             <p class="bulk-mode-hint">
-              Cochez les membres à cotiser (10 par page). Le nombre de parts choisi plus bas s’applique à toute la sélection.
+              Cochez les membres à cotiser (10 par page) ou utilisez « Sélectionner toutes les pages » pour tout le
+              catalogue filtré. Le nombre de parts choisi plus bas s’applique à toute la sélection.
             </p>
             <div class="bulk-catalogue-toolbar">
               <div class="fl bulk-filtre-fl">
@@ -357,11 +358,11 @@
                   (input)="onBulkFiltreInput($event)"
                 />
               </div>
-              <button type="button" class="bulk-page-select-btn" (click)="toggleSelectionPageBulk()">
-                @if (bulkPageToutSelectionnee()) {
-                  Désélectionner la page
+              <button type="button" class="bulk-page-select-btn" (click)="toggleSelectionCatalogueBulk()">
+                @if (bulkCatalogueToutSelectionne()) {
+                  Désélectionner toutes les pages
                 } @else {
-                  Sélectionner la page
+                  Sélectionner toutes les pages
                 }
               </button>
             </div>
@@ -691,7 +692,7 @@
             <span class="filtre-count">{{ suiviFiltre().length }} membre(s)</span>
           </div>
           <div class="suivi-list">
-            @for (s of suiviFiltre(); track s.membreId) {
+            @for (s of suiviFiltrePage(); track s.membreId) {
               <div class="suivi-row">
                 <div class="suivi-av" [style.background]="s.avColor">{{ s.initials }}</div>
                 <div class="suivi-info">
@@ -714,6 +715,16 @@
               </p>
             }
           </div>
+          @if (suiviFiltre().length > suiviPageSize) {
+            <app-list-pagination
+              class="suivi-pagination"
+              [page]="suiviPage()"
+              [total]="suiviFiltre().length"
+              [pageSize]="suiviPageSize"
+              unit="membre(s)"
+              (pageChange)="goSuiviPage($event)"
+            />
+          }
           <div class="suivi-stats">
             <div class="suivi-st green">
               <div class="n">{{ suiviStats().payes }}</div>

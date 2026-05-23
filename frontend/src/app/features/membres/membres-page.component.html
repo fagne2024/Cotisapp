@@ -85,22 +85,46 @@
     @if (bureauCards().length > 0) {
       <div class="bureau-section">
         <div class="bureau-title">👑 Membres du bureau</div>
-        <div class="bureau-cards">
-          @for (b of bureauCards(); track b.raw.id) {
-            <div
-              class="bureau-card"
-              role="link"
-              tabindex="0"
-              [routerLink]="['/organisations', orgCourante()!, 'membres', b.raw.id]"
+        <div class="bureau-carousel" [class.has-nav]="bureauCarouselNeedsNav()">
+          @if (bureauCarouselNeedsNav()) {
+            <button
+              type="button"
+              class="bureau-carousel-btn bureau-carousel-btn-prev"
+              [disabled]="!bureauCarouselCanPrev()"
+              (click)="bureauCarouselPrev()"
+              aria-label="Membres du bureau précédents"
             >
-              @if (b.poste.kind === 'president') {
-                <div class="bc-crown" aria-hidden="true">👑</div>
-              }
-              <div class="bc-av" [style.background]="b.avColor">{{ b.initials }}</div>
-              <div class="bc-name">{{ b.raw.nomComplet }}</div>
-              <div class="bc-poste">{{ b.raw.codeMembre }}</div>
-              <span class="poste-badge {{ b.poste.badgeClass }}">{{ b.poste.label }}</span>
-            </div>
+              ‹
+            </button>
+          }
+          <div class="bureau-cards">
+            @for (b of bureauCardsVisible(); track b.raw.id) {
+              <div
+                class="bureau-card"
+                role="link"
+                tabindex="0"
+                [routerLink]="['/organisations', orgCourante()!, 'membres', b.raw.id]"
+              >
+                @if (b.poste.kind === 'president') {
+                  <div class="bc-crown" aria-hidden="true">👑</div>
+                }
+                <div class="bc-av" [style.background]="b.avColor">{{ b.initials }}</div>
+                <div class="bc-name">{{ b.raw.nomComplet }}</div>
+                <div class="bc-poste">{{ b.raw.codeMembre }}</div>
+                <span class="poste-badge {{ b.poste.badgeClass }}">{{ b.poste.label }}</span>
+              </div>
+            }
+          </div>
+          @if (bureauCarouselNeedsNav()) {
+            <button
+              type="button"
+              class="bureau-carousel-btn bureau-carousel-btn-next"
+              [disabled]="!bureauCarouselCanNext()"
+              (click)="bureauCarouselNext()"
+              aria-label="Membres du bureau suivants"
+            >
+              ›
+            </button>
           }
         </div>
       </div>

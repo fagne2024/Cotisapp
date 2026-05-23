@@ -38,6 +38,9 @@ export interface MembreRow {
 
 const AV_COLORS = ['#7c3aed', '#1e6fa8', '#1a5c3a', '#c9922a', '#c0392b', '#2d7a52'];
 
+/** Nombre de cartes bureau visibles à la fois dans le carrousel. */
+const BUREAU_CAROUSEL_VISIBLE = 5;
+
 import { HighlightPipe } from '../../shared/pipes/highlight.pipe';
 import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 
@@ -171,6 +174,7 @@ export class MembresPageComponent implements OnInit, OnDestroy {
         this.membres.set(membres);
         this.emprunts.set(emprunts);
         this.soldesParMembre.set(mapSoldesParMembre(soldes));
+        this.bureauCarouselIndex.set(0);
         this.loading.set(false);
       },
       error: (err) => {
@@ -304,10 +308,29 @@ export class MembresPageComponent implements OnInit, OnDestroy {
     return { actifs, bureau, susp, president, secs, tres, sup, simple, total: all.length };
   });
 
+  readonly bureauCarouselIndex = signal(0);
+
   readonly bureauCards = computed(() =>
-    this.rowsAll()
-      .filter((r) => r.poste.kind !== 'simple')
-      .slice(0, 5)
+    this.rowsAll().filter((r) => r.poste.kind !== 'simple')
+  );
+
+  readonly bureauCarouselMaxIndex = computed(() =>
+    Math.max(0, this.bureauCards().length - BUREAU_CAROUSEL_VISIBLE)
+  );
+
+  readonly bureauCardsVisible = computed(() => {
+    const start = this.bureauCarouselIndex();
+    return this.bureauCards().slice(start, start + BUREAU_CAROUSEL_VISIBLE);
+  });
+
+  readonly bureauCarouselCanPrev = computed(() => this.bureauCarouselIndex() > 0);
+
+  readonly bureauCarouselCanNext = computed(
+    () => this.bureauCarouselIndex() < this.bureauCarouselMaxIndex()
+  );
+
+  readonly bureauCarouselNeedsNav = computed(
+    () => this.bureauCards().length > BUREAU_CAROUSEL_VISIBLE
   );
 
   readonly tabCounts = computed(() => {
@@ -345,6 +368,20 @@ export class MembresPageComponent implements OnInit, OnDestroy {
     }
     return `${s.actifs} membres actifs · ${s.bureau} membres du bureau · ${s.susp} suspendu(s)`;
   });
+
+  bureauCarouselPrev(): void {
+    if (this.bureauCarouselCanPrev()) {
+      this.bureauCarouselIndex.update((i) => Math.max(0, i - 1));
+    }
+  }
+
+  bureauCarouselNext(): void {
+    if (this.bureauCarouselCanNext()) {
+      this.bureauCarouselIndex.update((i) =>
+        Math.min(this.bureauCarouselMaxIndex(), i + 1)
+      );
+    }
+  }
 
   setTab(id: 'tous' | 'bureau' | 'simples' | 'suspendus'): void {
     this.tab.set(id);

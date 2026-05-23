@@ -337,10 +337,14 @@ export class CotisationMoisComponent implements OnInit, OnDestroy {
     paginateSlice(this.membresBulkFiltres(), this.bulkPage(), this.bulkPageSize)
   );
 
-  readonly bulkPageToutSelectionnee = computed(() => {
-    const page = this.membresBulkPage();
+  /** Tous les membres du catalogue filtré (toutes pages) sont sélectionnés. */
+  readonly bulkCatalogueToutSelectionne = computed(() => {
+    const filtered = this.membresBulkFiltres();
+    if (filtered.length === 0) {
+      return false;
+    }
     const selected = new Set(this.membresBulk().map((m) => m.id));
-    return page.length > 0 && page.every((m) => selected.has(m.id));
+    return filtered.every((m) => selected.has(m.id));
   });
 
 
@@ -388,7 +392,9 @@ export class CotisationMoisComponent implements OnInit, OnDestroy {
 
   readonly filtreSuiviRecherche = signal('');
 
+  readonly suiviPage = signal(1);
 
+  readonly suiviPageSize = 10;
 
   readonly suiviFiltre = computed(() => {
 
@@ -405,6 +411,14 @@ export class CotisationMoisComponent implements OnInit, OnDestroy {
     });
 
   });
+
+  readonly suiviTotalPages = computed(() =>
+    paginationTotalPages(this.suiviFiltre().length, this.suiviPageSize)
+  );
+
+  readonly suiviFiltrePage = computed(() =>
+    paginateSlice(this.suiviFiltre(), this.suiviPage(), this.suiviPageSize)
+  );
 
 
 
@@ -1155,19 +1169,23 @@ export class CotisationMoisComponent implements OnInit, OnDestroy {
     this.bulkPage.set(Math.min(this.bulkTotalPages(), Math.max(1, p)));
   }
 
-  toggleSelectionPageBulk(): void {
-    const page = this.membresBulkPage();
-    if (this.bulkPageToutSelectionnee()) {
-      const ids = new Set(page.map((m) => m.id));
+  toggleSelectionCatalogueBulk(): void {
+    const filtered = this.membresBulkFiltres();
+    if (this.bulkCatalogueToutSelectionne()) {
+      const ids = new Set(filtered.map((m) => m.id));
       this.membresBulk.update((list) => list.filter((m) => !ids.has(m.id)));
     } else {
       const existants = new Set(this.membresBulk().map((m) => m.id));
-      const ajouts = page.filter((m) => !existants.has(m.id));
+      const ajouts = filtered.filter((m) => !existants.has(m.id));
       if (ajouts.length > 0) {
         this.membresBulk.update((list) => [...list, ...ajouts]);
       }
     }
     this.refreshPreview();
+  }
+
+  goSuiviPage(p: number): void {
+    this.suiviPage.set(clampPage(p, this.suiviTotalPages()));
   }
 
   isMembreBulkSelected(id: number): boolean {
@@ -1710,6 +1728,8 @@ export class CotisationMoisComponent implements OnInit, OnDestroy {
 
     this.filtreSuiviStatut.set(v === 'paye' || v === 'attente' ? v : 'tous');
 
+    this.suiviPage.set(1);
+
     this.pushFiltersToUrl();
 
   }
@@ -1719,6 +1739,8 @@ export class CotisationMoisComponent implements OnInit, OnDestroy {
   onFiltreSuiviRecherche(ev: Event): void {
 
     this.filtreSuiviRecherche.set((ev.target as HTMLInputElement).value);
+
+    this.suiviPage.set(1);
 
     this.pushFiltersToUrl(true);
 
@@ -1753,6 +1775,7 @@ export class CotisationMoisComponent implements OnInit, OnDestroy {
   private appliquerPanneau(p: CotisationPanneauDto): void {
     this.panneauLoading.set(false);
     this.panneauLabel.set(p.periodeLabel);
+    this.suiviPage.set(1);
     this.suiviRows.set(
       p.suivi.map((row) => ({
         membreId: row.membreId,

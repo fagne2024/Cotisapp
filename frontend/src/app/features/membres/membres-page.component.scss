@@ -325,18 +325,55 @@ a.btn-link-dl {
   background: #e8ede9;
 }
 
+.bureau-carousel {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+
+  &.has-nav .bureau-cards {
+    flex: 1;
+    min-width: 0;
+  }
+}
+
+.bureau-carousel-btn {
+  flex: 0 0 36px;
+  align-self: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1px solid #d8e0db;
+  background: #fff;
+  color: var(--g1);
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: var(--sh);
+  transition:
+    background 0.15s,
+    border-color 0.15s,
+    opacity 0.15s;
+
+  &:hover:not(:disabled) {
+    background: var(--g3);
+    border-color: var(--g2);
+  }
+
+  &:disabled {
+    opacity: 0.35;
+    cursor: default;
+    box-shadow: none;
+  }
+}
+
 .bureau-cards {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
   gap: 10px;
+  flex: 1;
 
   .bureau-card {
-    animation: fadeIn 0.5s ease-out;
-    @for $i from 1 through 5 {
-      &:nth-child(#{$i}) {
-        animation-delay: #{$i * 0.1}s;
-      }
-    }
+    animation: fadeIn 0.35s ease-out;
   }
 }
 
