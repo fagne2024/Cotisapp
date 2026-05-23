@@ -728,6 +728,8 @@ public class RapportService {
             case SECRETAIRE_GENERAL -> new PosteStyle("📝 S.G.", "b-blue");
             case SECRETAIRE_GENERAL_ADJOINT -> new PosteStyle("📝 S.G. adj.", "b-blue");
             case TRESORIER -> new PosteStyle("💼 Trésorière", "b-green");
+            case TRESORIER_ADJOINT -> new PosteStyle("💼 Trés. adj.", "b-green");
+            case COMMISSAIRE_AUX_COMPTES -> new PosteStyle("📊 CAC", "b-blue");
             case SUPERVISEUR -> new PosteStyle("Superviseur", "b-green");
             default -> new PosteStyle("👤 Simple", "b-gray");
         };

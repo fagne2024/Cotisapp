@@ -29,7 +29,9 @@ public class TypeProfilInitialisationService {
         assurerOrg(orgId, "SGA", "Secrétaire général adjoint", Role.MEMBRE, PosteMembre.SECRETAIRE_GENERAL_ADJOINT, CanalConnexion.TELEPHONE, 21);
         assurerOrg(orgId, "PRESIDENT", "Président(e)", Role.MEMBRE, PosteMembre.PRESIDENT, CanalConnexion.TELEPHONE, 22);
         assurerOrg(orgId, "TRESORIER", "Trésorier(ère)", Role.MEMBRE, PosteMembre.TRESORIER, CanalConnexion.TELEPHONE, 23);
-        assurerOrg(orgId, "SUPERVISEUR", "Superviseur", Role.MEMBRE, PosteMembre.SUPERVISEUR, CanalConnexion.LES_DEUX, 24);
+        assurerOrg(orgId, "TRESORIER_ADJ", "Trésorier(ère) adjoint", Role.MEMBRE, PosteMembre.TRESORIER_ADJOINT, CanalConnexion.TELEPHONE, 24);
+        assurerOrg(orgId, "CAC", "Commissaire au compte", Role.MEMBRE, PosteMembre.COMMISSAIRE_AUX_COMPTES, CanalConnexion.TELEPHONE, 25);
+        assurerOrg(orgId, "SUPERVISEUR", "Superviseur", Role.MEMBRE, PosteMembre.SUPERVISEUR, CanalConnexion.LES_DEUX, 26);
     }
 
     private void assurerGlobal(

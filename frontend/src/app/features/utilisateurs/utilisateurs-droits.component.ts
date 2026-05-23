@@ -61,6 +61,8 @@ const POSTES_FORM: { api: PosteMembreApi; label: string }[] = [
   { api: 'SECRETAIRE_GENERAL', label: '📝 Secrétaire Général(e)' },
   { api: 'SECRETAIRE_GENERAL_ADJOINT', label: '📋 S.G. Adjoint(e)' },
   { api: 'TRESORIER', label: '💼 Trésorier(ère)' },
+  { api: 'TRESORIER_ADJOINT', label: '💼 Trésorier(ère) adjoint' },
+  { api: 'COMMISSAIRE_AUX_COMPTES', label: '📊 Commissaire au compte' },
   { api: 'SUPERVISEUR', label: '🔍 Superviseur' },
 ];
 

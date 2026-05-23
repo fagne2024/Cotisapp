@@ -570,6 +570,14 @@ tr:hover td {
   background: var(--g3);
   color: var(--g1);
 }
+.pb-tresorier-adj {
+  background: #e8f5e9;
+  color: #2e7d32;
+}
+.pb-commissaire {
+  background: #e3f2fd;
+  color: #1565c0;
+}
 .pb-superviseur {
   background: var(--re2);
   color: var(--re);
@@ -1127,6 +1135,14 @@ button.act-btn {
   border-color: #6d28d9;
   background: #ede9fe;
 }
+.poste-opt.on.gr {
+  border-color: var(--g1);
+  background: var(--g3);
+}
+.poste-opt.on.ca {
+  border-color: #1565c0;
+  background: #e3f2fd;
+}
 
 .po-ico {
   font-size: 20px;
@@ -1249,6 +1265,12 @@ button.act-btn {
 .import-errors li {
   margin-bottom: 4px;
   color: var(--re);
+}
+
+.modal-foot .import-ok-btn {
+  min-width: 120px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 @media (max-width: 1100px) {

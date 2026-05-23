@@ -392,6 +392,8 @@ public class RapportMembreService {
         return switch (poste) {
             case PRESIDENT -> new PosteStyle("👑 Président(e)", "b-pu");
             case TRESORIER -> new PosteStyle("💼 Trésorière", "b-green");
+            case TRESORIER_ADJOINT -> new PosteStyle("💼 Trés. adj.", "b-green");
+            case COMMISSAIRE_AUX_COMPTES -> new PosteStyle("📊 CAC", "b-blue");
             case SECRETAIRE_GENERAL -> new PosteStyle("📝 S.G.", "b-blue");
             case SECRETAIRE_GENERAL_ADJOINT -> new PosteStyle("📝 S.G. adj.", "b-blue");
             case VICE_PRESIDENT -> new PosteStyle("Vice-président(e)", "b-pu");

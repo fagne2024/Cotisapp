@@ -6,6 +6,7 @@ import com.cotisapp.dto.request.CreateMembreRequest;
 import com.cotisapp.dto.response.ImportMembreLigneErreur;
 import com.cotisapp.dto.response.ImportMembresResponse;
 import com.cotisapp.exception.BusinessException;
+import com.cotisapp.util.TelephoneUtil;
 import lombok.RequiredArgsConstructor;
 import org.apache.poi.ss.usermodel.*;
 import org.apache.poi.xssf.usermodel.XSSFWorkbook;
@@ -85,10 +86,12 @@ public class MembreImportService {
             String[] lignes = {
                     "Colonnes obligatoires : prenom, nom",
                     "poste : SIMPLE, PRESIDENT, VICE_PRESIDENT, SECRETAIRE_GENERAL,",
-                    "       SECRETAIRE_GENERAL_ADJOINT, TRESORIER, SUPERVISEUR",
+                    "       SECRETAIRE_GENERAL_ADJOINT, TRESORIER, TRESORIER_ADJOINT,",
+                    "       COMMISSAIRE_AUX_COMPTES, SUPERVISEUR",
                     "date_adhesion : AAAA-MM-JJ ou JJ/MM/AAAA",
                     "Comptes (OUI/NON) : epargne_hebdo, epargne_mois, solidarite, penalite, amende",
-                    "Supprimez la ligne d'exemple avant l'import ou laissez-la (elle sera ignorée si doublon).",
+                    "Doublons refusés : même e-mail, téléphone ou pièce d'identité (fichier ou GIE).",
+                    "Supprimez la ligne d'exemple avant l'import ou laissez-la (elle sera ignorée).",
             };
             for (int i = 0; i < lignes.length; i++) {
                 aide.createRow(i).createCell(0).setCellValue(lignes[i]);
@@ -118,6 +121,9 @@ public class MembreImportService {
         List<ImportMembreLigneErreur> erreurs = new ArrayList<>();
         int lignesLues = 0;
         int crees = 0;
+        Set<String> emailsFichier = new HashSet<>();
+        Set<String> telephonesFichier = new HashSet<>();
+        Set<String> piecesFichier = new HashSet<>();
 
         try (InputStream in = fichier.getInputStream(); Workbook wb = WorkbookFactory.create(in)) {
             Sheet sheet = wb.getNumberOfSheets() > 0 ? wb.getSheetAt(0) : null;
@@ -144,6 +150,8 @@ public class MembreImportService {
                     if (estLigneExemple(req)) {
                         continue;
                     }
+                    req.setCreerCompteAcces(false);
+                    verifierDoublonDansFichier(req, emailsFichier, telephonesFichier, piecesFichier);
                     membreService.creer(organisationId, req);
                     crees++;
                 } catch (BusinessException ex) {
@@ -165,6 +173,9 @@ public class MembreImportService {
         List<ImportMembreLigneErreur> erreurs = new ArrayList<>();
         int lignesLues = 0;
         int crees = 0;
+        Set<String> emailsFichier = new HashSet<>();
+        Set<String> telephonesFichier = new HashSet<>();
+        Set<String> piecesFichier = new HashSet<>();
 
         try (BufferedReader reader = new BufferedReader(
                 new InputStreamReader(fichier.getInputStream(), StandardCharsets.UTF_8))) {
@@ -212,6 +223,8 @@ public class MembreImportService {
                     if (estLigneExemple(req)) {
                         continue;
                     }
+                    req.setCreerCompteAcces(false);
+                    verifierDoublonDansFichier(req, emailsFichier, telephonesFichier, piecesFichier);
                     membreService.creer(organisationId, req);
                     crees++;
                 } catch (BusinessException ex) {
@@ -305,6 +318,35 @@ public class MembreImportService {
         return req;
     }
 
+    private void verifierDoublonDansFichier(
+            CreateMembreRequest req,
+            Set<String> emailsFichier,
+            Set<String> telephonesFichier,
+            Set<String> piecesFichier) {
+        String email = blankToNull(req.getEmail());
+        if (email != null) {
+            String cle = email.toLowerCase(Locale.ROOT);
+            if (!emailsFichier.add(cle)) {
+                throw new BusinessException("Doublon dans le fichier : e-mail « " + email + " » déjà présent");
+            }
+        }
+        String tel = blankToNull(req.getTelephone());
+        if (tel != null) {
+            String cle = TelephoneUtil.normaliser(tel);
+            if (cle != null && !telephonesFichier.add(cle)) {
+                throw new BusinessException("Doublon dans le fichier : téléphone « " + tel + " » déjà présent");
+            }
+        }
+        String piece = blankToNull(req.getPieceIdentite());
+        if (piece != null) {
+            String cle = piece.trim().toUpperCase(Locale.ROOT);
+            if (!piecesFichier.add(cle)) {
+                throw new BusinessException(
+                        "Doublon dans le fichier : pièce d'identité « " + piece + " » déjà présente");
+            }
+        }
+    }
+
     private boolean estLigneExemple(CreateMembreRequest req) {
         return "Fatou".equalsIgnoreCase(req.getPrenom())
                 && "Diop".equalsIgnoreCase(req.getNom())
@@ -330,6 +372,10 @@ public class MembreImportService {
             case "SGA", "SECRETAIRE_GENERAL_ADJOINT", "SECRETAIRE_GENERALE_ADJOINTE" ->
                     PosteMembre.SECRETAIRE_GENERAL_ADJOINT;
             case "TRESORIER", "TRESORIERE", "TRESORIER(ERE)" -> PosteMembre.TRESORIER;
+            case "TRESORIER_ADJOINT", "TRESORIERE_ADJOINTE", "TRESORIER_ADJ", "TADJ" ->
+                    PosteMembre.TRESORIER_ADJOINT;
+            case "COMMISSAIRE_AUX_COMPTES", "COMMISSAIRE_AU_COMPTE", "COMMISSAIRE", "CAC" ->
+                    PosteMembre.COMMISSAIRE_AUX_COMPTES;
             case "SUPERVISEUR", "SUPERVISEURE" -> PosteMembre.SUPERVISEUR;
             default -> {
                 try {

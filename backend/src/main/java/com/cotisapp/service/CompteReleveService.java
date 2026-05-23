@@ -679,6 +679,8 @@ public class CompteReleveService {
             case SECRETAIRE_GENERAL -> "Secrétaire général";
             case SECRETAIRE_GENERAL_ADJOINT -> "S.G.A.";
             case TRESORIER -> "Trésorier(ère)";
+            case TRESORIER_ADJOINT -> "Trésorier(ère) adjoint";
+            case COMMISSAIRE_AUX_COMPTES -> "Commissaire au compte";
             case SUPERVISEUR -> "Superviseur";
             default -> "Membre simple";
         };

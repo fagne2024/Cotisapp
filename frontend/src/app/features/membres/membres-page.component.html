@@ -122,6 +122,8 @@
         <option value="sg">Secrétaire Général</option>
         <option value="sga">S.G. Adjoint(e)</option>
         <option value="tresorier">Trésorier(ère)</option>
+        <option value="tresorier_adj">Trésorier(ère) adjoint</option>
+        <option value="commissaire">Commissaire au compte</option>
         <option value="superviseur">Superviseur</option>
         <option value="simple">Membre simple</option>
       </select>
@@ -565,11 +567,34 @@
             type="button"
             class="poste-opt"
             [class.on]="modalPoste() === 'tresorier'"
+            [class.gr]="modalPoste() === 'tresorier'"
             (click)="pickModalPoste('tresorier')"
           >
             <div class="po-ico">💼</div>
             <div class="po-label">Trésorier(ère)</div>
             <div class="po-sub">Finances</div>
+          </button>
+          <button
+            type="button"
+            class="poste-opt"
+            [class.on]="modalPoste() === 'tresorier_adj'"
+            [class.gr]="modalPoste() === 'tresorier_adj'"
+            (click)="pickModalPoste('tresorier_adj')"
+          >
+            <div class="po-ico">💼</div>
+            <div class="po-label">Trésorier adjoint</div>
+            <div class="po-sub">Assistance finances</div>
+          </button>
+          <button
+            type="button"
+            class="poste-opt"
+            [class.on]="modalPoste() === 'commissaire'"
+            [class.ca]="modalPoste() === 'commissaire'"
+            (click)="pickModalPoste('commissaire')"
+          >
+            <div class="po-ico">📊</div>
+            <div class="po-label">Commissaire au compte</div>
+            <div class="po-sub">Contrôle des comptes</div>
           </button>
           <button
             type="button"
@@ -681,6 +706,8 @@
         }
         <p class="import-intro">
           Téléchargez le modèle, remplissez une ligne par membre, puis importez le fichier (.csv ou .xlsx).
+          Les doublons (e-mail, téléphone ou pièce d'identité déjà présents dans le GIE ou dans le fichier) sont
+          refusés ligne par ligne.
         </p>
         <div class="import-actions">
           <a
@@ -735,22 +762,26 @@
         }
       </div>
       <div class="modal-foot">
-        <button type="button" class="btn-s" (click)="closeImportModal()" [disabled]="importUploading()">
-          Fermer
-        </button>
-        <button
-          type="button"
-          class="btn-p"
-          appDroitAction="MEMBRE_GERER"
-          (click)="lancerImportMembres()"
-          [disabled]="importUploading() || !importFichier()"
-        >
-          @if (importUploading()) {
-            Import en cours…
-          } @else {
-            ✅ Lancer l'import
-          }
-        </button>
+        @if (importResult()) {
+          <button type="button" class="btn-p import-ok-btn" (click)="closeImportModal()">OK</button>
+        } @else {
+          <button type="button" class="btn-s" (click)="closeImportModal()" [disabled]="importUploading()">
+            Annuler
+          </button>
+          <button
+            type="button"
+            class="btn-p"
+            appDroitAction="MEMBRE_GERER"
+            (click)="lancerImportMembres()"
+            [disabled]="importUploading() || !importFichier()"
+          >
+            @if (importUploading()) {
+              Import en cours…
+            } @else {
+              ✅ Lancer l'import
+            }
+          </button>
+        }
       </div>
     </div>
   </div>

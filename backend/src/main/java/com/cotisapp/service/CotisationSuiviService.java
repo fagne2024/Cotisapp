@@ -229,6 +229,8 @@ public class CotisationSuiviService {
             case SECRETAIRE_GENERAL -> "S.G.";
             case SECRETAIRE_GENERAL_ADJOINT -> "S.G. Adjoint(e)";
             case TRESORIER -> "Trésorier(ère)";
+            case TRESORIER_ADJOINT -> "Trésorier(ère) adj.";
+            case COMMISSAIRE_AUX_COMPTES -> "Commissaire au compte";
             case SUPERVISEUR -> "Superviseur";
             default -> "Membre simple";
         };

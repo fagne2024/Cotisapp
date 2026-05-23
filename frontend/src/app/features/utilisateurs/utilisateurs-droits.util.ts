@@ -29,6 +29,18 @@ export const PROFILS_BUREAU_RAPIDES: {
     description: 'Caisse, banque, dépenses, remboursements',
   },
   {
+    code: 'TRESORIER_ADJ',
+    poste: 'TRESORIER_ADJOINT',
+    label: 'Trésorier(ère) adjoint',
+    description: 'Finances sans dépenses ni annulation d’opérations',
+  },
+  {
+    code: 'CAC',
+    poste: 'COMMISSAIRE_AUX_COMPTES',
+    label: 'Commissaire au compte',
+    description: 'Contrôle, rapports exportables (pas de saisie)',
+  },
+  {
     code: 'SUPERVISEUR',
     poste: 'SUPERVISEUR',
     label: 'Superviseur',

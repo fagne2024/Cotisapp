@@ -319,6 +319,8 @@ public class ProfilService {
             case SECRETAIRE_GENERAL -> "Secrétaire général";
             case SECRETAIRE_GENERAL_ADJOINT -> "Secrétaire général adjoint";
             case TRESORIER -> "Trésorier(ère)";
+            case TRESORIER_ADJOINT -> "Trésorier(ère) adjoint";
+            case COMMISSAIRE_AUX_COMPTES -> "Commissaire au compte";
             case SUPERVISEUR -> "Superviseur";
         };
     }

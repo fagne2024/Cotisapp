@@ -37,4 +37,10 @@ public interface MembreRepository extends JpaRepository<Membre, Long> {
 
     Optional<Membre> findByTelephoneNormaliseAndOrganisationIdAndActifTrue(
             String telephoneNormalise, Long organisationId);
+
+    boolean existsByOrganisationIdAndEmailIgnoreCase(Long organisationId, String email);
+
+    boolean existsByOrganisationIdAndTelephoneNormalise(Long organisationId, String telephoneNormalise);
+
+    boolean existsByOrganisationIdAndPieceIdentiteIgnoreCase(Long organisationId, String pieceIdentite);
 }

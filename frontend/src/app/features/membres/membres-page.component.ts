@@ -296,7 +296,9 @@ export class MembresPageComponent implements OnInit, OnDestroy {
     const susp = all.filter((r) => !r.raw.actif).length;
     const president = all.filter((r) => r.poste.kind === 'president').length;
     const secs = all.filter((r) => r.poste.kind === 'sg' || r.poste.kind === 'sga').length;
-    const tres = all.filter((r) => r.poste.kind === 'tresorier').length;
+    const tres = all.filter(
+      (r) => r.poste.kind === 'tresorier' || r.poste.kind === 'tresorier_adj',
+    ).length;
     const sup = all.filter((r) => r.poste.kind === 'superviseur').length;
     const simple = all.filter((r) => r.poste.kind === 'simple').length;
     return { actifs, bureau, susp, president, secs, tres, sup, simple, total: all.length };
@@ -770,6 +772,9 @@ export class MembresPageComponent implements OnInit, OnDestroy {
     this.importModalOpen.set(false);
     this.importUploading.set(false);
     this.importDownloading.set(false);
+    this.importFichier.set(null);
+    this.importResult.set(null);
+    this.importError.set(null);
   }
 
   importOverlayClick(ev: MouseEvent): void {

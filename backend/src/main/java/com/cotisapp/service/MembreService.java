@@ -45,6 +45,7 @@ public class MembreService {
 
     @Transactional
     public MembreResponse creer(Long organisationId, CreateMembreRequest request) {
+        verifierAbsenceDoublon(organisationId, request);
         String code = genererCodeMembre(organisationId);
         Membre membre = Membre.builder()
                 .organisationId(organisationId)
@@ -364,6 +365,33 @@ public class MembreService {
             return null;
         }
         return s.trim();
+    }
+
+    /**
+     * Refuse les doublons dans le GIE (e-mail, téléphone normalisé, pièce d'identité).
+     * Utilisé à la création manuelle et à l'import.
+     */
+    void verifierAbsenceDoublon(Long organisationId, CreateMembreRequest request) {
+        String email = blankToNull(request.getEmail());
+        if (email != null
+                && membreRepository.existsByOrganisationIdAndEmailIgnoreCase(organisationId, email)) {
+            throw new BusinessException("Un membre avec l'e-mail « " + email + " » existe déjà dans ce GIE");
+        }
+        String telephone = blankToNull(request.getTelephone());
+        if (telephone != null) {
+            String normalise = TelephoneUtil.normaliser(telephone);
+            if (normalise != null
+                    && membreRepository.existsByOrganisationIdAndTelephoneNormalise(organisationId, normalise)) {
+                throw new BusinessException(
+                        "Un membre avec le numéro « " + telephone + " » existe déjà dans ce GIE");
+            }
+        }
+        String piece = blankToNull(request.getPieceIdentite());
+        if (piece != null
+                && membreRepository.existsByOrganisationIdAndPieceIdentiteIgnoreCase(organisationId, piece)) {
+            throw new BusinessException(
+                    "Un membre avec la pièce d'identité « " + piece + " » existe déjà dans ce GIE");
+        }
     }
 
     /** Met à jour {@code telephoneNormalise} à partir de {@code telephone} (connexion membre). */

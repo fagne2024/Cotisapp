@@ -23,7 +23,7 @@ import java.util.Set;
 public class TypeProfilService {
 
     static final Set<String> CODES_SYSTEME =
-            Set.of("MEMBRE", "SG", "SGA", "PRESIDENT", "TRESORIER", "SUPERVISEUR");
+            Set.of("MEMBRE", "SG", "SGA", "PRESIDENT", "TRESORIER", "TRESORIER_ADJ", "CAC", "SUPERVISEUR");
 
     private final TypeProfilRepository typeProfilRepository;
     private final TypeProfilInitialisationService typeProfilInitialisationService;

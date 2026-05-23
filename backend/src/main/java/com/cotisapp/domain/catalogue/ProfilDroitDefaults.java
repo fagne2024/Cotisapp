@@ -26,6 +26,8 @@ public final class ProfilDroitDefaults {
             case SECRETAIRE_GENERAL -> secretaireGeneral();
             case SECRETAIRE_GENERAL_ADJOINT -> secretaireGeneralAdjoint();
             case TRESORIER -> tresorier();
+            case TRESORIER_ADJOINT -> tresorierAdjoint();
+            case COMMISSAIRE_AUX_COMPTES -> commissaireAuxComptes();
             case SUPERVISEUR -> superviseur();
             case PRESIDENT -> president();
             default -> membreSimple();
@@ -100,6 +102,27 @@ public final class ProfilDroitDefaults {
         return m;
     }
 
+    /** Trésorier(ère) adjoint : finances sans dépenses ni annulation d'opérations. */
+    public static Map<String, NiveauDroit> tresorierAdjoint() {
+        Map<String, NiveauDroit> m = baseBureauCommun();
+        m.put("OP_COTISATION", NiveauDroit.LIM);
+        m.put("OP_EMPRUNT", NiveauDroit.LIM);
+        m.put("OP_REMBOURSEMENT", NiveauDroit.LIM);
+        m.put("OP_PENALITE", NiveauDroit.LIM);
+        m.put("OP_BANQUE", NiveauDroit.LIM);
+        m.put("RAPPORT_EXPORT", NiveauDroit.LIM);
+        m.put("ADMIN_JOURNAL", NiveauDroit.LIM);
+        return m;
+    }
+
+    /** Commissaire au compte : contrôle, rapports exportables, pas de saisie. */
+    public static Map<String, NiveauDroit> commissaireAuxComptes() {
+        Map<String, NiveauDroit> m = baseBureauCommun();
+        m.put("RAPPORT_EXPORT", NiveauDroit.LIM);
+        m.put("ADMIN_JOURNAL", NiveauDroit.LIM);
+        return m;
+    }
+
     /** Superviseur : consultation et rapports, pas de saisie d'opérations. */
     public static Map<String, NiveauDroit> superviseur() {
         Map<String, NiveauDroit> m = baseBureauCommun();
@@ -145,6 +168,8 @@ public final class ProfilDroitDefaults {
         map.put(PosteMembre.SECRETAIRE_GENERAL, "Secrétaire général");
         map.put(PosteMembre.SECRETAIRE_GENERAL_ADJOINT, "Secrétaire général adjoint");
         map.put(PosteMembre.TRESORIER, "Trésorier(ère)");
+        map.put(PosteMembre.TRESORIER_ADJOINT, "Trésorier(ère) adjoint");
+        map.put(PosteMembre.COMMISSAIRE_AUX_COMPTES, "Commissaire au compte");
         map.put(PosteMembre.SUPERVISEUR, "Superviseur");
         map.put(PosteMembre.PRESIDENT, "Président(e)");
         return map;

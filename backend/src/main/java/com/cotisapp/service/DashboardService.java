@@ -43,7 +43,9 @@ public class DashboardService {
         case SECRETAIRE_GENERAL -> 2;
         case SECRETAIRE_GENERAL_ADJOINT -> 3;
         case TRESORIER -> 4;
-        case SUPERVISEUR -> 5;
+        case TRESORIER_ADJOINT -> 5;
+        case COMMISSAIRE_AUX_COMPTES -> 6;
+        case SUPERVISEUR -> 7;
         default -> 99;
     });
 
