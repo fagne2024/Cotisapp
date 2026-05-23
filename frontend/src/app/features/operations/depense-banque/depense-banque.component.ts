@@ -20,6 +20,7 @@ import { FilterQueryNav, qpEnum, qpString } from '../../../shared/util/filter-qu
 
 import { matchTextQuery } from '../../../shared/util/filter.util';
 import { ListPaginationComponent } from '../../../shared/components/list-pagination/list-pagination.component';
+import { DROIT_ACTION_IMPORTS } from '../../../shared/imports/droit-action.imports';
 import { paginateSlice } from '../../../shared/util/pagination.util';
 
 import {
@@ -49,7 +50,7 @@ import {
 
   standalone: true,
 
-  imports: [ReactiveFormsModule, ListPaginationComponent],
+  imports: [ReactiveFormsModule, ListPaginationComponent, ...DROIT_ACTION_IMPORTS],
 
   templateUrl: './depense-banque.component.html',
 

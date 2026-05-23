@@ -12,6 +12,8 @@ import com.cotisapp.dto.response.*;
 import com.cotisapp.exception.BusinessException;
 import com.cotisapp.domain.entity.ReleveBancaire;
 import com.cotisapp.repository.CompteRepository;
+import com.cotisapp.repository.EmpruntRepository;
+import com.cotisapp.repository.MembreRepository;
 import com.cotisapp.repository.MouvementCompteRepository;
 import com.cotisapp.repository.OperationRepository;
 import com.cotisapp.repository.ReleveBancaireRepository;
@@ -56,6 +58,8 @@ public class DepenseBanqueService {
     private final ReleveBancaireRepository releveBancaireRepository;
     private final ReleveBancaireStorageService releveBancaireStorageService;
     private final ExerciceService exerciceService;
+    private final MembreRepository membreRepository;
+    private final EmpruntRepository empruntRepository;
 
     @Transactional(readOnly = true)
     public DepenseBanqueDashboardResponse chargerTableauDeBord(Long orgId) {
@@ -148,7 +152,17 @@ public class DepenseBanqueService {
         ajouterMouvement(operation, source.getId(), SensMouvement.DEBIT, request.getMontant(), false);
 
         Operation saved = operationRepository.save(operation);
-        journalService.enregistrer(orgId, "DEPENSE", "Opération " + saved.getId());
+        journalService.enregistrer(
+                orgId,
+                "DEPENSE",
+                "Dépense de "
+                        + JournalModificationFormatter.montantFcfa(request.getMontant())
+                        + " — compte "
+                        + compte.name()
+                        + (obs != null && !obs.isBlank() ? " — " + obs : "")
+                        + " (réf. opération n°"
+                        + saved.getId()
+                        + ")");
         return toOperationResponse(saved);
     }
 
@@ -185,7 +199,17 @@ public class DepenseBanqueService {
 
         Operation saved = operationRepository.save(operation);
         releveBancaireStorageService.enregistrer(orgId, saved.getId(), releve);
-        journalService.enregistrer(orgId, typeOp.name(), "Opération " + saved.getId());
+        String sens = "vers".equals(type) ? "Versement caisse → banque" : "Retrait banque → caisse";
+        journalService.enregistrer(
+                orgId,
+                typeOp.name(),
+                sens
+                        + " de "
+                        + JournalModificationFormatter.montantFcfa(request.getMontant())
+                        + (operation.getObservation() != null ? " — " + operation.getObservation() : "")
+                        + " (réf. opération n°"
+                        + saved.getId()
+                        + ")");
         return toOperationResponse(saved);
     }
 
@@ -281,6 +305,10 @@ public class DepenseBanqueService {
 
     private List<MouvementCaisseLigneResponse> construireMouvementsCaisse(
             List<MouvementCompte> mouvements, BigDecimal soldeActuel) {
+        List<Operation> operations =
+                mouvements.stream().map(MouvementCompte::getOperation).toList();
+        JournalCaisseLibelleFormatter.Context libelleCtx =
+                JournalCaisseLibelleFormatter.buildContext(operations, membreRepository, empruntRepository);
         BigDecimal running = soldeActuel != null ? soldeActuel : BigDecimal.ZERO;
         List<MouvementCaisseLigneResponse> lignes = new ArrayList<>();
         for (MouvementCompte mc : mouvements) {
@@ -293,7 +321,7 @@ public class DepenseBanqueService {
                     .montant(mc.getMontant())
                     .soldeCaisseApres(running)
                     .typeOperation(libelleTypeOperation(op.getTypeOperation()))
-                    .libelle(libelleMouvementCaisse(op))
+                    .libelle(libelleMouvementCaisse(op, libelleCtx))
                     .build());
             if (mc.getSens() == SensMouvement.CREDIT) {
                 running = running.subtract(mc.getMontant());
@@ -323,7 +351,7 @@ public class DepenseBanqueService {
         };
     }
 
-    private String libelleMouvementCaisse(Operation op) {
+    private String libelleMouvementCaisse(Operation op, JournalCaisseLibelleFormatter.Context libelleCtx) {
         if (op.getTypeOperation() == TypeOperation.DEPENSE) {
             ParsedCat cat = parseCategorie(op.getObservation());
             CategorieMeta meta = CATEGORIES.getOrDefault(cat.categorieId(), CATEGORIES.get("autre"));
@@ -331,19 +359,32 @@ public class DepenseBanqueService {
             if (cat.description() != null && !cat.description().isBlank()) {
                 sb.append(" — ").append(cat.description());
             }
+            String paiement = extrairePaiementCourt(op);
+            if (paiement != null) {
+                sb.append(" · ").append(paiement);
+            }
             return sb.toString();
         }
         if (op.getTypeOperation() == TypeOperation.BANQUE_VERSEMENT
                 || op.getTypeOperation() == TypeOperation.BANQUE_RETRAIT) {
             ParsedBk bk = parseBanque(op.getObservation(), op.getTypeOperation());
-            return bk.description() != null && !bk.description().isBlank()
+            String base = bk.description() != null && !bk.description().isBlank()
                     ? bk.description()
                     : libelleTypeOperation(op.getTypeOperation());
+            String paiement = extrairePaiementCourt(op);
+            if (paiement != null && !base.toLowerCase().contains(paiement.toLowerCase())) {
+                return base + " · " + paiement;
+            }
+            return base;
         }
-        if (op.getObservation() != null && !op.getObservation().isBlank()) {
-            return op.getObservation();
+        return JournalCaisseLibelleFormatter.format(op, libelleCtx);
+    }
+
+    private static String extrairePaiementCourt(Operation op) {
+        if (op.getModePaiement() != null) {
+            return com.cotisapp.util.ModePaiementHelper.libelle(op.getModePaiement());
         }
-        return libelleTypeOperation(op.getTypeOperation());
+        return null;
     }
 
     private List<MouvementBanqueLigneResponse> construireMouvementsBanque(

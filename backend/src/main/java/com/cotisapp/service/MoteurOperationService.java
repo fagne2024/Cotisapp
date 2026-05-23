@@ -74,7 +74,7 @@ public class MoteurOperationService {
                 orgId, membre.getId(), operation, request.getMontantAmende()));
         operation.setMouvements(mouvements);
         Operation saved = operationRepository.save(operation);
-        journalService.enregistrer(orgId, "COTISATION", "Opération " + saved.getId());
+        journalService.enregistrerOperation(orgId, "COTISATION", saved, membre);
         return saved;
     }
 
@@ -117,7 +117,7 @@ public class MoteurOperationService {
         operation.setMouvements(mouvements);
         Operation saved = operationRepository.save(operation);
         suiviMensuelService.mettreAJourApresPaiement(orgId, membre.getId(), request.getMoisAnnee(), request.getMontant());
-        journalService.enregistrer(orgId, "COTISATION_MOIS", "Opération " + saved.getId());
+        journalService.enregistrerOperation(orgId, "COTISATION_MOIS", saved, membre);
         return saved;
     }
 

@@ -45,6 +45,8 @@ export class MonCompteOperationsComponent implements OnInit {
   readonly orgId = input.required<number>();
   readonly membreId = input.required<number>();
   readonly empruntsInit = input<EmpruntDto[]>([]);
+  /** Activé par l'admin GIE : cotisations / remboursements mobile money. */
+  readonly paiementMobileActif = input(false);
   private readonly fb = inject(FormBuilder);
   private readonly monCompteOp = inject(MonCompteOperationService);
   private readonly empruntService = inject(EmpruntService);
@@ -72,6 +74,8 @@ export class MonCompteOperationsComponent implements OnInit {
   readonly demandesRejetees = computed(() =>
     this.mesDemandes().filter((d) => d.statut === 'REFUSEE')
   );
+
+  readonly mobileMoneyAutorise = computed(() => this.paiementMobileActif());
   readonly semaineOptions = buildSemaineOptions();
   readonly moisOptions = buildMoisOptions();
 

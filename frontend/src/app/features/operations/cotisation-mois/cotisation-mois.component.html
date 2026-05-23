@@ -151,7 +151,7 @@
                     </td>
                   </tr>
                 } @else {
-                  @for (h of historiqueFiltre(); track h.ligneId) {
+                  @for (h of historiquePageItems(); track h.ligneId) {
                     <tr [class.hist-row-annulee]="h.annulee">
                       <td>
                         <div class="h-name">{{ h.membreNom }}</div>
@@ -194,6 +194,7 @@
                           <button
                             type="button"
                             class="btn-annuler"
+                            appDroitAction="OP_ANNULER"
                             [disabled]="estAnnulationEnCours(h.operationId)"
                             (click)="confirmerAnnulation(h)"
                           >
@@ -217,6 +218,13 @@
               </tbody>
             </table>
           </div>
+          <app-list-pagination
+            [page]="histPage()"
+            [total]="historiqueFiltre().length"
+            [pageSize]="histPageSize"
+            unit="ligne(s)"
+            (pageChange)="goHistPage($event)"
+          />
         </div>
       </div>
     </div>
@@ -640,6 +648,7 @@
             <button type="button" class="btn-s" (click)="actualiserSim()">🔍 Actualiser</button>
             <button
               type="button"
+              appDroitAction="OP_COTISATION"
               [class.btn-p]="typeUi() === 'hebdo'"
               [class.btn-pi]="typeUi() === 'mois'"
               [disabled]="loading() || (modeSaisieMembre() === 'bulk' && bulkNbMembres() === 0)"

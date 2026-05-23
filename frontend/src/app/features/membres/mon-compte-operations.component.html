@@ -8,13 +8,26 @@
   >
     <span class="mco-toggle-text">
       <span class="mco-title">💳 Cotiser ou rembourser</span>
-      <span class="mco-sub">Paiement mobile — validation par l'administrateur (Admin GIE)</span>
+      <span class="mco-sub">
+        @if (mobileMoneyAutorise()) {
+          Paiement mobile — validation par l'administrateur GIE
+        } @else {
+          Non activé — demandez à l'administrateur GIE d'activer le mobile money pour votre compte
+        }
+      </span>
     </span>
     <span class="mco-chevron" aria-hidden="true">{{ sectionOuverte() ? '▲' : '▼' }}</span>
   </button>
 
   @if (sectionOuverte()) {
     <div id="mco-panel" class="mco-panel">
+      @if (!mobileMoneyAutorise()) {
+        <p class="mco-disabled-msg">
+          Les cotisations et remboursements par Wave ou Orange Money depuis « Mon compte » ne sont pas encore activés
+          pour vous. Contactez l'<strong>administrateur GIE</strong> de votre organisation (module Membres → modifier
+          votre fiche → activer « Paiement mobile money »).
+        </p>
+      } @else {
       @if (demandesEnAttente().length > 0) {
         <div class="mco-pending-box">
           <span class="mco-pending-title">En attente de validation ({{ demandesEnAttente().length }})</span>
@@ -223,6 +236,7 @@
             </button>
           }
         </form>
+      }
       }
     </div>
   }

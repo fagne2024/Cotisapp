@@ -424,6 +424,41 @@
   color: var(--g1);
 }
 
+.modules-menu-preview {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 16px;
+  padding: 12px 14px;
+  background: #fff;
+  border: 1px solid #d4e8dc;
+  border-radius: 10px;
+}
+
+.modules-menu-preview-lbl {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--g1);
+  margin-right: 4px;
+}
+
+.module-preview-chip {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--g3);
+  color: var(--g1);
+  border: 1px solid #b8dcc4;
+}
+
+.module-preview-chip--muted {
+  background: #f0f4f2;
+  color: var(--md);
+  border-style: dashed;
+}
+
 .droits-legend {
   display: flex;
   flex-wrap: wrap;

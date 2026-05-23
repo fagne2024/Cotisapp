@@ -84,6 +84,7 @@
         [orgId]="oid"
         [membreId]="membre()!.id"
         [empruntsInit]="emprunts()"
+        [paiementMobileActif]="membre()?.paiementMobileActif ?? false"
       />
     }
 
@@ -322,6 +323,7 @@
                 @if (!vueMonCompte()) {
                   <a
                     class="btn-p full"
+                    appDroitAction="OP_EMPRUNT"
                     [routerLink]="['/organisations', orgCourante()!, 'operations', 'emprunts']"
                     >+ Créer un emprunt</a
                   >

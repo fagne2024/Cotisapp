@@ -90,6 +90,7 @@
                             <button
                               type="button"
                               class="btn-annuler"
+                              appDroitAction="OP_ANNULER"
                               [disabled]="estAnnulationEnCours(h.operationId)"
                               (click)="confirmerAnnulationEmprunt(h)"
                             >
@@ -488,6 +489,7 @@
               <button
                 type="button"
                 class="btn-p"
+                appDroitAction="OP_EMPRUNT"
                 [disabled]="enregistrement() || (modeSaisieMembre() === 'unitaire' && octroiBloqueEmpruntEnCours())"
                 (click)="valider()"
               >
@@ -556,7 +558,7 @@
                 <div class="prog-bar">
                   <div class="prog-fill" [class]="item.progClass" [style.width.%]="panelProgressPct(item)"></div>
                 </div>
-                <button type="button" class="btn-remb-panel" (click)="$event.stopPropagation(); rembourserEmprunt(item)">
+                <button type="button" class="btn-remb-panel" appDroitAction="OP_REMBOURSEMENT" (click)="$event.stopPropagation(); rembourserEmprunt(item)">
                   ↩ Rembourser
                 </button>
               </div>

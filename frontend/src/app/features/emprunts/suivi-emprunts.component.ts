@@ -20,11 +20,12 @@ import {
   SuiviKpiFiltre,
   SuiviTab,
 } from './suivi-emprunts.util';
+import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 
 @Component({
   selector: 'app-suivi-emprunts',
   standalone: true,
-  imports: [RouterLink],
+  imports: [RouterLink, ...DROIT_ACTION_IMPORTS],
   templateUrl: './suivi-emprunts.component.html',
   styleUrl: './suivi-emprunts.component.scss',
 })

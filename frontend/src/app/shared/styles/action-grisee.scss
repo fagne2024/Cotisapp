@@ -1,0 +1,30 @@
+/* Actions non autorisées (directive appDroitAction) */
+.droit-desactive {
+  opacity: 0.42 !important;
+  filter: grayscale(0.85);
+  cursor: not-allowed !important;
+  pointer-events: none !important;
+  box-shadow: none !important;
+}
+
+button.droit-desactive,
+a.droit-desactive,
+.act-btn.droit-desactive,
+.btn-p.droit-desactive,
+.btn-s.droit-desactive,
+.btn-pi.droit-desactive {
+  background: #e8ece9 !important;
+  color: #94a3b8 !important;
+  border-color: #d1d9d4 !important;
+}
+
+button.droit-desactive:hover,
+a.droit-desactive:hover,
+.act-btn.droit-desactive:hover {
+  transform: none !important;
+}
+
+/* Ligne tableau : boutons d'action grisés restent visibles */
+.row-actions .act-btn.droit-desactive {
+  opacity: 0.35 !important;
+}

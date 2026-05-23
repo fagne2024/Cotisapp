@@ -1,7 +1,9 @@
 package com.cotisapp.controller;
 
+import com.cotisapp.dto.request.BulkPaiementMobileMembreRequest;
 import com.cotisapp.dto.request.CreateMembreRequest;
 import com.cotisapp.dto.request.UpdateMembreRequest;
+import com.cotisapp.dto.response.BulkPaiementMobileMembreResponse;
 import com.cotisapp.dto.response.CompteMembreResponse;
 import com.cotisapp.dto.response.ImportMembresResponse;
 import com.cotisapp.dto.response.MembreResponse;
@@ -62,6 +64,14 @@ public class MembreController {
         """)
     public MembreResponse creer(@PathVariable Long orgId, @Valid @RequestBody CreateMembreRequest request) {
         return membreService.creer(orgId, request);
+    }
+
+    @PatchMapping("/paiement-mobile")
+    @PreAuthorize("@orgSecurityService.peutConfigurerPaiementMobileOrg(#orgId)")
+    public BulkPaiementMobileMembreResponse mettreAJourPaiementMobileEnMasse(
+            @PathVariable Long orgId, @Valid @RequestBody BulkPaiementMobileMembreRequest request) {
+        return membreService.mettreAJourPaiementMobileEnMasse(
+                orgId, request.getMembreIds(), Boolean.TRUE.equals(request.getActif()));
     }
 
     @PutMapping("/{membreId}")

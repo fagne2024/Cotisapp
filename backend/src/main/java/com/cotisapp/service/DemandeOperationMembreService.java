@@ -51,7 +51,7 @@ public class DemandeOperationMembreService {
         request.setMembreId(membreId);
         request.setMontantAmende(null);
         operationMemeJourControleService.verifierCotisationHebdo(orgId, membreId, request);
-        validerDemandeMobile(request.getModePaiement(), request.getReferencePaiement());
+        validerDemandeMobile(orgId, membreId, request.getModePaiement(), request.getReferencePaiement());
         String resume = resumeCotisationHebdo(request);
         DemandeOperationMembre d = enregistrerDemande(
                 orgId,
@@ -72,7 +72,7 @@ public class DemandeOperationMembreService {
         request.setMembreId(membreId);
         request.setMontantAmende(null);
         operationMemeJourControleService.verifierCotisationMois(orgId, membreId, request);
-        validerDemandeMobile(request.getModePaiement(), request.getReferencePaiement());
+        validerDemandeMobile(orgId, membreId, request.getModePaiement(), request.getReferencePaiement());
         String resume = resumeCotisationMois(request);
         DemandeOperationMembre d = enregistrerDemande(
                 orgId,
@@ -90,7 +90,7 @@ public class DemandeOperationMembreService {
     @Transactional
     public DemandeOperationMembreResponse soumettreRemboursement(
             Long orgId, Long membreId, Long empruntId, RembourserRequest request) {
-        validerDemandeMobile(request.getModePaiement(), request.getReferencePaiement());
+        validerDemandeMobile(orgId, membreId, request.getModePaiement(), request.getReferencePaiement());
         EmpruntResponse emprunt = verifierEmpruntAppartient(orgId, membreId, empruntId);
         LocalDate datePaiement =
                 request.getDatePaiement() != null ? request.getDatePaiement() : LocalDate.now();
@@ -304,7 +304,13 @@ public class DemandeOperationMembreService {
                         && OrganisationContext.getOrganisationId() != null);
     }
 
-    private void validerDemandeMobile(String modePaiement, String reference) {
+    private void validerDemandeMobile(Long orgId, Long membreId, String modePaiement, String reference) {
+        Membre membre = membre(orgId, membreId);
+        if (!Boolean.TRUE.equals(membre.getPaiementMobileActif())) {
+            throw new BusinessException(
+                    "Le paiement mobile money n'est pas activé pour votre compte. "
+                            + "Demandez à l'administrateur GIE de l'activer.");
+        }
         ModePaiement mode = ModePaiementHelper.parser(modePaiement);
         if (mode != ModePaiement.WAVE && mode != ModePaiement.ORANGE_MONEY) {
             throw new BusinessException("Seuls Wave et Orange Money sont acceptés pour une demande membre");

@@ -38,13 +38,14 @@ export interface MembreRow {
 const AV_COLORS = ['#7c3aed', '#1e6fa8', '#1a5c3a', '#c9922a', '#c0392b', '#2d7a52'];
 
 import { HighlightPipe } from '../../shared/pipes/highlight.pipe';
+import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 
 @Component({
   selector: 'app-membres-page',
   standalone: true,
-  imports: [RouterLink, ReactiveFormsModule, HighlightPipe],
+  imports: [RouterLink, ReactiveFormsModule, HighlightPipe, ...DROIT_ACTION_IMPORTS],
   templateUrl: './membres-page.component.html',
-  styleUrl: './membres-page.component.scss',
+  styleUrls: ['./membres-page.component.scss', '../../shared/styles/action-grisee.scss'],
 })
 export class MembresPageComponent implements OnInit, OnDestroy {
   readonly Math = Math; // Expose Math to template
@@ -118,12 +119,19 @@ export class MembresPageComponent implements OnInit, OnDestroy {
     nouveauModeleLibelle: [''],
     envoyerEmailActivation: [true],
     actif: [true],
+    paiementMobileActif: [false],
   });
 
   readonly modalEnEdition = computed(() => this.modalEditId() != null);
 
+  /** Activation mobile money « Mon compte » : réservée à l'admin GIE. */
+  readonly peutConfigurerPaiementMobile = computed(
+    () => this.auth.currentRole() === 'ADMIN_GIE' || this.auth.currentRole() === 'SUPERADMIN'
+  );
+
   readonly deleteConfirmId = signal<number | null>(null);
   readonly deleteSaving = signal(false);
+  readonly bulkMobileSaving = signal(false);
 
   ngOnInit(): void {
     const oid = organisationCouranteId(this.route, this.auth);
@@ -418,6 +426,31 @@ export class MembresPageComponent implements OnInit, OnDestroy {
     this.selectedMembreIds.set(new Set());
   }
 
+  bulkPaiementMobile(actif: boolean): void {
+    const org = organisationCouranteId(this.route, this.auth);
+    if (org == null || !this.peutConfigurerPaiementMobile()) return;
+    const ids = [...this.selectedMembreIds()];
+    if (ids.length === 0) return;
+    const action = actif ? 'activer' : 'désactiver';
+    if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} le mobile money pour ${ids.length} membre(s) ?`)) {
+      return;
+    }
+    this.bulkMobileSaving.set(true);
+    this.membreService.bulkPaiementMobile(org, ids, actif).subscribe({
+      next: (res) => {
+        this.bulkMobileSaving.set(false);
+        this.clearSelection();
+        this.chargerMembres(org);
+        window.alert(res.message);
+      },
+      error: (err) => {
+        this.bulkMobileSaving.set(false);
+        const msg = err?.error?.message ?? 'Action groupée impossible.';
+        window.alert(typeof msg === 'string' ? msg : 'Action groupée impossible.');
+      },
+    });
+  }
+
   exportSelectedMembers(): void {
     const selected = this.selectedMembreIds();
     if (selected.size === 0) {
@@ -482,6 +515,7 @@ export class MembresPageComponent implements OnInit, OnDestroy {
       nouveauModeleLibelle: '',
       envoyerEmailActivation: true,
       actif: true,
+      paiementMobileActif: false,
     });
     this.modelesCompteSelection.set({});
     const oid = organisationCouranteId(this.route, this.auth);
@@ -524,6 +558,7 @@ export class MembresPageComponent implements OnInit, OnDestroy {
           nouveauModeleLibelle: '',
           envoyerEmailActivation: false,
           actif: m.actif,
+          paiementMobileActif: m.paiementMobileActif ?? false,
         });
         this.modalLoading.set(false);
       },
@@ -574,6 +609,9 @@ export class MembresPageComponent implements OnInit, OnDestroy {
         pieceIdentite: v.pieceIdentite.trim() || undefined,
         poste: posteKindVersApi(this.modalPoste()),
         actif: v.actif,
+        ...(this.peutConfigurerPaiementMobile()
+          ? { paiementMobileActif: v.paiementMobileActif }
+          : {}),
       })
       .subscribe({
         next: () => {
@@ -623,6 +661,9 @@ export class MembresPageComponent implements OnInit, OnDestroy {
           amende: v.amende,
         },
         modelesCompteIds: modelesIds.length ? modelesIds : undefined,
+        ...(this.peutConfigurerPaiementMobile()
+          ? { paiementMobileActif: v.paiementMobileActif }
+          : {}),
       })
       .subscribe({
         next: (m) => {

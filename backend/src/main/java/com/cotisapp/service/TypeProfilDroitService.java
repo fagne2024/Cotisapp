@@ -16,6 +16,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -29,6 +30,7 @@ public class TypeProfilDroitService {
     private final TypeProfilDroitRepository typeProfilDroitRepository;
     private final TypeProfilRepository typeProfilRepository;
     private final ActionDroitInitialisationService actionDroitInitialisationService;
+    private final JournalService journalService;
 
     @Transactional(readOnly = true)
     public List<ActionDroitResponse> listerCatalogue() {
@@ -59,6 +61,11 @@ public class TypeProfilDroitService {
             Long orgId, Long typeProfilId, List<TypeProfilDroitItemRequest> items) {
         TypeProfil tp = chargerTypeProfilOrg(orgId, typeProfilId);
         actionDroitInitialisationService.assurerCatalogueActions();
+        Map<String, NiveauDroit> niveauxAvant = typeProfilDroitRepository.findByTypeProfilIdOrderByActionCodeAsc(tp.getId())
+                .stream()
+                .collect(Collectors.toMap(TypeProfilDroit::getActionCode, TypeProfilDroit::getNiveau));
+        Map<String, String> libellesActions = actionDroitRepository.findAll().stream()
+                .collect(Collectors.toMap(ActionDroit::getCode, ActionDroit::getLibelle));
         Set<String> codesCatalogue = actionDroitRepository.findAll().stream()
                 .map(ActionDroit::getCode)
                 .collect(Collectors.toSet());
@@ -88,6 +95,29 @@ public class TypeProfilDroitService {
                     .niveau(item.getNiveau())
                     .build());
         }
+        List<String> changements = new ArrayList<>();
+        for (TypeProfilDroitItemRequest item : items) {
+            NiveauDroit avant = niveauxAvant.get(item.getActionCode());
+            if (avant == item.getNiveau()) {
+                continue;
+            }
+            String libelle = libellesActions.getOrDefault(item.getActionCode(), item.getActionCode());
+            changements.add(
+                    libelle
+                            + " : "
+                            + JournalModificationFormatter.libelleNiveauDroit(avant)
+                            + " → "
+                            + JournalModificationFormatter.libelleNiveauDroit(item.getNiveau()));
+        }
+        int total = changements.size();
+        int maxAffiche = 12;
+        List<String> affiches = changements.size() <= maxAffiche
+                ? changements
+                : changements.subList(0, maxAffiche);
+        journalService.enregistrer(
+                orgId,
+                "DROITS_PROFIL_MAJ",
+                JournalModificationFormatter.resumeDroitsModifies(tp.getLibelle(), affiches, total));
         return listerDroitsTypeProfil(orgId, typeProfilId);
     }
 

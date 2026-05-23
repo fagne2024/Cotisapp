@@ -8,6 +8,7 @@ export interface AuthUser {
   organisationId: number | null;
   organisationNom: string | null;
   membreId: number | null;
+  compteBureau?: boolean;
   mustChangePassword?: boolean;
   mustSetupTwoFactor?: boolean;
 }
@@ -30,6 +31,7 @@ export interface AuthResponse {
   organisationId: number | null;
   organisationNom: string | null;
   membreId: number | null;
+  compteBureau?: boolean;
   mustChangePassword?: boolean;
   requiresTwoFactor?: boolean;
   twoFactorToken?: string;

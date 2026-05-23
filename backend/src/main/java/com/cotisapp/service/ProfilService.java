@@ -26,6 +26,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
@@ -72,6 +73,12 @@ public class ProfilService {
         ContexteProfil ctx = contexteProfil();
         verifierAccesOrganisation(ctx);
         Utilisateur u = ctx.utilisateur();
+        String emailAvant = u.getEmail();
+        String prenomAvant = u.getPrenom();
+        String nomAvant = u.getNom();
+        String telAvant = u.getTelephone();
+        String tel2Avant = u.getTelephoneSecondaire();
+        String adresseAvant = u.getAdresse();
 
         if (ctx.role() == Role.SUPERADMIN || ctx.role() == Role.ADMIN_GIE) {
             String email = request.getEmail().trim().toLowerCase();
@@ -103,7 +110,19 @@ public class ProfilService {
             membreRepository.save(m);
         }
 
-        journalService.enregistrer(ctx.organisationId(), "PROFIL_MAJ", "Mise à jour du profil utilisateur");
+        List<String> changements = new ArrayList<>();
+        JournalModificationFormatter.ajouterSiChange(changements, "Prénom", prenomAvant, u.getPrenom());
+        JournalModificationFormatter.ajouterSiChange(changements, "Nom", nomAvant, u.getNom());
+        if (ctx.role() == Role.SUPERADMIN || ctx.role() == Role.ADMIN_GIE) {
+            JournalModificationFormatter.ajouterSiChange(changements, "E-mail", emailAvant, u.getEmail());
+        }
+        JournalModificationFormatter.ajouterSiChange(changements, "Téléphone", telAvant, u.getTelephone());
+        JournalModificationFormatter.ajouterSiChange(
+                changements, "Téléphone secondaire", tel2Avant, u.getTelephoneSecondaire());
+        JournalModificationFormatter.ajouterSiChange(changements, "Adresse", adresseAvant, u.getAdresse());
+        String cible = JournalModificationFormatter.cibleUtilisateur(u.getPrenom(), u.getNom(), u.getEmail(), u.getId());
+        journalService.enregistrer(
+                ctx.organisationId(), "PROFIL_MAJ", JournalModificationFormatter.resumeModifications(cible, changements));
         return construireResponse(contexteProfil());
     }
 
@@ -119,7 +138,11 @@ public class ProfilService {
         }
         u.setMotDePasse(passwordEncoder.encode(request.getNouveauMotDePasse()));
         utilisateurRepository.save(u);
-        journalService.enregistrer(ctx.organisationId(), "MOT_DE_PASSE_MAJ", "Changement de mot de passe");
+        String cible = JournalModificationFormatter.cibleUtilisateur(u.getPrenom(), u.getNom(), u.getEmail(), u.getId());
+        journalService.enregistrer(
+                ctx.organisationId(),
+                "MOT_DE_PASSE_MAJ",
+                "Mot de passe modifié pour " + cible + " (ancien mot de passe vérifié)");
     }
 
     private ContexteProfil contexteProfil() {

@@ -24,4 +24,6 @@ public class MembreResponse {
     private LocalDateTime dateCreation;
     private Long utilisateurId;
     private boolean compteAcces;
+    /** Paiement mobile money autorisé pour « Mon compte » (activé par l'admin GIE). */
+    private boolean paiementMobileActif;
 }

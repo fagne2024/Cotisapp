@@ -27,6 +27,7 @@ import {
   JournalUtilisateurDto,
 } from '../../core/services/journal-utilisateur.service';
 import { organisationCouranteId } from '../../core/util/org-route.util';
+import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 import { postePourMembre, PosteMembreApi } from '../membres/membres-poste.util';
 import {
   avatarColor,
@@ -47,9 +48,12 @@ import {
 } from './utilisateurs-droits.util';
 import {
   appliquerModuleSection,
+  calculerModulesDepuisLignes,
   estSectionOrgConfigurable,
+  libellesModulesMenuActifs,
   moduleSectionActif,
 } from './droits-modules.util';
+import { DroitAccesService } from '../../core/services/droit-acces.service';
 
 const POSTES_FORM: { api: PosteMembreApi; label: string }[] = [
   { api: 'SIMPLE', label: '👤 Membre simple' },
@@ -63,7 +67,7 @@ const POSTES_FORM: { api: PosteMembreApi; label: string }[] = [
 @Component({
   selector: 'app-utilisateurs-droits',
   standalone: true,
-  imports: [ReactiveFormsModule, FormsModule, RouterLink, NgTemplateOutlet, ListPaginationComponent, DatePipe],
+  imports: [ReactiveFormsModule, FormsModule, RouterLink, NgTemplateOutlet, ListPaginationComponent, DatePipe, ...DROIT_ACTION_IMPORTS],
   templateUrl: './utilisateurs-droits.component.html',
   styleUrls: [
     './utilisateurs-droits.component.scss',
@@ -81,6 +85,7 @@ export class UtilisateursDroitsComponent implements OnInit, OnDestroy {
   private readonly notify = inject(NotificationService);
   private readonly typeProfilApi = inject(TypeProfilService);
   private readonly journalApi = inject(JournalUtilisateurService);
+  private readonly droitsAcces = inject(DroitAccesService);
 
   readonly matrice = MATRICE_DROITS;
   readonly typesEvenementJournal = TYPES_EVENEMENT_JOURNAL;
@@ -132,6 +137,16 @@ export class UtilisateursDroitsComponent implements OnInit, OnDestroy {
   readonly droitsPretPourEnregistrement = computed(
     () => !this.droitsChargement() && this.droitsLignes().length > 0
   );
+
+  /** Aperçu des entrées du menu GIE pour le profil en cours d'édition. */
+  readonly modulesMenuPreview = computed(() => {
+    const lignes = this.droitsLignes();
+    if (!lignes.length) {
+      return { actifs: [] as string[], modules: {} as Record<string, boolean> };
+    }
+    const modules = calculerModulesDepuisLignes(lignes);
+    return { actifs: libellesModulesMenuActifs(modules), modules };
+  });
   readonly savingDroits = signal(false);
   readonly typesProfilSelect = signal<TypeProfilDto[]>([]);
 
@@ -978,6 +993,15 @@ export class UtilisateursDroitsComponent implements OnInit, OnDestroy {
     return moduleSectionActif(this.droitsLignes(), section);
   }
 
+  private rafraichirMesDroitsSession(orgId: number): void {
+    if (!this.auth.compteBureau()) {
+      return;
+    }
+    this.droitsAcces.chargerEtMemoriser(orgId).subscribe({
+      next: (d) => this.droitsAcces.setDroits(d),
+    });
+  }
+
   basculerModuleSection(section: string, actif: boolean): void {
     this.droitsLignes.set(appliquerModuleSection(this.droitsLignes(), section, actif));
     logDroits('module section', { section, actif });
@@ -1072,6 +1096,7 @@ export class UtilisateursDroitsComponent implements OnInit, OnDestroy {
           persistees,
         });
         setTimeout(() => this.notify.success('Droits enregistrés pour ce profil.'), 0);
+        this.rafraichirMesDroitsSession(orgId);
       },
       error: (err) => {
         this.savingDroits.set(false);

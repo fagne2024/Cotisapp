@@ -49,4 +49,7 @@ public class CreateMembreRequest {
     private Boolean envoyerEmailActivation;
 
     private Long typeProfilId;
+
+    /** Réservé à l'admin GIE (défaut : désactivé). */
+    private Boolean paiementMobileActif;
 }

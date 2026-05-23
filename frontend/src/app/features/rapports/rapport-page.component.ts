@@ -5,6 +5,7 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Subscription } from 'rxjs';
 
 import { AuthService } from '../../core/services/auth.service';
+import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 
 import { NotificationService } from '../../core/services/notification.service';
 
@@ -47,7 +48,7 @@ import { RapportTabUi } from './rapport-demo.util';
 @Component({
   selector: 'app-rapport-page',
   standalone: true,
-  imports: [ListPaginationComponent],
+  imports: [ListPaginationComponent, ...DROIT_ACTION_IMPORTS],
   templateUrl: './rapport-page.component.html',
   styleUrls: ['./rapport-page.component.scss', '../../shared/styles/pagination.scss'],
 })

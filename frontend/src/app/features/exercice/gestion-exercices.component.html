@@ -1,4 +1,4 @@
-﻿<div class="exercice-page">
+<div class="exercice-page">
   @if (chargement()) {
     <div class="exercice-loading" aria-live="polite">
       <span class="pulse"></span>
@@ -148,6 +148,7 @@
                           <button
                             type="button"
                             class="btn-p btn-sm"
+                            appDroitAction="PARAM_REGLES"
                             [disabled]="cloturePlanadId() === p.id"
                             (click)="confirmerCloturePlanad(p)"
                           >
@@ -247,6 +248,7 @@
               <button
                 type="button"
                 class="btn-p btn-cloture-ex"
+                appDroitAction="PARAM_REGLES"
                 [disabled]="transitionEnCours() || !peutCloturerExercice()"
                 (click)="confirmerTransition()"
               >

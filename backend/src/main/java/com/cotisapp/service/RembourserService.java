@@ -6,6 +6,7 @@ import com.cotisapp.dto.request.RembourserRequest;
 import com.cotisapp.exception.BusinessException;
 import com.cotisapp.repository.EcheanceRepository;
 import com.cotisapp.repository.EmpruntRepository;
+import com.cotisapp.repository.MembreRepository;
 import com.cotisapp.repository.OperationRepository;
 import com.cotisapp.repository.RegleOperationRepository;
 import com.cotisapp.security.OrganisationContext;
@@ -26,6 +27,7 @@ import java.util.List;
 public class RembourserService {
 
     private final EmpruntRepository empruntRepository;
+    private final MembreRepository membreRepository;
     private final EcheanceRepository echeanceRepository;
     private final OperationRepository operationRepository;
     private final RegleOperationRepository regleOperationRepository;
@@ -108,7 +110,7 @@ public class RembourserService {
         operation.setMouvements(mouvements);
         finaliserEmprunt(emprunt, echeance, montant, datePaiement);
         Operation saved = operationRepository.save(operation);
-        journalService.enregistrer(orgId, "REMBOURSEMENT_SOLIDARITE", "Opération " + saved.getId());
+        journaliserRemboursement(orgId, "REMBOURSEMENT_SOLIDARITE", saved, emprunt);
         return saved;
     }
 
@@ -138,7 +140,7 @@ public class RembourserService {
             appliquerTransfertFraisInteretEmpruntSolde(orgId, emprunt, operation, mouvements);
         }
         Operation saved = operationRepository.save(operation);
-        journalService.enregistrer(orgId, "REMBOURSEMENT_CAISSE", "Opération " + saved.getId());
+        journaliserRemboursement(orgId, "REMBOURSEMENT_CAISSE", saved, emprunt);
         return saved;
     }
 
@@ -175,8 +177,13 @@ public class RembourserService {
             appliquerTransfertFraisInteretEmpruntSolde(orgId, emprunt, operation, mouvements);
         }
         Operation saved = operationRepository.save(operation);
-        journalService.enregistrer(orgId, "REMBOURSEMENT", "Opération " + saved.getId());
+        journaliserRemboursement(orgId, "REMBOURSEMENT", saved, emprunt);
         return saved;
+    }
+
+    private void journaliserRemboursement(Long orgId, String action, Operation saved, Emprunt emprunt) {
+        Membre membre = membreRepository.findById(emprunt.getMembreId()).orElse(null);
+        journalService.enregistrerOperation(orgId, action, saved, membre);
     }
 
     private Operation creerOperationBase(

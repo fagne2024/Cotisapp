@@ -63,6 +63,7 @@ import {
 } from '../../../shared/util/membre-code-lookup.util';
 
 import { ListPaginationComponent } from '../../../shared/components/list-pagination/list-pagination.component';
+import { DROIT_ACTION_IMPORTS } from '../../../shared/imports/droit-action.imports';
 
 import {
 
@@ -96,7 +97,7 @@ import {
 
   standalone: true,
 
-  imports: [ReactiveFormsModule, ListPaginationComponent],
+  imports: [ReactiveFormsModule, ListPaginationComponent, ...DROIT_ACTION_IMPORTS],
 
   templateUrl: './penalite-amende.component.html',
 

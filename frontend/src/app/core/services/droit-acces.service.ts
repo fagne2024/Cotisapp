@@ -7,6 +7,8 @@ export type NiveauDroitApi = 'OK' | 'NO' | 'LIM' | 'OWN';
 export interface MesDroitsDto {
   peutGestion: boolean;
   actions: Record<string, NiveauDroitApi>;
+  /** Modules menu visibles (clés : membres, cotisations, rapports…). */
+  modules?: Record<string, boolean>;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -37,5 +39,14 @@ export class DroitAccesService {
     if (orgId == null) return false;
     const n = this._droits()?.actions?.[code];
     return n != null && n !== 'NO';
+  }
+
+  /** Module menu GIE (membres, cotisations…) : false tant que les droits ne sont pas chargés. */
+  peutModule(moduleId: string): boolean {
+    const mods = this._droits()?.modules;
+    if (mods == null) {
+      return false;
+    }
+    return mods[moduleId] === true;
   }
 }

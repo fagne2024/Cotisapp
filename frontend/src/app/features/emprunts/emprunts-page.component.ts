@@ -38,6 +38,7 @@ import { postePourCodeMembre } from '../membres/membres-poste.util';
 import { FilterQueryNav, qpEnum, qpString } from '../../shared/util/filter-query.util';
 import { matchTextQuery } from '../../shared/util/filter.util';
 import { empruntEnRetard } from '../remboursements/remboursement-emprunt.util';
+import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 import { ConfirmDialogComponent } from '../../shared/components/confirm-dialog/confirm-dialog.component';
 import {
   filtrerMembresParNumeroCode,
@@ -84,7 +85,7 @@ export interface EcheancierRow {
 @Component({
   selector: 'app-emprunts-page',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, ConfirmDialogComponent, ListPaginationComponent],
+  imports: [ReactiveFormsModule, RouterLink, ConfirmDialogComponent, ListPaginationComponent, ...DROIT_ACTION_IMPORTS],
   templateUrl: './emprunts-page.component.html',
   styleUrls: [
     './emprunts-page.component.scss',

@@ -66,6 +66,15 @@ public class OrgSecurityService {
      * Accès aux écrans de gestion du GIE (dashboard, membres, opérations…).
      * Admin GIE : oui. Membre de bureau : au moins une action de gestion active sur son profil.
      */
+    /** Activation paiement mobile money « Mon compte » — admin GIE uniquement. */
+    public boolean peutConfigurerPaiementMobileOrg(Long orgId) {
+        Role role = OrganisationContext.getRole();
+        if (role == Role.SUPERADMIN) {
+            return true;
+        }
+        return role == Role.ADMIN_GIE && Objects.equals(OrganisationContext.getOrganisationId(), orgId);
+    }
+
     public boolean peutGestionOrg(Long orgId) {
         Role role = OrganisationContext.getRole();
         if (role == Role.SUPERADMIN) {

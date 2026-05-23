@@ -59,6 +59,7 @@ import {
   suffixeCodeNumerique,
 } from '../../../shared/util/membre-code-lookup.util';
 import { ListPaginationComponent } from '../../../shared/components/list-pagination/list-pagination.component';
+import { DROIT_ACTION_IMPORTS } from '../../../shared/imports/droit-action.imports';
 import {
   paginateSlice,
   paginationTotalPages,
@@ -165,7 +166,7 @@ const CONFIGS: Record<Exclude<RembTypeUi, 'historique'>, RembConfig> = {
 @Component({
   selector: 'app-remboursement',
   standalone: true,
-  imports: [ReactiveFormsModule, RouterLink, ConfirmDialogComponent, ListPaginationComponent],
+  imports: [ReactiveFormsModule, RouterLink, ConfirmDialogComponent, ListPaginationComponent, ...DROIT_ACTION_IMPORTS],
   templateUrl: './remboursement.component.html',
   styleUrls: [
     './remboursement.component.scss',

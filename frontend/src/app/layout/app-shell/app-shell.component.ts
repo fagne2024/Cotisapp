@@ -1,4 +1,4 @@
-import { Component, computed, inject, OnInit } from '@angular/core';
+import { Component, computed, effect, inject, OnInit, untracked } from '@angular/core';
 import { ActivatedRoute, NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { filter } from 'rxjs/operators';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
@@ -6,8 +6,7 @@ import { AuthService } from '../../core/services/auth.service';
 import { AppNotificationsService } from '../../core/services/app-notifications.service';
 import { DroitAccesService } from '../../core/services/droit-acces.service';
 import { organisationCouranteId } from '../../core/util/org-route.util';
-import { landingBureau } from '../../core/util/landing-route.util';
-import { MENU_MODULES_GIE, MenuModuleId, moduleVisible } from '../../core/util/modules-menu.util';
+import { MenuModuleId } from '../../core/util/modules-menu.util';
 
 @Component({
   selector: 'app-shell',
@@ -37,6 +36,15 @@ export class AppShellComponent implements OnInit {
     fragment: 'ignored' as const,
   };
 
+  readonly penaliteLinkActiveOpts = {
+    paths: 'subset' as const,
+    queryParams: 'exact' as const,
+    matrixParams: 'ignored' as const,
+    fragment: 'ignored' as const,
+  };
+
+  readonly amendeLinkActiveOpts = this.penaliteLinkActiveOpts;
+
   orgShell(): number | null {
     return organisationCouranteId(this.route, this.auth);
   }
@@ -58,14 +66,17 @@ export class AppShellComponent implements OnInit {
     return 'Membre';
   });
 
-  /** Membre simple : fiche membre liée, espace personnel uniquement. */
+  /** Espace personnel (membre simple, pas de gestion GIE). */
   readonly estMembreSimple = computed(
-    () => this.auth.currentRole() === 'MEMBRE' && this.auth.currentMembreId() != null
+    () => this.auth.currentRole() === 'MEMBRE' && !this.auth.compteBureau()
   );
 
-  /** Membre de bureau (SG, SGA, trésorier…) : pas de fiche membre, menu gestion. */
-  readonly estMembreBureau = computed(
-    () => this.auth.currentRole() === 'MEMBRE' && this.auth.currentMembreId() == null
+  /** Compte bureau : menu filtré selon droits / modules du profil. */
+  readonly estMembreBureau = computed(() => this.auth.compteBureau());
+
+  /** Admin GIE ou superadmin : menu complet. */
+  readonly estAdminComplet = computed(() =>
+    this.auth.hasRole(['SUPERADMIN', 'ADMIN_GIE'])
   );
 
   readonly notifUnreadCount = this.notifs.unreadCount;
@@ -75,54 +86,61 @@ export class AppShellComponent implements OnInit {
     return org != null ? ['/organisations', org, 'notifications'] : [];
   });
 
-  /** Lien d’accueil : tableau de bord (admin) ou première page autorisée (bureau). */
+  /** Lien d’accueil : tableau de bord pour tous les profils. */
   readonly accueilLink = computed((): (string | number)[] => {
     const org = this.orgShell();
     if (org == null) return [];
-    if (this.estMembreBureau()) {
-      return landingBureau(org, this.droits.droits());
-    }
     return ['/organisations', org, 'dashboard'];
   });
 
+  /** Visibilité d’un module menu (strictement selon /mes-droits → modules). */
   peutMenu(moduleId: MenuModuleId): boolean {
-    if (!this.estMembreBureau()) {
+    if (this.estAdminComplet()) {
       return true;
     }
-    const orgId = this.orgShell();
-    if (orgId == null) {
+    if (!this.estMembreBureau()) {
       return false;
     }
-    const def = MENU_MODULES_GIE.find((m) => m.id === moduleId);
-    if (!def) {
-      return false;
-    }
-    if (moduleId === 'notifications') {
-      return (
-        this.droits.peutGestion(orgId) ||
-        moduleVisible((code) => this.droits.peutAction(orgId, code), def)
-      );
-    }
-    return moduleVisible((code) => this.droits.peutAction(orgId, code), def);
+    this.droits.droits();
+    return this.droits.peutModule(moduleId);
   }
 
   constructor() {
+    effect(() => {
+      const orgId = this.orgShell();
+      if (this.auth.compteBureau() && orgId != null && !this.droits.droits()) {
+        untracked(() => {
+          this.droits.chargerEtMemoriser(orgId).subscribe({
+            next: (d) => this.droits.setDroits(d),
+          });
+        });
+      }
+    });
+
     this.router.events
       .pipe(
         filter((e): e is NavigationEnd => e instanceof NavigationEnd),
         takeUntilDestroyed()
       )
-      .subscribe(() => this.rafraichirNotifications());
+      .subscribe(() => {
+        this.rafraichirNotifications();
+        this.rafraichirDroitsSiBureau();
+      });
   }
 
   ngOnInit(): void {
     this.rafraichirNotifications();
+    this.rafraichirDroitsSiBureau();
+  }
+
+  private rafraichirDroitsSiBureau(): void {
     const orgId = this.orgShell();
-    if (this.estMembreBureau() && orgId != null && !this.droits.droits()) {
-      this.droits.chargerEtMemoriser(orgId).subscribe({
-        next: (d) => this.droits.setDroits(d),
-      });
+    if (!this.auth.compteBureau() || orgId == null) {
+      return;
     }
+    this.droits.chargerEtMemoriser(orgId).subscribe({
+      next: (d) => this.droits.setDroits(d),
+    });
   }
 
   private rafraichirNotifications(): void {
@@ -167,7 +185,9 @@ export class AppShellComponent implements OnInit {
       return 'Remboursement — Étalé';
     }
     if (url.includes('penalite-amende')) {
-      return url.includes('t=am') ? 'Amende' : 'Pénalité & Amende';
+      if (url.includes('t=am')) return 'Amende';
+      if (url.includes('t=pen')) return 'Pénalité';
+      return 'Pénalité & Amende';
     }
     if (url.includes('gestion/tresorerie') || url.includes('depense-banque')) {
       return 'Trésorerie';

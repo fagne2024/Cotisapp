@@ -89,10 +89,21 @@
             class="ni"
             routerLinkActive="on"
             [routerLink]="orgLink(['operations', 'penalite-amende'])"
-            [routerLinkActiveOptions]="{ exact: true }"
+            [queryParams]="{ t: 'pen' }"
+            [routerLinkActiveOptions]="penaliteLinkActiveOpts"
           >
             <span class="ico">⚠</span>
-            Pénalité &amp; Amende
+            Pénalité
+          </a>
+          <a
+            class="ni"
+            routerLinkActive="on"
+            [routerLink]="orgLink(['operations', 'penalite-amende'])"
+            [queryParams]="{ t: 'am' }"
+            [routerLinkActiveOptions]="amendeLinkActiveOpts"
+          >
+            <span class="ico">🚫</span>
+            Amende
           </a>
           <a
             class="ni"

@@ -25,6 +25,7 @@ import { formatFcfa } from '../../core/utils/currency.util';
 import { appliquerFiltresReleve, paginerReleveGroupes } from './comptes-releves.util';
 import { ListPaginationComponent } from '../../shared/components/list-pagination/list-pagination.component';
 import { paginateSlice } from '../../shared/util/pagination.util';
+import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 
 type PanelTab = 'org' | 'mbr';
 
@@ -66,7 +67,7 @@ interface ReleveLoadParams {
 @Component({
   selector: 'app-comptes-releves',
   standalone: true,
-  imports: [ListPaginationComponent],
+  imports: [ListPaginationComponent, ...DROIT_ACTION_IMPORTS],
   templateUrl: './comptes-releves.component.html',
   styleUrls: ['./comptes-releves.component.scss', '../../shared/styles/pagination.scss'],
 })

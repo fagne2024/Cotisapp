@@ -321,6 +321,7 @@
               <button
                 type="button"
                 class="btn-re"
+                appDroitAction="OP_PENALITE"
                 (click)="valider()"
                 title="Valider (Ctrl+E)"
                 [disabled]="loading() || (modeSaisieMembre() === 'unitaire' && form.invalid) || (modeSaisieMembre() === 'bulk' && bulkNbMembres() === 0)"

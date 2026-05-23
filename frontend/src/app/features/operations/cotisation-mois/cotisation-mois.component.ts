@@ -61,6 +61,7 @@ import { FilterQueryNav, qpEnum, qpString } from '../../../shared/util/filter-qu
 import { matchTextQuery } from '../../../shared/util/filter.util';
 import { ListPaginationComponent } from '../../../shared/components/list-pagination/list-pagination.component';
 import {
+  clampPage,
   paginateSlice,
   paginationTotalPages,
 } from '../../../shared/util/pagination.util';
@@ -100,6 +101,7 @@ import {
   modePaiementMobile,
   type ModePaiement,
 } from '../../../shared/util/mode-paiement.util';
+import { DROIT_ACTION_IMPORTS } from '../../../shared/imports/droit-action.imports';
 
 export type CotisationTypeUi = 'hebdo' | 'mois' | 'historique';
 
@@ -109,7 +111,7 @@ export type CotisationTypeUi = 'hebdo' | 'mois' | 'historique';
 
   standalone: true,
 
-  imports: [ReactiveFormsModule, ListPaginationComponent],
+  imports: [ReactiveFormsModule, ListPaginationComponent, ...DROIT_ACTION_IMPORTS],
 
   templateUrl: './cotisation-mois.component.html',
 
@@ -438,6 +440,9 @@ export class CotisationMoisComponent implements OnInit, OnDestroy {
   readonly filtreHistDateDebut = signal('');
   readonly filtreHistDateFin = signal('');
 
+  readonly histPage = signal(1);
+  readonly histPageSize = 10;
+
   readonly historiqueFiltre = computed(() => {
     const type = this.filtreHistType();
     const q = this.filtreHistRecherche();
@@ -454,6 +459,16 @@ export class CotisationMoisComponent implements OnInit, OnDestroy {
       return matchTextQuery(q, l.membreNom, l.codeMembre, l.periode, l.typeLibelle, l.observation ?? '');
     });
   });
+
+  readonly historiquePageItems = computed(() => {
+    const items = this.historiqueFiltre();
+    const page = clampPage(this.histPage(), paginationTotalPages(items.length, this.histPageSize));
+    return paginateSlice(items, page, this.histPageSize);
+  });
+
+  readonly histTotalPages = computed(() =>
+    paginationTotalPages(this.historiqueFiltre().length, this.histPageSize)
+  );
 
   readonly historiqueTotaux = computed(() => {
     const rows = this.historiqueFiltre().filter((r) => !r.annulee);
@@ -763,10 +778,12 @@ export class CotisationMoisComponent implements OnInit, OnDestroy {
             annulable: !!l.annulable,
           }))
         );
+        this.resetHistPage();
         this.historiqueLoading.set(false);
       },
       error: (err) => {
         this.historiqueLignes.set([]);
+        this.resetHistPage();
         this.historiqueLoading.set(false);
         const msg = err?.error?.message;
         this.notify.error(
@@ -803,24 +820,37 @@ export class CotisationMoisComponent implements OnInit, OnDestroy {
     const v = (ev.target as HTMLSelectElement).value;
     if (v === 'hebdo' || v === 'mois' || v === 'solidarite' || v === 'tous') {
       this.filtreHistType.set(v);
+      this.resetHistPage();
     }
   }
 
   onFiltreHistRecherche(ev: Event): void {
     this.filtreHistRecherche.set((ev.target as HTMLInputElement).value);
+    this.resetHistPage();
   }
 
   onFiltreHistDateDebut(ev: Event): void {
     this.filtreHistDateDebut.set((ev.target as HTMLInputElement).value);
+    this.resetHistPage();
   }
 
   onFiltreHistDateFin(ev: Event): void {
     this.filtreHistDateFin.set((ev.target as HTMLInputElement).value);
+    this.resetHistPage();
   }
 
   reinitialiserFiltreHistDates(): void {
     this.filtreHistDateDebut.set('');
     this.filtreHistDateFin.set('');
+    this.resetHistPage();
+  }
+
+  goHistPage(p: number): void {
+    this.histPage.set(Math.min(this.histTotalPages(), Math.max(1, p)));
+  }
+
+  private resetHistPage(): void {
+    this.histPage.set(1);
   }
 
   confirmerAnnulation(h: CotisationHistoriqueLigneDto): void {

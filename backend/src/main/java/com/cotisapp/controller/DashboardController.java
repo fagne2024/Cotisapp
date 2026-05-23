@@ -17,9 +17,7 @@ public class DashboardController {
     private final DashboardService dashboardService;
 
     @GetMapping
-    @PreAuthorize("""
-        @orgSecurityService.peutGestionOrg(#orgId)
-        """)
+    @PreAuthorize("@orgSecurityService.canAccessOrg(#orgId)")
     public DashboardResponse get(@PathVariable Long orgId) {
         return dashboardService.getDashboard(orgId);
     }

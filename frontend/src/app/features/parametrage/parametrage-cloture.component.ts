@@ -21,6 +21,7 @@ import { formatFcfa } from '../../core/utils/currency.util';
 import { ParametrageTabsComponent } from './parametrage-tabs.component';
 import { ListPaginationComponent } from '../../shared/components/list-pagination/list-pagination.component';
 import { paginationTotalPages } from '../../shared/util/pagination.util';
+import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 
 interface RetenueFormRow {
   libelle: string;
@@ -38,6 +39,7 @@ interface RetenueFormRow {
     ParametrageTabsComponent,
     ClotureRepartitionPreviewComponent,
     ListPaginationComponent,
+    ...DROIT_ACTION_IMPORTS,
   ],
   templateUrl: './parametrage-cloture.component.html',
   styleUrls: [

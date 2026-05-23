@@ -34,6 +34,9 @@ public interface JourneeReunionRepository extends JpaRepository<JourneeReunion, 
     @Query("SELECT COALESCE(MAX(j.numero), 0) FROM JourneeReunion j WHERE j.exerciceId = :exerciceId")
     int findMaxNumero(@Param("exerciceId") Long exerciceId);
 
+    long countByExerciceIdAndDateReunionBetween(
+            Long exerciceId, LocalDate dateReunionDebut, LocalDate dateReunionFin);
+
     @Query("""
             SELECT DISTINCT o.dateOperation FROM Operation o
             WHERE o.organisationId = :orgId

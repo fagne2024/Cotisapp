@@ -15,6 +15,8 @@ public class AuthResponse {
     private Long organisationId;
     private String organisationNom;
     private Long membreId;
+    /** Compte de gestion bureau (SG, trésorier…) sans espace membre simple. */
+    private boolean compteBureau;
     private boolean mustChangePassword;
     private boolean requiresTwoFactor;
     private String twoFactorToken;

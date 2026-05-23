@@ -8,6 +8,7 @@ import com.cotisapp.dto.request.RembourserRequest;
 import com.cotisapp.domain.entity.RegleOperation;
 import com.cotisapp.repository.EcheanceRepository;
 import com.cotisapp.repository.EmpruntRepository;
+import com.cotisapp.repository.MembreRepository;
 import com.cotisapp.repository.OperationRepository;
 import com.cotisapp.repository.RegleOperationRepository;
 import com.cotisapp.security.OrganisationContext;
@@ -40,6 +41,7 @@ class RembourserServiceTest {
     @Mock private RegleOperationRepository regleOperationRepository;
     @Mock private CompteService compteService;
     @Mock private JournalService journalService;
+    @Mock private MembreRepository membreRepository;
     @Mock private ExerciceService exerciceService;
     @Mock private OperationPlanadGuardService operationPlanadGuardService;
     @Mock private OperationMemeJourControleService operationMemeJourControleService;
@@ -55,6 +57,7 @@ class RembourserServiceTest {
     void setUp() {
         rembourserService = new RembourserService(
                 empruntRepository,
+                membreRepository,
                 echeanceRepository,
                 operationRepository,
                 regleOperationRepository,

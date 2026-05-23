@@ -5,7 +5,6 @@ import { tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { AuthResponse, AuthUser, CompteMembreLogin, Role } from '../models/role.model';
 import { DroitAccesService } from './droit-acces.service';
-import { landingBureau } from '../util/landing-route.util';
 
 const TOKEN_KEY = 'cotisapp_token';
 const USER_KEY = 'cotisapp_user';
@@ -26,6 +25,7 @@ export class AuthService {
   readonly currentOrgNom = computed(() => this._user()?.organisationNom ?? null);
   readonly nomComplet = computed(() => this._user()?.nomComplet ?? '');
   readonly currentMembreId = computed(() => this._user()?.membreId ?? null);
+  readonly compteBureau = computed(() => this._user()?.compteBureau === true);
   private readonly _mustChangePassword = signal(this.loadMustChangePassword());
   readonly mustChangePassword = this._mustChangePassword.asReadonly();
   private readonly _mustSetupTwoFactor = signal(this.loadMustSetupTwoFactor());
@@ -134,19 +134,13 @@ export class AuthService {
     }
     if (res.role === 'SUPERADMIN') {
       this.router.navigate(['/superadmin']);
-    } else if (res.role === 'MEMBRE' && res.organisationId) {
-      if (res.membreId != null) {
-        this.router.navigate(['/organisations', res.organisationId, 'mon-compte']);
-      } else {
+    } else if (res.organisationId) {
+      if (res.role === 'MEMBRE' && res.compteBureau) {
         this.droits.chargerEtMemoriser(res.organisationId).subscribe({
-          next: (d) => {
-            this.droits.setDroits(d);
-            this.router.navigate(landingBureau(res.organisationId!, d));
-          },
-          error: () => this.router.navigate(['/organisations', res.organisationId, 'mon-profil']),
+          next: (d) => this.droits.setDroits(d),
+          error: () => {},
         });
       }
-    } else if (res.organisationId) {
       this.router.navigate(['/organisations', res.organisationId, 'dashboard']);
     }
   }
@@ -174,7 +168,11 @@ export class AuthService {
     const raw = localStorage.getItem(USER_KEY);
     if (!raw) return null;
     try {
-      return JSON.parse(raw) as AuthUser;
+      const u = JSON.parse(raw) as AuthUser;
+      if (u.role === 'MEMBRE' && u.compteBureau === undefined) {
+        u.compteBureau = u.membreId == null;
+      }
+      return u;
     } catch {
       return null;
     }
@@ -205,6 +203,7 @@ export class AuthService {
       organisationId: res.organisationId,
       organisationNom: res.organisationNom,
       membreId: res.membreId,
+      compteBureau: res.compteBureau === true,
       mustChangePassword: mustChange,
       mustSetupTwoFactor: mustSetup2fa,
     };

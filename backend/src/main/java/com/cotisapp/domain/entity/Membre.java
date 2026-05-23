@@ -60,6 +60,11 @@ public class Membre implements OrganisationScoped {
     @Builder.Default
     private Boolean actif = true;
 
+    /** Cotisations / remboursements Wave ou Orange Money depuis « Mon compte » (activé par l'admin GIE). */
+    @Column(name = "paiement_mobile_actif", nullable = false)
+    @Builder.Default
+    private Boolean paiementMobileActif = false;
+
     @Column(name = "date_creation", nullable = false, updatable = false)
     @Builder.Default
     private LocalDateTime dateCreation = LocalDateTime.now();

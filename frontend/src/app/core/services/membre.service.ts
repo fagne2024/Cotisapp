@@ -26,6 +26,8 @@ export interface MembreDto {
   pieceIdentite?: string | null;
   utilisateurId?: number | null;
   compteAcces?: boolean;
+  /** Cotisations / remboursements mobile money depuis « Mon compte » (activé par l'admin GIE). */
+  paiementMobileActif?: boolean;
 }
 
 export interface ComptesMembreSelectionBody {
@@ -49,6 +51,7 @@ export interface CreateMembreBody {
   creerCompteAcces?: boolean;
   envoyerEmailActivation?: boolean;
   typeProfilId?: number;
+  paiementMobileActif?: boolean;
 }
 
 export interface UpdateMembreBody {
@@ -60,6 +63,7 @@ export interface UpdateMembreBody {
   pieceIdentite?: string;
   poste: PosteMembreApi;
   actif: boolean;
+  paiementMobileActif?: boolean;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -98,6 +102,13 @@ export class MembreService {
     return this.http.put<MembreDto>(
       `${environment.apiUrl}/organisations/${orgId}/membres/${membreId}`,
       body
+    );
+  }
+
+  bulkPaiementMobile(orgId: number, membreIds: number[], actif: boolean) {
+    return this.http.patch<{ nombreMisAJour: number; actif: boolean; message: string }>(
+      `${environment.apiUrl}/organisations/${orgId}/membres/paiement-mobile`,
+      { membreIds, actif }
     );
   }
 

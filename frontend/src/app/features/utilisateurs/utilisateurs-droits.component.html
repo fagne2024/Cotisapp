@@ -8,7 +8,7 @@
       @if (profilLink(); as pl) {
         <a class="btn-s" [routerLink]="pl">👤 Mon profil</a>
       }
-      <button type="button" class="btn-p" (click)="openModal()">+ Nouvel utilisateur</button>
+      <button type="button" class="btn-p" appDroitAction="ADMIN_UTILISATEURS" (click)="openModal()">+ Nouvel utilisateur</button>
     </div>
   </div>
 
@@ -97,11 +97,11 @@
                     <button type="button" class="type-act-btn type-act-droits" (click)="openDroitsModal(t)">
                       Droits
                     </button>
-                    <button type="button" class="type-act-btn type-act-edit" (click)="openTypeEdit(t)">
+                    <button type="button" class="type-act-btn type-act-edit" appDroitAction="ADMIN_UTILISATEURS" (click)="openTypeEdit(t)">
                       Modifier
                     </button>
                     @if (!t.systeme) {
-                      <button type="button" class="type-act-btn type-act-del" (click)="confirmerSupprimerType(t)">
+                      <button type="button" class="type-act-btn type-act-del" appDroitAction="ADMIN_UTILISATEURS" (click)="confirmerSupprimerType(t)">
                         Supprimer
                       </button>
                     }
@@ -164,7 +164,7 @@
             </div>
             <div class="tf-field tf-actions">
               <span class="tf-label-spacer" aria-hidden="true"></span>
-              <button type="submit" class="btn-p tf-submit" [disabled]="savingTypeProfil()">
+              <button type="submit" class="btn-p tf-submit" appDroitAction="ADMIN_UTILISATEURS" [disabled]="savingTypeProfil()">
                 {{ savingTypeProfil() ? 'Ajout…' : '+ Ajouter' }}
               </button>
             </div>
@@ -279,8 +279,8 @@
                     <td>
                       <div class="row-actions">
                         @if (u.actif) {
-                          <button type="button" class="ra-btn ra-edit" (click)="openModal(u)" title="Modifier">✏</button>
-                          <button type="button" class="ra-btn ra-reset" (click)="resetMdp()" title="Réinitialiser">🔑</button>
+                          <button type="button" class="ra-btn ra-edit" appDroitAction="ADMIN_UTILISATEURS" (click)="openModal(u)" title="Modifier">✏</button>
+                          <button type="button" class="ra-btn ra-reset" appDroitAction="ADMIN_RESET_MDP" (click)="resetMdp()" title="Réinitialiser">🔑</button>
                         } @else {
                           <button type="button" class="ra-btn ra-activate" (click)="basculerActif(u)">▶ Activer</button>
                         }
@@ -356,7 +356,7 @@
                 <div class="sec-title warn">Réinitialiser tous les mots de passe</div>
                 <div class="sec-sub">Envoyer des emails à tous les utilisateurs</div>
               </div>
-              <button type="button" class="btn-re" (click)="confirmResetAll()">Exécuter</button>
+              <button type="button" class="btn-re" appDroitAction="ADMIN_RESET_MDP" (click)="confirmResetAll()">Exécuter</button>
             </div>
           </div>
         </div>
@@ -413,34 +413,27 @@
             <div class="journal-row">
               <div class="jr-icon jr-icon-auto">{{ journalIcon(e) }}</div>
               <div class="jr-info">
-                <div class="jr-title">
-                  {{ e.typeEvenementLibelle }} — {{ e.libelleResume }}
-                </div>
+                <div class="jr-title">{{ e.libelleResume }}</div>
                 <div class="jr-meta">
-                  {{ e.dateCreation | date: 'dd/MM/yyyy HH:mm:ss' }}
+                  <span class="jr-type">{{ e.typeEvenementLibelle }}</span>
+                  · {{ e.dateCreation | date: 'dd/MM/yyyy HH:mm:ss' }}
                   @if (e.utilisateurNom || e.utilisateurEmail) {
                     · {{ e.utilisateurNom || e.utilisateurEmail }}
                   }
                   @if (e.role) {
                     · {{ roleLabel(e.role) }}
                   }
-                  @if (e.action && e.action !== 'MODULE_VISITE') {
-                    · {{ e.action }}
-                  }
                 </div>
-                @if (e.details && e.details !== e.libelleResume) {
+                @if (e.details) {
                   <div class="jr-detail">{{ e.details }}</div>
                 }
-                @if (e.routePath) {
-                  <div class="jr-detail">Route : {{ e.routePath }}</div>
-                }
-                @if (e.ipAddress || e.userAgent) {
+                @if (e.ipAddress || e.navigateurResume) {
                   <div class="jr-detail jr-tech">
                     @if (e.ipAddress) {
-                      IP {{ e.ipAddress }}
+                      <span>Adresse IP : {{ e.ipAddress }}</span>
                     }
-                    @if (e.userAgent) {
-                      · {{ e.userAgent }}
+                    @if (e.navigateurResume) {
+                      <span>@if (e.ipAddress) { · } Navigateur : {{ e.navigateurResume }}</span>
                     }
                   </div>
                 }
@@ -667,7 +660,7 @@
       </form>
       <div class="modal-foot">
         <button type="button" class="btn-s" (click)="closeModal()">Annuler</button>
-        <button type="button" class="btn-p" [disabled]="saving()" (click)="enregistrer()">
+        <button type="button" class="btn-p" appDroitAction="ADMIN_UTILISATEURS" [disabled]="saving()" (click)="enregistrer()">
           {{ saving() ? 'Enregistrement…' : '💾 Enregistrer' }}
         </button>
       </div>
@@ -721,7 +714,7 @@
       </form>
       <div class="modal-foot">
         <button type="button" class="btn-s" (click)="closeTypeEdit()">Annuler</button>
-        <button type="button" class="btn-p" [disabled]="savingTypeProfil()" (click)="enregistrerTypeEdit()">
+        <button type="button" class="btn-p" appDroitAction="ADMIN_UTILISATEURS" [disabled]="savingTypeProfil()" (click)="enregistrerTypeEdit()">
           {{ savingTypeProfil() ? 'Enregistrement…' : 'Enregistrer' }}
         </button>
       </div>
@@ -743,6 +736,19 @@
           <span class="droits-actions-count">{{ droitsActionsCount() }} action(s) au catalogue.</span>
         }
       </p>
+      @if (droitsModal() && !droitsChargement() && droitsLignes().length > 0) {
+        <div class="modules-menu-preview">
+          <span class="modules-menu-preview-lbl">Menu GIE affiché pour ce profil :</span>
+          @if (modulesMenuPreview().actifs.length > 0) {
+            @for (lib of modulesMenuPreview().actifs; track lib) {
+              <span class="module-preview-chip">{{ lib }}</span>
+            }
+            <span class="module-preview-chip module-preview-chip--muted">Mon profil</span>
+          } @else {
+            <span class="muted-sm">Aucun module de gestion — uniquement Mon profil.</span>
+          }
+        </div>
+      }
       <div class="droits-legend">
         <span><strong>—</strong> Aucun</span>
         <span><strong>✓</strong> Complet</span>
@@ -810,6 +816,7 @@
         <button
           type="button"
           class="btn-p"
+          appDroitAction="ADMIN_UTILISATEURS"
           [disabled]="savingDroits() || !droitsPretPourEnregistrement()"
           (click)="enregistrerDroits()"
         >

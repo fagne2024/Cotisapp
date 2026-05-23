@@ -55,8 +55,8 @@
           <div class="card-h">
             <span class="card-title">📜 Journal caisse</span>
             <div class="caisse-actions">
-              <button type="button" class="btn-s" (click)="setPage('dep')">+ Dépense</button>
-              <button type="button" class="btn-s" (click)="setPage('bk')">Opération banque</button>
+              <button type="button" class="btn-s" appDroitAction="OP_DEPENSE" (click)="setPage('dep')">+ Dépense</button>
+              <button type="button" class="btn-s" appDroitAction="OP_BANQUE" (click)="setPage('bk')">Opération banque</button>
             </div>
           </div>
           <div class="filters-row">
@@ -85,7 +85,7 @@
                     <td>
                       <span class="badge" [class]="m.sens === 'credit' ? 'b-green' : 'b-red'">{{ m.typeOperation }}</span>
                     </td>
-                    <td>{{ m.libelle }}</td>
+                    <td class="libelle-cell">{{ m.libelle }}</td>
                     <td [class]="m.sens === 'credit' ? 'cr-c amt' : 'db-c amt'">
                       {{ m.sens === 'credit' ? '+' : '−' }}{{ formatFcfa(m.montant) }}
                     </td>
@@ -202,7 +202,7 @@
 
               <div class="form-actions">
                 <button type="button" class="btn-s" (click)="annulerDep()">Annuler</button>
-                <button type="button" class="btn-p" [disabled]="enregistrement()" (click)="validerDep()">✅ Enregistrer la dépense</button>
+                <button type="button" class="btn-p" appDroitAction="OP_DEPENSE" [disabled]="enregistrement()" (click)="validerDep()">✅ Enregistrer la dépense</button>
               </div>
             </div>
           </div>
@@ -448,9 +448,9 @@
               <div class="form-actions">
                 <button type="button" class="btn-s" (click)="annulerBk()">Annuler</button>
                 @if (bkType() === 'vers') {
-                  <button type="button" class="btn-bl" [disabled]="enregistrement()" (click)="validerBk()">✅ Confirmer le versement</button>
+                  <button type="button" class="btn-bl" appDroitAction="OP_BANQUE" [disabled]="enregistrement()" (click)="validerBk()">✅ Confirmer le versement</button>
                 } @else {
-                  <button type="button" class="btn-p" [disabled]="enregistrement()" (click)="validerBk()">✅ Confirmer le retrait</button>
+                  <button type="button" class="btn-p" appDroitAction="OP_BANQUE" [disabled]="enregistrement()" (click)="validerBk()">✅ Confirmer le retrait</button>
                 }
               </div>
             </div>

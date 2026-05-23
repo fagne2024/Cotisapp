@@ -26,6 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -50,6 +51,7 @@ public class UtilisateurAccesService {
     private final MembreCompteAccesService membreCompteAccesService;
     private final PresenceService presenceService;
     private final JournalAuditRepository journalAuditRepository;
+    private final JournalService journalService;
 
     @Transactional(readOnly = true)
     public UtilisateurAccesStatsResponse statistiques(Long organisationId) {
@@ -116,6 +118,10 @@ public class UtilisateurAccesService {
                     .findFirstByUtilisateurIdAndRoleAndOrganisationIdOrderByIdAsc(
                             membre.getUtilisateurId(), Role.MEMBRE, organisationId)
                     .orElseThrow(() -> new BusinessException("Compte membre créé mais rôle introuvable"));
+            Utilisateur u = utilisateurRepository.findById(membre.getUtilisateurId()).orElse(null);
+            if (u != null) {
+                journaliserCreationCompte(organisationId, u, Role.MEMBRE, membre.getCodeMembre(), membre.getPoste());
+            }
             return toResponse(ur, organisationId);
         }
 
@@ -163,6 +169,7 @@ public class UtilisateurAccesService {
                 .typeProfilId(typeProfilId)
                 .build());
 
+        journaliserCreationCompte(organisationId, user, Role.ADMIN_GIE, null, null);
         return toResponse(ur, organisationId);
     }
 
@@ -184,6 +191,12 @@ public class UtilisateurAccesService {
         Utilisateur user = utilisateurRepository.findById(userId)
                 .orElseThrow(() -> new BusinessException("Administrateur GIE introuvable"));
 
+        String prenomAvant = user.getPrenom();
+        String nomAvant = user.getNom();
+        String emailAvant = user.getEmail();
+        Boolean actifAvant = user.getActif();
+        boolean mdpChange = request.getMotDePasse() != null && !request.getMotDePasse().isBlank();
+
         String email = request.getEmail().trim().toLowerCase();
         utilisateurRepository.findByEmail(email).ifPresent(other -> {
             if (!other.getId().equals(userId)) {
@@ -202,6 +215,24 @@ public class UtilisateurAccesService {
             user.setDoitChangerMotDePasse(Boolean.TRUE.equals(request.getForcerChangementMotDePasse()));
         }
         utilisateurRepository.save(user);
+
+        List<String> changements = new ArrayList<>();
+        JournalModificationFormatter.ajouterSiChange(changements, "Prénom", prenomAvant, user.getPrenom());
+        JournalModificationFormatter.ajouterSiChange(changements, "Nom", nomAvant, user.getNom());
+        JournalModificationFormatter.ajouterSiChange(changements, "E-mail", emailAvant, user.getEmail());
+        JournalModificationFormatter.ajouterSiChange(changements, "Statut compte", actifAvant, user.getActif());
+        if (mdpChange) {
+            changements.add("Mot de passe : réinitialisé"
+                    + (Boolean.TRUE.equals(request.getForcerChangementMotDePasse())
+                            ? " (changement obligatoire à la prochaine connexion)"
+                            : ""));
+        }
+        String cible = JournalModificationFormatter.cibleUtilisateur(
+                user.getPrenom(), user.getNom(), user.getEmail(), user.getId());
+        journalService.enregistrer(
+                organisationId,
+                "UTILISATEUR_MAJ",
+                JournalModificationFormatter.resumeModifications("Admin GIE " + cible, changements));
 
         return toResponse(existingRole.get(), organisationId);
     }
@@ -225,6 +256,17 @@ public class UtilisateurAccesService {
         user.setDoitChangerMotDePasse(Boolean.TRUE.equals(request.getForcerChangement()));
         utilisateurRepository.save(user);
 
+        String cible = JournalModificationFormatter.cibleUtilisateur(
+                user.getPrenom(), user.getNom(), user.getEmail(), user.getId());
+        journalService.enregistrer(
+                organisationId,
+                "MOT_DE_PASSE_MAJ",
+                "Mot de passe réinitialisé pour l'admin GIE "
+                        + cible
+                        + (Boolean.TRUE.equals(request.getForcerChangement())
+                                ? " — changement obligatoire à la prochaine connexion"
+                                : ""));
+
         return toResponse(adminRole, organisationId);
     }
 
@@ -241,6 +283,13 @@ public class UtilisateurAccesService {
         user.setTotpSecret(null);
         user.setTotpEnabled(false);
         utilisateurRepository.save(user);
+
+        String cible = JournalModificationFormatter.cibleUtilisateur(
+                user.getPrenom(), user.getNom(), user.getEmail(), user.getId());
+        journalService.enregistrer(
+                organisationId,
+                "2FA_DESACTIVE",
+                "Double authentification désactivée pour l'admin GIE " + cible);
 
         return toResponse(adminRole, organisationId);
     }
@@ -259,12 +308,26 @@ public class UtilisateurAccesService {
     @Transactional
     public UtilisateurOrgResponse basculerActif(Long organisationId, Long utilisateurId, boolean actif) {
         Utilisateur user = chargerUtilisateurOrg(organisationId, utilisateurId);
+        Boolean actifAvant = user.getActif();
         user.setActif(actif);
         utilisateurRepository.save(user);
         UtilisateurRole ur = utilisateurRoleRepository.findByUtilisateurId(user.getId()).stream()
                 .filter(r -> Objects.equals(r.getOrganisationId(), organisationId))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException("Rôle introuvable"));
+        String cible = JournalModificationFormatter.cibleUtilisateur(
+                user.getPrenom(), user.getNom(), user.getEmail(), user.getId());
+        List<String> changements = new ArrayList<>();
+        JournalModificationFormatter.ajouterSiChange(
+                changements,
+                "Statut compte",
+                JournalModificationFormatter.libelleActif(actifAvant),
+                JournalModificationFormatter.libelleActif(actif));
+        journalService.enregistrer(
+                organisationId,
+                "UTILISATEUR_MAJ",
+                JournalModificationFormatter.resumeModifications(
+                        JournalModificationFormatter.libelleRole(ur.getRole()) + " " + cible, changements));
         return toResponse(ur, organisationId);
     }
 
@@ -300,7 +363,31 @@ public class UtilisateurAccesService {
             activationEmailService.envoyerMotDePasseMembre(
                     user.getEmail(), user.getPrenom(), ActivationEmailService.MDP_MEMBRE_INITIAL);
         }
+        journaliserCreationCompte(organisationId, user, Role.MEMBRE, null, poste);
         return toResponse(ur, organisationId);
+    }
+
+    private void journaliserCreationCompte(
+            Long organisationId,
+            Utilisateur user,
+            Role role,
+            String codeMembre,
+            PosteMembre poste) {
+        String cible = JournalModificationFormatter.cibleUtilisateur(
+                user.getPrenom(), user.getNom(), user.getEmail(), user.getId());
+        List<String> attrs = new ArrayList<>();
+        attrs.add("rôle " + JournalModificationFormatter.libelleRole(role));
+        if (codeMembre != null) {
+            attrs.add("lié au membre " + codeMembre);
+        }
+        if (poste != null) {
+            attrs.add("poste " + JournalModificationFormatter.libellePoste(poste));
+        }
+        attrs.add("statut " + JournalModificationFormatter.libelleActif(user.getActif()));
+        journalService.enregistrer(
+                organisationId,
+                "UTILISATEUR_CREATION",
+                JournalModificationFormatter.resumeCreation(cible, attrs.toArray(String[]::new)));
     }
 
     private Long resoudreTypeProfilBureau(Long organisationId, Long typeProfilId, PosteMembre poste) {

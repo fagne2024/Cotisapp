@@ -17,6 +17,7 @@ import { postePourMembre } from './membres-poste.util';
 import { membreDemoSiApiAbsente } from './membres-demo.util';
 import { MembreSoldeMembreDto } from '../../core/services/membre.service';
 import { MembreRecapJourneeComponent } from './membre-recap-journee.component';
+import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 import { MonCompteOperationsComponent } from './mon-compte-operations.component';
 import { downloadCsv } from '../../shared/util/csv-download.util';
 import {
@@ -43,7 +44,7 @@ const AV_COLORS = ['#7c3aed', '#1e6fa8', '#1a5c3a', '#c9922a', '#c0392b', '#2d7a
 @Component({
   selector: 'app-membre-fiche',
   standalone: true,
-  imports: [RouterLink, MembreRecapJourneeComponent, MonCompteOperationsComponent],
+  imports: [RouterLink, MembreRecapJourneeComponent, MonCompteOperationsComponent, ...DROIT_ACTION_IMPORTS],
   templateUrl: './membre-fiche.component.html',
   styleUrl: './membre-fiche.component.scss',
 })

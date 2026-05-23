@@ -35,4 +35,7 @@ public class UpdateMembreRequest {
 
     @NotNull
     private Boolean actif;
+
+    /** Réservé à l'admin GIE : autorise cotisations / remboursements mobile money depuis « Mon compte ». */
+    private Boolean paiementMobileActif;
 }

@@ -40,6 +40,8 @@ export class NavService {
           route: `${base}/operations/remboursements`,
           icon: 'ti-receipt-refund',
         },
+        { label: 'Pénalité', route: `${base}/operations/penalite-amende`, icon: 'ti-alert-triangle' },
+        { label: 'Amende', route: `${base}/operations/penalite-amende`, icon: 'ti-ban' },
         { label: 'Trésorerie', route: `${base}/gestion/tresorerie`, icon: 'ti-cash' },
         { label: 'Accès & Rôles', route: `${base}/gestion/utilisateurs`, icon: 'ti-lock' },
         { label: 'Paramétrage', route: `${base}/parametrage/regles`, icon: 'ti-settings' },
@@ -48,6 +50,7 @@ export class NavService {
     if (role === 'MEMBRE' && orgId) {
       const base = `/organisations/${orgId}`;
       return [
+        { label: 'Tableau de bord', route: `${base}/dashboard`, icon: 'ti-layout-dashboard' },
         { label: 'Mon compte', route: `${base}/mon-compte`, icon: 'ti-user' },
         { label: 'Mes emprunts', route: `${base}/operations/emprunts/suivi`, icon: 'ti-cash-banknote' },
         { label: 'Mon rapport', route: `${base}/mon-compte/rapport`, icon: 'ti-report-analytics' },

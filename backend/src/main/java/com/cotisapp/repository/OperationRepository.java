@@ -126,6 +126,18 @@ public interface OperationRepository extends JpaRepository<Operation, Long> {
             @Param("moisAnnee") String moisAnnee);
 
     @Query("""
+            SELECT o FROM Operation o
+            WHERE o.organisationId = :orgId
+              AND o.typeOperation = com.cotisapp.domain.enums.TypeOperation.COTISATION_MOIS
+              AND o.moisAnnee = :moisAnnee
+              AND o.annulee = false
+              AND o.operationOrigineId IS NULL
+            ORDER BY o.dateOperation DESC, o.dateCreation DESC
+            """)
+    List<Operation> findCotisationsMoisPourMois(
+            @Param("orgId") Long orgId, @Param("moisAnnee") String moisAnnee);
+
+    @Query("""
             SELECT CASE WHEN COUNT(o) > 0 THEN true ELSE false END
             FROM Operation o
             JOIN Emprunt e ON e.id = o.empruntId

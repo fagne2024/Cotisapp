@@ -11,7 +11,7 @@
       <button type="button" class="btn-s" (click)="reinitialiser()" [disabled]="loading() || saving()">
         Annuler les modifications
       </button>
-      <button type="button" class="btn-p" (click)="enregistrer()" [disabled]="loading() || saving()">
+      <button type="button" class="btn-p" appDroitAction="PARAM_REGLES" (click)="enregistrer()" [disabled]="loading() || saving()">
         @if (saving()) {
           Enregistrement…
         } @else {

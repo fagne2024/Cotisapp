@@ -29,8 +29,6 @@ public class RapportService {
 
     private static final Pattern CAT_PATTERN =
             Pattern.compile("^\\[cat:([a-z_]+)]\\s*(.*)$", Pattern.CASE_INSENSITIVE);
-    private static final Pattern SEMAINE_PATTERN = Pattern.compile("^\\[([^\\]]+)]");
-    private static final int SEMAINES_ATTENDUES = 4;
     private static final List<String> AV_COLORS = List.of(
             "var(--g2)", "var(--g1)", "var(--re)", "var(--bl)", "#7c3aed", "#0d9488");
 
@@ -52,45 +50,62 @@ public class RapportService {
     private final SuiviMensuelRepository suiviMensuelRepository;
     private final RegleOperationRepository regleOperationRepository;
     private final UtilisateurRepository utilisateurRepository;
+    private final ExerciceService exerciceService;
+    private final JourneeReunionRepository journeeReunionRepository;
 
     @Transactional(readOnly = true)
     public RapportResponse generer(Long orgId, String periodeParam) {
         organisationRepository.findById(orgId).orElseThrow(() -> new BusinessException("Organisation introuvable"));
 
         PeriodeScope periode = resoudrePeriode(periodeParam);
+        LocalDate today = LocalDate.now();
         List<Membre> membresActifs = membreRepository.findByOrganisationIdAndActifTrue(orgId);
         long bureau = membresActifs.stream().filter(m -> m.getPoste() != PosteMembre.SIMPLE).count();
 
-        List<Operation> opsPeriode = operationRepository
-                .findByOrganisationIdAndTypeOperationInAndDateOperationBetweenOrderByDateOperationDescDateCreationDesc(
-                        orgId,
-                        List.of(
-                                TypeOperation.COTISATION,
-                                TypeOperation.COTISATION_MOIS,
-                                TypeOperation.DEPENSE,
-                                TypeOperation.PENALITE,
-                                TypeOperation.AMENDE,
-                                TypeOperation.REMBOURSEMENT,
-                                TypeOperation.EMPRUNT),
-                        periode.debut(),
-                        periode.fin());
+        List<Operation> opsPeriode = new ArrayList<>(
+                operationRepository
+                        .findByOrganisationIdAndTypeOperationInAndDateOperationBetweenOrderByDateOperationDescDateCreationDesc(
+                                orgId,
+                                List.of(
+                                        TypeOperation.COTISATION,
+                                        TypeOperation.COTISATION_MOIS,
+                                        TypeOperation.DEPENSE,
+                                        TypeOperation.PENALITE,
+                                        TypeOperation.AMENDE,
+                                        TypeOperation.REMBOURSEMENT,
+                                        TypeOperation.EMPRUNT),
+                                periode.debut(),
+                                periode.fin())
+                        .stream()
+                        .filter(RapportDonneesHelper::operationComptable)
+                        .toList());
+        opsPeriode = enrichirOpsCotisationMois(orgId, periode.moisAnnee(), opsPeriode);
+        opsPeriode.forEach(o -> o.getMouvements().size());
 
-        Map<Long, List<Operation>> opsParMembre = opsPeriode.stream()
-                .filter(o -> o.getMembreId() != null)
-                .collect(Collectors.groupingBy(Operation::getMembreId));
+        Long exerciceId = exerciceService.requireExerciceCourantId(orgId);
+        LocalDate finEffective = periode.fin().isBefore(today) ? periode.fin() : today;
+        int nbPlanads = finEffective.isBefore(periode.debut())
+                ? 0
+                : (int) journeeReunionRepository.countByExerciceIdAndDateReunionBetween(
+                        exerciceId, periode.debut(), finEffective);
+        int semainesAttendues = RapportDonneesHelper.compterSemainesAttendues(
+                periode.debut(), periode.fin(), today, nbPlanads);
+
+        Map<Long, List<Operation>> opsParMembre = grouperOpsParMembre(opsPeriode);
 
         BigDecimal montantHebdo = montantRegle(orgId, TypeOperation.COTISATION);
+        BigDecimal montantMoisRegle = montantRegle(orgId, TypeOperation.COTISATION_MOIS);
         BigDecimal totalCotisations = sommeTypes(
                 opsPeriode, TypeOperation.COTISATION, TypeOperation.COTISATION_MOIS);
 
         List<SuiviMensuel> suivisMois = periode.moisAnnee() != null
-                ? suiviMensuelRepository.findByOrganisationIdAndMoisAnnee(orgId, periode.moisAnnee())
+                ? suiviMensuelRepository.findByOrganisationIdAndExerciceIdAndMoisAnnee(
+                        orgId, exerciceId, periode.moisAnnee())
                 : List.of();
         Map<Long, SuiviMensuel> suiviParMembre = suivisMois.stream()
                 .collect(Collectors.toMap(SuiviMensuel::getMembreId, s -> s, (a, b) -> a));
 
         List<Emprunt> emprunts = empruntRepository.findByOrganisationId(orgId);
-        LocalDate today = LocalDate.now();
 
         Map<Long, String> nomsUtilisateurs = chargerNomsUtilisateurs(opsPeriode);
 
@@ -101,11 +116,24 @@ public class RapportService {
                 .nbMembresBureau((int) bureau)
                 .periodesDisponibles(construirePeriodesDisponibles(orgId))
                 .heroStats(construireHero(orgId, opsPeriode, emprunts, today, totalCotisations))
-                .cotisationsParSemaine(construireGraphiqueHebdo(opsPeriode, montantHebdo))
-                .participation(construireParticipation(membresActifs, opsParMembre, suiviParMembre))
+                .cotisationsParSemaine(construireGraphiqueHebdo(
+                        opsPeriode, montantHebdo, membresActifs.size()))
+                .participation(construireParticipation(
+                        membresActifs,
+                        opsParMembre,
+                        suiviParMembre,
+                        semainesAttendues,
+                        periode.moisAnnee(),
+                        montantMoisRegle))
                 .totalCotisations(totalCotisations)
                 .cotisationsMembres(construireCotisationsMembres(
-                        membresActifs, opsParMembre, suiviParMembre, montantHebdo))
+                        membresActifs,
+                        opsParMembre,
+                        suiviParMembre,
+                        montantHebdo,
+                        semainesAttendues,
+                        periode.moisAnnee(),
+                        montantMoisRegle))
                 .emprunts(construireEmpruntsCards(emprunts, membresActifs, today))
                 .empruntsSynthese(construireSyntheseEmprunts(emprunts, opsPeriode, today))
                 .membresFinancier(construireMembresFinancier(membresActifs, emprunts, today))
@@ -189,16 +217,15 @@ public class RapportService {
     }
 
     private List<RapportBarChartItemResponse> construireGraphiqueHebdo(
-            List<Operation> ops, BigDecimal montantHebdo) {
-        Map<String, BigDecimal> parSemaine = new LinkedHashMap<>();
+            List<Operation> ops, BigDecimal montantHebdo, int nbMembresActifs) {
+        Map<String, BigDecimal> parSemaine = new TreeMap<>();
         for (Operation op : ops) {
             if (op.getTypeOperation() != TypeOperation.COTISATION) {
                 continue;
             }
-            String cle = extraireSemaine(op.getObservation());
+            String cle = RapportDonneesHelper.cleSemaineCotisation(op);
             if (cle == null) {
-                int w = op.getDateOperation().get(WeekFields.ISO.weekOfWeekBasedYear());
-                cle = "S" + w;
+                continue;
             }
             parSemaine.merge(cle, op.getMontant(), BigDecimal::add);
         }
@@ -206,7 +233,7 @@ public class RapportService {
             return List.of();
         }
         BigDecimal max = parSemaine.values().stream().max(BigDecimal::compareTo).orElse(BigDecimal.ONE);
-        BigDecimal cible = montantHebdo.multiply(BigDecimal.valueOf(membresEstimes(ops)));
+        BigDecimal cible = montantHebdo.multiply(BigDecimal.valueOf(Math.max(nbMembresActifs, 1)));
         if (cible.compareTo(BigDecimal.ZERO) <= 0) {
             cible = max;
         }
@@ -221,7 +248,7 @@ public class RapportService {
                             : 0;
                     boolean sousCible = e.getValue().compareTo(cibleFinale) < 0;
                     return RapportBarChartItemResponse.builder()
-                            .label(e.getKey())
+                            .label(RapportDonneesHelper.libelleSemaineGraphique(e.getKey()))
                             .valeurLabel(formatCourt(e.getValue()))
                             .heightPct(Math.max(8, hauteur))
                             .belowTarget(sousCible)
@@ -230,50 +257,57 @@ public class RapportService {
                 .toList();
     }
 
-    private int membresEstimes(List<Operation> ops) {
-        return (int) ops.stream()
-                .filter(o -> o.getTypeOperation() == TypeOperation.COTISATION)
-                .map(Operation::getMembreId)
-                .filter(Objects::nonNull)
-                .distinct()
-                .count();
-    }
-
     private RapportParticipationResponse construireParticipation(
             List<Membre> membres,
             Map<Long, List<Operation>> opsParMembre,
-            Map<Long, SuiviMensuel> suiviParMembre) {
+            Map<Long, SuiviMensuel> suiviParMembre,
+            int semainesAttendues,
+            String moisAnnee,
+            BigDecimal montantMoisRegle) {
         int total = membres.size();
         int aJour = 0;
         int hebdoOk = 0;
         int moisOk = 0;
+        int moisTotal = 0;
         int bureauOk = 0;
         int bureauTotal = 0;
+        int semainesRef = Math.max(semainesAttendues, 1);
+        int sommePctMembres = 0;
 
         for (Membre m : membres) {
             List<Operation> ops = opsParMembre.getOrDefault(m.getId(), List.of());
-            long nbHebdo = ops.stream().filter(o -> o.getTypeOperation() == TypeOperation.COTISATION).count();
+            long nbSemainesPayees = RapportDonneesHelper.compterSemainesHebdoPayees(ops);
             SuiviMensuel suivi = suiviParMembre.get(m.getId());
-            boolean moisPaye = suivi != null && suivi.getStatut() == StatutSuiviMensuel.PAYE;
-            boolean hebdoComplet = nbHebdo >= SEMAINES_ATTENDUES;
+            boolean contribueHebdo = nbSemainesPayees > 0;
+            boolean mensuelDu = RapportDonneesHelper.cotisationMensuelleDue(suivi, montantMoisRegle);
+            boolean moisAJour = RapportDonneesHelper.membreMoisAJour(suivi, ops, moisAnnee, montantMoisRegle);
+
+            sommePctMembres += RapportDonneesHelper.pctParticipationMoyenne(
+                    nbSemainesPayees, semainesRef, suivi, ops, moisAnnee, montantMoisRegle);
+
             if (m.getPoste() != PosteMembre.SIMPLE) {
                 bureauTotal++;
-                if (hebdoComplet && (suivi == null || moisPaye || suivi.getMontantDu().compareTo(BigDecimal.ZERO) == 0)) {
+                if (RapportDonneesHelper.membreAJour(
+                        nbSemainesPayees, semainesRef, suivi, ops, moisAnnee, montantMoisRegle)) {
                     bureauOk++;
                 }
             }
-            if (hebdoComplet) {
+            if (contribueHebdo) {
                 hebdoOk++;
             }
-            if (moisPaye) {
-                moisOk++;
+            if (mensuelDu) {
+                moisTotal++;
+                if (moisAJour) {
+                    moisOk++;
+                }
             }
-            if (hebdoComplet && (suivi == null || moisPaye || suivi.getStatut() != StatutSuiviMensuel.NON_PAYE)) {
+            if (RapportDonneesHelper.membreAJour(
+                    nbSemainesPayees, semainesRef, suivi, ops, moisAnnee, montantMoisRegle)) {
                 aJour++;
             }
         }
 
-        int pct = total > 0 ? Math.round(100f * aJour / total) : 0;
+        int pct = total > 0 ? Math.round((float) sommePctMembres / total) : 0;
         return RapportParticipationResponse.builder()
                 .pctGlobal(pct)
                 .membresAJour(aJour)
@@ -281,43 +315,81 @@ public class RapportService {
                 .hebdoPayes(hebdoOk)
                 .hebdoTotal(total)
                 .moisPayes(moisOk)
-                .moisTotal(total)
+                .moisTotal(moisTotal > 0 ? moisTotal : total)
                 .bureauPayes(bureauOk)
                 .bureauTotal(bureauTotal)
                 .build();
+    }
+
+    private List<Operation> enrichirOpsCotisationMois(
+            Long orgId, String moisAnnee, List<Operation> opsPeriode) {
+        if (moisAnnee == null || moisAnnee.isBlank()) {
+            return opsPeriode;
+        }
+        Map<Long, Operation> parId = new LinkedHashMap<>();
+        for (Operation o : opsPeriode) {
+            parId.put(o.getId(), o);
+        }
+        for (Operation o : operationRepository.findCotisationsMoisPourMois(orgId, moisAnnee)) {
+            if (RapportDonneesHelper.operationComptable(o)) {
+                parId.putIfAbsent(o.getId(), o);
+            }
+        }
+        return new ArrayList<>(parId.values());
+    }
+
+    private Map<Long, List<Operation>> grouperOpsParMembre(List<Operation> ops) {
+        Set<Long> compteIds = ops.stream()
+                .flatMap(o -> o.getMouvements().stream())
+                .map(MouvementCompte::getCompteId)
+                .filter(Objects::nonNull)
+                .collect(Collectors.toSet());
+        Map<Long, Compte> comptes = compteIds.isEmpty()
+                ? Map.of()
+                : compteRepository.findAllById(compteIds).stream()
+                        .collect(Collectors.toMap(Compte::getId, c -> c));
+
+        Map<Long, List<Operation>> parMembre = new HashMap<>();
+        for (Operation op : ops) {
+            Long membreId = RapportDonneesHelper.resoudreMembreId(op, comptes);
+            if (membreId != null) {
+                parMembre.computeIfAbsent(membreId, k -> new ArrayList<>()).add(op);
+            }
+        }
+        return parMembre;
     }
 
     private List<RapportCotisationMembreResponse> construireCotisationsMembres(
             List<Membre> membres,
             Map<Long, List<Operation>> opsParMembre,
             Map<Long, SuiviMensuel> suiviParMembre,
-            BigDecimal montantHebdo) {
+            BigDecimal montantHebdo,
+            int semainesAttendues,
+            String moisAnnee,
+            BigDecimal montantMoisRegle) {
+        int semainesRef = Math.max(semainesAttendues, 1);
         return membres.stream()
                 .sorted(Comparator.comparing(Membre::getPoste).thenComparing(Membre::getNomComplet,
                         String.CASE_INSENSITIVE_ORDER))
                 .map(m -> {
                     List<Operation> ops = opsParMembre.getOrDefault(m.getId(), List.of());
-                    long nbHebdo = ops.stream()
-                            .filter(o -> o.getTypeOperation() == TypeOperation.COTISATION)
-                            .count();
+                    long nbSemainesPayees = RapportDonneesHelper.compterSemainesHebdoPayees(ops);
                     BigDecimal totalHebdo = ops.stream()
                             .filter(o -> o.getTypeOperation() == TypeOperation.COTISATION)
                             .map(Operation::getMontant)
                             .reduce(BigDecimal.ZERO, BigDecimal::add);
-                    BigDecimal totalMois = ops.stream()
-                            .filter(o -> o.getTypeOperation() == TypeOperation.COTISATION_MOIS)
-                            .map(Operation::getMontant)
-                            .reduce(BigDecimal.ZERO, BigDecimal::add);
                     SuiviMensuel suivi = suiviParMembre.get(m.getId());
+                    BigDecimal payeMois = RapportDonneesHelper.montantMoisPaye(suivi, ops, moisAnnee);
+                    BigDecimal duMois = RapportDonneesHelper.montantMoisDu(suivi, montantMoisRegle);
 
-                    String hebdo = nbHebdo > 0
-                            ? nbHebdo + " × " + formatFcfa(montantHebdo)
+                    String hebdo = nbSemainesPayees > 0
+                            ? nbSemainesPayees + "/" + semainesRef + " PLANAD · " + formatFcfa(totalHebdo)
                             : "—";
                     String mois;
-                    if (suivi != null && suivi.getMontantDu().compareTo(BigDecimal.ZERO) > 0) {
-                        mois = formatFcfa(suivi.getMontantPaye()) + " / " + formatFcfa(suivi.getMontantDu());
-                    } else if (totalMois.compareTo(BigDecimal.ZERO) > 0) {
-                        mois = formatFcfa(totalMois);
+                    if (RapportDonneesHelper.cotisationMensuelleDue(suivi, montantMoisRegle)) {
+                        mois = formatFcfa(payeMois) + " / " + formatFcfa(duMois);
+                    } else if (payeMois.compareTo(BigDecimal.ZERO) > 0) {
+                        mois = formatFcfa(payeMois);
                     } else {
                         mois = "—";
                     }
@@ -330,16 +402,14 @@ public class RapportService {
                             ? formatFcfa(soldeMembre(m.getId(), TypeCompte.SOLIDARITE))
                             : "—";
 
-                    BigDecimal total = totalHebdo.add(totalMois);
+                    BigDecimal total = totalHebdo.add(payeMois);
                     String statut;
                     String statutLabel;
-                    if (nbHebdo >= SEMAINES_ATTENDUES
-                            && (suivi == null
-                                    || suivi.getStatut() == StatutSuiviMensuel.PAYE
-                                    || suivi.getMontantDu().compareTo(BigDecimal.ZERO) == 0)) {
+                    if (RapportDonneesHelper.membreAJour(
+                            nbSemainesPayees, semainesRef, suivi, ops, moisAnnee, montantMoisRegle)) {
                         statut = "complet";
                         statutLabel = "✓ Complet";
-                    } else if (nbHebdo > 0
+                    } else if (nbSemainesPayees > 0
                             || total.compareTo(BigDecimal.ZERO) > 0
                             || (suivi != null && suivi.getStatut() == StatutSuiviMensuel.PARTIEL)) {
                         statut = "partiel";
@@ -624,14 +694,6 @@ public class RapportService {
             }
         }
         return false;
-    }
-
-    private String extraireSemaine(String observation) {
-        if (observation == null) {
-            return null;
-        }
-        Matcher m = SEMAINE_PATTERN.matcher(observation.trim());
-        return m.find() ? m.group(1) : null;
     }
 
     private ParsedDep parseDepense(String observation) {

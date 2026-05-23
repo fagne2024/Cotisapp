@@ -17,6 +17,7 @@ import {
 import { NotificationService } from '../../core/services/notification.service';
 
 import { formatFcfa } from '../../core/utils/currency.util';
+import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 
 import { downloadCsv } from '../../shared/util/csv-download.util';
 
@@ -64,7 +65,7 @@ import {
 
   standalone: true,
 
-  imports: [ListPaginationComponent],
+  imports: [ListPaginationComponent, ...DROIT_ACTION_IMPORTS],
 
   templateUrl: './recap-journee.component.html',
 

@@ -1,6 +1,7 @@
 package com.cotisapp.service;
 
 import com.cotisapp.domain.catalogue.ActionDroitCatalogue;
+import com.cotisapp.domain.catalogue.ModuleMenuCatalogue;
 import com.cotisapp.domain.enums.NiveauDroit;
 import com.cotisapp.domain.enums.Role;
 import com.cotisapp.dto.response.MesDroitsResponse;
@@ -28,9 +29,11 @@ public class MesDroitsService {
             boolean ok = orgSecurityService.peutActionOrg(orgId, code);
             actions.put(code, ok ? (role == Role.MEMBRE ? NiveauDroit.LIM : NiveauDroit.LIM) : NiveauDroit.NO);
         }
+        boolean peutGestion = orgSecurityService.peutGestionOrg(orgId);
         return MesDroitsResponse.builder()
-                .peutGestion(orgSecurityService.peutGestionOrg(orgId))
+                .peutGestion(peutGestion)
                 .actions(actions)
+                .modules(ModuleMenuCatalogue.calculerModules(actions))
                 .build();
     }
 }

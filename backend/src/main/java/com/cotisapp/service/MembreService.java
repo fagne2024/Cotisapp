@@ -3,7 +3,10 @@ package com.cotisapp.service;
 import com.cotisapp.domain.entity.CompteModeleMembre;
 import com.cotisapp.domain.entity.Membre;
 import com.cotisapp.domain.enums.FamilleCompte;
+import com.cotisapp.domain.enums.PosteMembre;
+import com.cotisapp.domain.enums.Role;
 import com.cotisapp.domain.enums.TypeCompte;
+import com.cotisapp.security.OrganisationContext;
 import com.cotisapp.dto.request.ComptesMembreSelection;
 import com.cotisapp.domain.entity.Utilisateur;
 import com.cotisapp.dto.request.CreateMembreRequest;
@@ -19,6 +22,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -37,6 +41,7 @@ public class MembreService {
     private final MembreCompteAccesService membreCompteAccesService;
     private final MembreSuppressionService membreSuppressionService;
     private final UtilisateurRepository utilisateurRepository;
+    private final JournalService journalService;
 
     @Transactional
     public MembreResponse creer(Long organisationId, CreateMembreRequest request) {
@@ -52,6 +57,7 @@ public class MembreService {
                 .dateAdhesion(request.getDateAdhesion() != null ? request.getDateAdhesion() : LocalDate.now())
                 .pieceIdentite(blankToNull(request.getPieceIdentite()))
                 .actif(true)
+                .paiementMobileActif(resoudrePaiementMobileActif(request.getPaiementMobileActif()))
                 .build();
         appliquerTelephoneNormalise(membre);
         membre = membreRepository.save(membre);
@@ -81,6 +87,19 @@ public class MembreService {
             membre = membreRepository.findById(membre.getId()).orElse(membre);
         }
 
+        String cible = JournalModificationFormatter.cibleMembre(
+                membre.getCodeMembre(), membre.getPrenom(), membre.getNom(), membre.getId());
+        journalService.enregistrer(
+                organisationId,
+                "MEMBRE_CREATION",
+                JournalModificationFormatter.resumeCreation(
+                        cible,
+                        "poste " + JournalModificationFormatter.libellePoste(membre.getPoste()),
+                        membre.getTelephone() != null ? "tél. " + membre.getTelephone() : null,
+                        Boolean.FALSE.equals(request.getCreerCompteAcces())
+                                ? "sans compte applicatif"
+                                : "avec compte applicatif"));
+
         return toResponse(membre);
     }
 
@@ -90,6 +109,16 @@ public class MembreService {
                 .findByIdAndOrganisationId(membreId, organisationId)
                 .orElseThrow(() -> new BusinessException("Membre introuvable"));
 
+        String prenomAvant = membre.getPrenom();
+        String nomAvant = membre.getNom();
+        String emailAvant = membre.getEmail();
+        String telAvant = membre.getTelephone();
+        PosteMembre posteAvant = membre.getPoste();
+        LocalDate adhesionAvant = membre.getDateAdhesion();
+        String pieceAvant = membre.getPieceIdentite();
+        Boolean actifAvant = membre.getActif();
+        Boolean paiementMobileAvant = membre.getPaiementMobileActif();
+
         membre.setPrenom(request.getPrenom().trim());
         membre.setNom(request.getNom().trim());
         membre.setEmail(blankToNull(request.getEmail()));
@@ -98,6 +127,9 @@ public class MembreService {
         membre.setDateAdhesion(request.getDateAdhesion());
         membre.setPieceIdentite(blankToNull(request.getPieceIdentite()));
         membre.setActif(request.getActif());
+        if (request.getPaiementMobileActif() != null && peutConfigurerPaiementMobile()) {
+            membre.setPaiementMobileActif(request.getPaiementMobileActif());
+        }
         appliquerTelephoneNormalise(membre);
 
         if (membre.getUtilisateurId() != null && membre.getTelephoneNormalise() == null) {
@@ -106,6 +138,29 @@ public class MembreService {
 
         membre = membreRepository.save(membre);
         synchroniserUtilisateurLie(membre);
+
+        List<String> changements = new ArrayList<>();
+        JournalModificationFormatter.ajouterSiChange(changements, "Prénom", prenomAvant, membre.getPrenom());
+        JournalModificationFormatter.ajouterSiChange(changements, "Nom", nomAvant, membre.getNom());
+        JournalModificationFormatter.ajouterSiChange(changements, "E-mail", emailAvant, membre.getEmail());
+        JournalModificationFormatter.ajouterSiChange(changements, "Téléphone", telAvant, membre.getTelephone());
+        JournalModificationFormatter.ajouterSiChange(changements, "Poste", posteAvant, membre.getPoste());
+        JournalModificationFormatter.ajouterSiChange(
+                changements, "Date d'adhésion", adhesionAvant, membre.getDateAdhesion());
+        JournalModificationFormatter.ajouterSiChange(changements, "Pièce d'identité", pieceAvant, membre.getPieceIdentite());
+        JournalModificationFormatter.ajouterSiChange(changements, "Statut", actifAvant, membre.getActif());
+        if (peutConfigurerPaiementMobile()) {
+            JournalModificationFormatter.ajouterSiChange(
+                    changements,
+                    "Paiement mobile money (Mon compte)",
+                    libellePaiementMobile(paiementMobileAvant),
+                    libellePaiementMobile(membre.getPaiementMobileActif()));
+        }
+        String cible = JournalModificationFormatter.cibleMembre(
+                membre.getCodeMembre(), membre.getPrenom(), membre.getNom(), membre.getId());
+        journalService.enregistrer(
+                organisationId, "MEMBRE_MAJ", JournalModificationFormatter.resumeModifications(cible, changements));
+
         return toResponse(membre);
     }
 
@@ -139,6 +194,60 @@ public class MembreService {
     @Transactional
     public void supprimer(Long organisationId, Long membreId) {
         membreSuppressionService.supprimer(organisationId, membreId);
+    }
+
+    @Transactional
+    public com.cotisapp.dto.response.BulkPaiementMobileMembreResponse mettreAJourPaiementMobileEnMasse(
+            Long organisationId, List<Long> membreIds, boolean actif) {
+        if (!peutConfigurerPaiementMobile()) {
+            throw new BusinessException(
+                    "Seul l'administrateur GIE peut activer ou désactiver le paiement mobile money");
+        }
+        if (membreIds == null || membreIds.isEmpty()) {
+            throw new BusinessException("Aucun membre sélectionné");
+        }
+        int count = 0;
+        List<String> libelles = new ArrayList<>();
+        for (Long membreId : membreIds) {
+            Membre membre = membreRepository
+                    .findByIdAndOrganisationId(membreId, organisationId)
+                    .orElse(null);
+            if (membre == null) {
+                continue;
+            }
+            if (Boolean.TRUE.equals(membre.getPaiementMobileActif()) == actif) {
+                continue;
+            }
+            membre.setPaiementMobileActif(actif);
+            membreRepository.save(membre);
+            count++;
+            if (libelles.size() < 5) {
+                libelles.add(membre.getCodeMembre());
+            }
+        }
+        if (count > 0) {
+            String liste = String.join(", ", libelles);
+            if (count > libelles.size()) {
+                liste += "… (+" + (count - libelles.size()) + ")";
+            }
+            journalService.enregistrer(
+                    organisationId,
+                    "MEMBRE_MAJ",
+                    "Paiement mobile money (Mon compte) "
+                            + libellePaiementMobile(actif)
+                            + " pour "
+                            + count
+                            + " membre(s)"
+                            + (liste.isBlank() ? "" : " : " + liste));
+        }
+        String action = actif ? "activé" : "désactivé";
+        return com.cotisapp.dto.response.BulkPaiementMobileMembreResponse.builder()
+                .nombreMisAJour(count)
+                .actif(actif)
+                .message(count == 0
+                        ? "Aucune modification (déjà " + action + " pour la sélection)"
+                        : "Mobile money " + action + " pour " + count + " membre(s)")
+                .build();
     }
 
     private void creerComptesSelectionnes(
@@ -215,6 +324,7 @@ public class MembreService {
                 .dateCreation(m.getDateCreation())
                 .utilisateurId(m.getUtilisateurId())
                 .compteAcces(m.getUtilisateurId() != null)
+                .paiementMobileActif(Boolean.TRUE.equals(m.getPaiementMobileActif()))
                 .build();
     }
 
@@ -231,6 +341,22 @@ public class MembreService {
                 .limit(25)
                 .map(this::toResponse)
                 .toList();
+    }
+
+    private static boolean peutConfigurerPaiementMobile() {
+        Role role = OrganisationContext.getRole();
+        return role == Role.ADMIN_GIE || role == Role.SUPERADMIN;
+    }
+
+    private static boolean resoudrePaiementMobileActif(Boolean demande) {
+        if (!peutConfigurerPaiementMobile()) {
+            return false;
+        }
+        return Boolean.TRUE.equals(demande);
+    }
+
+    private static String libellePaiementMobile(Boolean actif) {
+        return Boolean.TRUE.equals(actif) ? "activé" : "désactivé";
     }
 
     private static String blankToNull(String s) {

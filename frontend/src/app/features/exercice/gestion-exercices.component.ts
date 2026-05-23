@@ -15,11 +15,12 @@ import { ListPaginationComponent } from '../../shared/components/list-pagination
 import { paginateSlice } from '../../shared/util/pagination.util';
 import { ClotureRepartitionPreviewComponent } from '../cloture/cloture-repartition-preview.component';
 import { libelleModeRepartition } from '../cloture/cloture-preview.util';
+import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 
 @Component({
   selector: 'app-gestion-exercices',
   standalone: true,
-  imports: [RouterLink, ListPaginationComponent, ClotureRepartitionPreviewComponent],
+  imports: [RouterLink, ListPaginationComponent, ClotureRepartitionPreviewComponent, ...DROIT_ACTION_IMPORTS],
   templateUrl: './gestion-exercices.component.html',
   styleUrl: './gestion-exercices.component.scss',
 })

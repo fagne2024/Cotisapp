@@ -35,7 +35,7 @@ public class AccorderEmpruntService {
 
     @Transactional
     public com.cotisapp.dto.response.EmpruntResponse accorder(Long orgId, AccorderEmpruntRequest request) {
-        membreRepository.findByIdAndOrganisationId(request.getMembreId(), orgId)
+        Membre membre = membreRepository.findByIdAndOrganisationId(request.getMembreId(), orgId)
                 .orElseThrow(() -> new BusinessException("Membre introuvable"));
 
         verifierPasDEmpruntEnCoursMemeType(orgId, request.getMembreId(), request.getTypeEmprunt());
@@ -142,8 +142,25 @@ public class AccorderEmpruntService {
         }
 
         operation.setMouvements(mouvements);
-        operationRepository.save(operation);
-        journalService.enregistrer(orgId, "EMPRUNT", "Emprunt " + emprunt.getId());
+        Operation savedOp = operationRepository.save(operation);
+        journalService.enregistrer(
+                orgId,
+                "EMPRUNT",
+                "Octroi emprunt "
+                        + request.getTypeEmprunt().name()
+                        + " — "
+                        + JournalModificationFormatter.cibleMembre(
+                                membre.getCodeMembre(), membre.getPrenom(), membre.getNom(), membre.getId())
+                        + " — capital "
+                        + JournalModificationFormatter.montantFcfa(capital)
+                        + (frais.compareTo(BigDecimal.ZERO) > 0
+                                ? ", frais " + JournalModificationFormatter.montantFcfa(frais)
+                                : "")
+                        + " (réf. emprunt n°"
+                        + emprunt.getId()
+                        + ", opération n°"
+                        + savedOp.getId()
+                        + ")");
 
         return empruntService.getById(orgId, emprunt.getId());
     }

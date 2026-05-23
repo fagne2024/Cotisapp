@@ -27,6 +27,7 @@ import {
 } from '../../shared/util/parts-cotisation.util';
 import { libelleFraisEmprunt } from '../../core/util/regle-emprunt.util';
 import { ParametrageTabsComponent } from './parametrage-tabs.component';
+import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 
 export const COMPTES_MOUVEMENT = [
   'MEMBRE.EPARGNE_HEBDO',
@@ -67,7 +68,7 @@ const ICON_BG: Partial<Record<TypeOperation, string>> = {
 @Component({
   selector: 'app-parametrage-regles',
   standalone: true,
-  imports: [ReactiveFormsModule, ParametrageTabsComponent],
+  imports: [ReactiveFormsModule, ParametrageTabsComponent, ...DROIT_ACTION_IMPORTS],
   templateUrl: './parametrage-regles.component.html',
   styleUrl: './parametrage-regles.component.scss',
 })

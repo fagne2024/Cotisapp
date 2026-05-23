@@ -600,6 +600,15 @@
   border-bottom: 1px solid #f0f4f1;
 }
 
+.hist-table td.libelle-cell {
+  max-width: 420px;
+  line-height: 1.45;
+  white-space: normal;
+  word-break: break-word;
+  color: var(--dk);
+  font-size: 12px;
+}
+
 .hist-table tr:hover td {
   background: #f8faf8;
 }

@@ -24,8 +24,8 @@
         >
           ⬇ Modèle
         </a>
-        <button type="button" class="btn-s" (click)="openImportModal()">📥 Importer</button>
-        <button type="button" class="btn-p" (click)="openModal()">+ Nouveau membre</button>
+        <button type="button" class="btn-s" appDroitAction="MEMBRE_GERER" (click)="openImportModal()">📥 Importer</button>
+        <button type="button" class="btn-p" appDroitAction="MEMBRE_GERER" (click)="openModal()">+ Nouveau membre</button>
       </div>
     </div>
 
@@ -140,12 +140,37 @@
       <span class="filtre-count">{{ filteredRows().length }} résultat(s)</span>
     </div>
 
+    @if (peutConfigurerPaiementMobile() && selectedCount() > 0) {
+      <div class="bulk-bar" role="toolbar" aria-label="Actions sur la sélection">
+        <span class="bulk-bar-count">{{ selectedCount() }} membre(s) sélectionné(s)</span>
+        <button type="button" class="btn-s" (click)="bulkPaiementMobile(true)" [disabled]="bulkMobileSaving()">
+          📱 Activer mobile money
+        </button>
+        <button type="button" class="btn-s" (click)="bulkPaiementMobile(false)" [disabled]="bulkMobileSaving()">
+          Désactiver mobile money
+        </button>
+        <button type="button" class="btn-s btn-ghost" (click)="clearSelection()">Tout désélectionner</button>
+      </div>
+    }
+
     @if (viewMode() === 'table') {
       <div class="card">
         <div class="table-wrap">
           <table>
             <thead>
               <tr>
+                @if (peutConfigurerPaiementMobile()) {
+                  <th class="col-check">
+                    <input
+                      type="checkbox"
+                      class="row-check"
+                      [checked]="allSelectedOnPage()"
+                      (click)="$event.stopPropagation()"
+                      (change)="toggleAllOnPage()"
+                      aria-label="Sélectionner tous les membres de la page"
+                    />
+                  </th>
+                }
                 <th class="col-sticky">Membre</th>
                 <th>Poste</th>
                 <th>Adhésion</th>
@@ -156,12 +181,26 @@
                 <th class="col-solde">Amende</th>
                 <th>Emprunt</th>
                 <th>Statut</th>
+                @if (peutConfigurerPaiementMobile()) {
+                  <th title="Cotisations / remboursements mobile money (Mon compte)">Mobile</th>
+                }
                 <th class="col-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
               @for (r of pagedRows(); track r.raw.id) {
                 <tr class="click-row" (click)="voirFiche(r.raw.id)">
+                  @if (peutConfigurerPaiementMobile()) {
+                    <td (click)="$event.stopPropagation()">
+                      <input
+                        type="checkbox"
+                        class="row-check"
+                        [checked]="isMemberSelected(r.raw.id)"
+                        (change)="toggleMemberSelection(r.raw.id)"
+                        [attr.aria-label]="'Sélectionner ' + r.raw.nomComplet"
+                      />
+                    </td>
+                  }
                   <td>
                     <div class="m-info">
                       <div class="m-av" [style.background]="r.avColor">{{ r.initials }}</div>
@@ -224,11 +263,21 @@
                       {{ r.raw.actif ? 'Actif' : 'Suspendu' }}
                     </span>
                   </td>
+                  @if (peutConfigurerPaiementMobile()) {
+                    <td>
+                      @if (r.raw.paiementMobileActif) {
+                        <span class="mobile-badge on" title="Mobile money activé">📱 Oui</span>
+                      } @else {
+                        <span class="mobile-badge" title="Mobile money non activé">—</span>
+                      }
+                    </td>
+                  }
                   <td>
                     <div class="row-actions">
                       <button
                         type="button"
                         class="act-btn view"
+                        appDroitAction="MEMBRE_LISTER"
                         aria-label="Voir la fiche"
                         (click)="voirFiche(r.raw.id, $event)"
                       >
@@ -237,6 +286,7 @@
                       <button
                         type="button"
                         class="act-btn edit"
+                        appDroitAction="MEMBRE_GERER"
                         aria-label="Modifier"
                         (click)="openEditModal(r.raw.id, $event)"
                       >
@@ -245,6 +295,7 @@
                       <button
                         type="button"
                         class="act-btn del"
+                        appDroitAction="MEMBRE_SUSPENDRE"
                         aria-label="Supprimer"
                         (click)="demanderSuppression(r.raw.id, $event)"
                       >
@@ -405,14 +456,43 @@
             </div>
           }
           @if (modalEnEdition()) {
-            <div class="fl span2 perm-row-inline">
-              <span>Membre actif</span>
+            <div class="toggle-row span2">
+              <div class="toggle-row-text">
+                <span class="toggle-row-label">Membre actif</span>
+              </div>
               <button
                 type="button"
                 class="toggle-mini"
+                role="switch"
+                [attr.aria-checked]="modalForm.controls.actif.value"
                 [class.on]="modalForm.controls.actif.value"
                 (click)="modalForm.controls.actif.setValue(!modalForm.controls.actif.value)"
               ></button>
+              <span class="toggle-state">{{ modalForm.controls.actif.value ? 'Oui' : 'Non' }}</span>
+            </div>
+          }
+          @if (peutConfigurerPaiementMobile()) {
+            <div class="toggle-row span2 mobile-money-row">
+              <div class="toggle-row-text">
+                <span class="toggle-row-label">Paiement mobile money (Mon compte)</span>
+                <span class="toggle-row-hint"
+                  >Autorise cotisations et remboursements Wave / Orange Money depuis « Mon compte », validés par
+                  l'admin GIE.</span
+                >
+              </div>
+              <button
+                type="button"
+                class="toggle-mini"
+                role="switch"
+                [attr.aria-checked]="modalForm.controls.paiementMobileActif.value"
+                [class.on]="modalForm.controls.paiementMobileActif.value"
+                (click)="
+                  modalForm.controls.paiementMobileActif.setValue(!modalForm.controls.paiementMobileActif.value)
+                "
+              ></button>
+              <span class="toggle-state" [class.on]="modalForm.controls.paiementMobileActif.value">
+                {{ modalForm.controls.paiementMobileActif.value ? 'Activé' : 'Désactivé' }}
+              </span>
             </div>
           }
           <div class="fl">
@@ -566,7 +646,7 @@
       </div>
       <div class="modal-foot">
         <button type="button" class="btn-s" (click)="closeModal()" [disabled]="modalSaving() || modalLoading()">Annuler</button>
-        <button type="button" class="btn-p" (click)="enregistrerMembre()" [disabled]="modalSaving() || modalLoading()">
+        <button type="button" class="btn-p" appDroitAction="MEMBRE_GERER" (click)="enregistrerMembre()" [disabled]="modalSaving() || modalLoading()">
           @if (modalSaving()) {
             @if (modalEnEdition()) {
               Enregistrement…
@@ -661,6 +741,7 @@
         <button
           type="button"
           class="btn-p"
+          appDroitAction="MEMBRE_GERER"
           (click)="lancerImportMembres()"
           [disabled]="importUploading() || !importFichier()"
         >
@@ -687,7 +768,7 @@
         </div>
         <div class="modal-foot">
           <button type="button" class="btn-s" (click)="annulerSuppression()" [disabled]="deleteSaving()">Annuler</button>
-          <button type="button" class="btn-p btn-danger" (click)="confirmerSuppression()" [disabled]="deleteSaving()">
+          <button type="button" class="btn-p btn-danger" appDroitAction="MEMBRE_SUSPENDRE" (click)="confirmerSuppression()" [disabled]="deleteSaving()">
             {{ deleteSaving() ? 'Suppression…' : 'Supprimer' }}
           </button>
         </div>

@@ -12,6 +12,7 @@ import { NotificationService } from '../../core/services/notification.service';
 import { organisationCouranteId } from '../../core/util/org-route.util';
 import { formatFcfa } from '../../core/utils/currency.util';
 import { ParametrageTabsComponent } from './parametrage-tabs.component';
+import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 
 const FAMILLES: FamilleCompte[] = [
   'CAISSE',
@@ -34,7 +35,7 @@ const ICONS: Record<FamilleCompte, string> = {
 @Component({
   selector: 'app-parametrage-comptes',
   standalone: true,
-  imports: [ReactiveFormsModule, ParametrageTabsComponent],
+  imports: [ReactiveFormsModule, ParametrageTabsComponent, ...DROIT_ACTION_IMPORTS],
   templateUrl: './parametrage-comptes.component.html',
   styleUrl: './parametrage-comptes.component.scss',
 })

@@ -17,7 +17,7 @@
         </div>
         <div class="lp-btns">
           <button type="button" class="btn-p lp-btn-main" (click)="chargerParDate()">👁 Voir le récap</button>
-          <button type="button" class="btn-s" (click)="ouvrirModalNommer()">+ Nommer</button>
+          <button type="button" class="btn-s" appDroitAction="PARAM_REGLES" (click)="ouvrirModalNommer()">+ Nommer</button>
         </div>
 
         @if (journees().length) {
@@ -143,10 +143,10 @@
           <div class="section-head">
             <div class="section-title">🔍 Filtrer par membre</div>
             <div class="head-actions">
-              <button type="button" class="btn-s" (click)="exporterMembresCsv()" [disabled]="!membresFiltres().length">
+              <button type="button" class="btn-s" appDroitAction="RAPPORT_EXPORT" (click)="exporterMembresCsv()" [disabled]="!membresFiltres().length">
                 Exporter membres
               </button>
-              <button type="button" class="btn-s" (click)="exporterOperationsCsv()" [disabled]="!operationsFiltres().length">
+              <button type="button" class="btn-s" appDroitAction="RAPPORT_EXPORT" (click)="exporterOperationsCsv()" [disabled]="!operationsFiltres().length">
                 Exporter opérations
               </button>
             </div>
@@ -388,7 +388,7 @@
                 <option value="ANNULEE">Annulée</option>
                 <option value="ANNULATION">Annulation</option>
               </select>
-              <button type="button" class="section-action" (click)="exporterOperationsCsv()">Exporter →</button>
+              <button type="button" class="section-action" appDroitAction="RAPPORT_EXPORT" (click)="exporterOperationsCsv()">Exporter →</button>
             </div>
           </div>
           <div class="section-body section-body-flush">
@@ -529,7 +529,7 @@
       </div>
       <div class="modal-foot">
         <button type="button" class="btn-s" (click)="fermerModalNommer()">Annuler</button>
-        <button type="button" class="btn-p" (click)="confirmerNommer()">💾 Enregistrer</button>
+        <button type="button" class="btn-p" appDroitAction="PARAM_REGLES" (click)="confirmerNommer()">💾 Enregistrer</button>
       </div>
     </div>
   </div>

@@ -7,7 +7,7 @@
         · {{ auth.currentOrgNom() ?? 'Organisation' }} · Cotisations hebdo / mois stockées en base
       </div>
     </div>
-    <button type="button" class="btn-p" (click)="reinitialiser()" [disabled]="loading() || saving()">
+    <button type="button" class="btn-p" appDroitAction="PARAM_REGLES" (click)="reinitialiser()" [disabled]="loading() || saving()">
       ↺ Réinitialiser défauts
     </button>
   </div>
@@ -392,12 +392,12 @@
                       <option [value]="t">{{ labelTypeMontant(t) }}</option>
                     }
                   </select>
-                  <button type="button" class="mv-delete" (click)="supprimerMouvement(i)" aria-label="Supprimer">×</button>
+                  <button type="button" class="mv-delete" appDroitAction="PARAM_REGLES" (click)="supprimerMouvement(i)" aria-label="Supprimer">×</button>
                 </div>
               }
             </div>
 
-            <button type="button" class="btn-s mv-add" (click)="ajouterMouvement()">+ Ajouter un mouvement</button>
+            <button type="button" class="btn-s mv-add" appDroitAction="PARAM_REGLES" (click)="ajouterMouvement()">+ Ajouter un mouvement</button>
 
             @if (mouvements.length && supportsMontants()) {
               <div class="sim-inline">
@@ -420,7 +420,7 @@
 
             <div class="form-actions">
               <button type="button" class="btn-s" (click)="annuler()" [disabled]="saving()">Annuler</button>
-              <button type="submit" class="btn-p" [disabled]="saving()">
+              <button type="submit" class="btn-p" appDroitAction="PARAM_REGLES" [disabled]="saving()">
                 @if (saving()) {
                   Enregistrement…
                 } @else {

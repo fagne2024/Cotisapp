@@ -4,8 +4,8 @@ import com.cotisapp.domain.entity.JournalAudit;
 import com.cotisapp.domain.enums.TypeEvenementJournal;
 import com.cotisapp.dto.request.EnregistrerEvenementJournalRequest;
 import com.cotisapp.dto.response.JournalUtilisateurResponse;
-import com.cotisapp.exception.BusinessException;
 import com.cotisapp.repository.JournalAuditRepository;
+import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -41,7 +41,8 @@ public class JournalUtilisateurService {
     }
 
     @Transactional
-    public void enregistrerEvenementClient(Long orgId, EnregistrerEvenementJournalRequest request) {
+    public void enregistrerEvenementClient(
+            Long orgId, EnregistrerEvenementJournalRequest request, HttpServletRequest httpRequest) {
         if (request.getTypeEvenement() == TypeEvenementJournal.MODULE_VISITE
                 || request.getTypeEvenement() == TypeEvenementJournal.NAVIGATION) {
             journalService.enregistrerVisiteModule(
@@ -49,17 +50,22 @@ public class JournalUtilisateurService {
                     request.getModuleCode(),
                     request.getModuleLibelle(),
                     request.getRoutePath(),
-                    request.getDetails());
+                    request.getDetails(),
+                    httpRequest);
             return;
         }
+        String action = request.getAction();
         journalService.enregistrer(JournalAudit.builder()
                 .organisationId(orgId)
-                .action(request.getAction())
+                .action(action)
                 .typeEvenement(request.getTypeEvenement())
                 .moduleCode(request.getModuleCode())
                 .moduleLibelle(request.getModuleLibelle())
                 .routePath(request.getRoutePath())
-                .details(request.getDetails())
+                .details(JournalAuditLibelleFormatter.enrichirDetailsAction(action, request.getDetails()))
+                .ipAddress(JournalService.extraireIp(httpRequest))
+                .userAgent(JournalService.tronquer(
+                        httpRequest != null ? httpRequest.getHeader("User-Agent") : null, 500))
                 .succes(request.getSucces() == null || request.getSucces()));
     }
 
@@ -74,42 +80,18 @@ public class JournalUtilisateurService {
                 .membreId(j.getMembreId())
                 .action(j.getAction())
                 .typeEvenement(j.getTypeEvenement())
-                .typeEvenementLibelle(libelleType(j.getTypeEvenement()))
+                .typeEvenementLibelle(JournalAuditLibelleFormatter.libelleTypeCourt(j.getTypeEvenement()))
                 .moduleCode(j.getModuleCode())
                 .moduleLibelle(j.getModuleLibelle())
                 .routePath(j.getRoutePath())
-                .details(j.getDetails())
+                .details(JournalAuditLibelleFormatter.detailAffichage(j))
                 .ipAddress(j.getIpAddress())
                 .userAgent(j.getUserAgent())
+                .navigateurResume(JournalAuditLibelleFormatter.resumeNavigateur(j.getUserAgent()))
                 .succes(j.getSucces())
                 .dateCreation(j.getDateCreation())
-                .libelleResume(libelleResume(j))
+                .libelleResume(JournalAuditLibelleFormatter.libelleResume(j))
                 .build();
-    }
-
-    private static String libelleType(TypeEvenementJournal type) {
-        if (type == null) {
-            return "Action";
-        }
-        return switch (type) {
-            case CONNEXION -> "Connexion";
-            case DECONNEXION -> "Déconnexion";
-            case CONNEXION_ECHEC -> "Échec connexion";
-            case MODULE_VISITE -> "Module visité";
-            case ACTION_METIER -> "Action métier";
-            case NAVIGATION -> "Navigation";
-            case SECURITE -> "Sécurité";
-        };
-    }
-
-    private static String libelleResume(JournalAudit j) {
-        if (j.getModuleLibelle() != null && !j.getModuleLibelle().isBlank()) {
-            return j.getModuleLibelle() + (j.getRoutePath() != null ? " · " + j.getRoutePath() : "");
-        }
-        if (j.getDetails() != null && !j.getDetails().isBlank()) {
-            return j.getDetails();
-        }
-        return j.getAction() != null ? j.getAction().replace('_', ' ') : "—";
     }
 
     private static String normaliserSearch(String search) {

@@ -16,6 +16,14 @@
           <a
             class="ni"
             routerLinkActive="on"
+            [routerLink]="['/organisations', orgShell()!, 'dashboard']"
+            [routerLinkActiveOptions]="{ exact: true }"
+          >
+            <span class="ico">📊</span>Tableau de bord
+          </a>
+          <a
+            class="ni"
+            routerLinkActive="on"
             [routerLink]="['/organisations', orgShell()!, 'mon-compte']"
             [routerLinkActiveOptions]="{ exact: true }"
           >
@@ -56,6 +64,14 @@
       } @else if (estMembreBureau()) {
       <div class="nav-section">
         <div class="nav-lbl">Principal</div>
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'dashboard']"
+          [routerLinkActiveOptions]="{ exact: true }"
+        >
+          <span class="ico">📊</span>Tableau de bord
+        </a>
         @if (peutMenu('membres')) {
         <a
           class="ni"
@@ -78,7 +94,12 @@
         }
       </div>
 
-      @if (peutMenu('cotisations') || peutMenu('emprunts') || peutMenu('remboursements')) {
+      @if (
+        peutMenu('cotisations') ||
+        peutMenu('emprunts') ||
+        peutMenu('remboursements') ||
+        peutMenu('tresorerie')
+      ) {
       <div class="nav-section">
         <div class="nav-lbl">Opérations</div>
         @if (peutMenu('cotisations')) {
@@ -110,6 +131,26 @@
           [routerLinkActiveOptions]="remboursementLinkActiveOpts"
         >
           <span class="ico">🔄</span>Remboursement
+        </a>
+        }
+        @if (peutMenu('tresorerie')) {
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'operations', 'penalite-amende']"
+          [queryParams]="{ t: 'pen' }"
+          [routerLinkActiveOptions]="penaliteLinkActiveOpts"
+        >
+          <span class="ico">⚠</span>Pénalité
+        </a>
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'operations', 'penalite-amende']"
+          [queryParams]="{ t: 'am' }"
+          [routerLinkActiveOptions]="amendeLinkActiveOpts"
+        >
+          <span class="ico">🚫</span>Amende
         </a>
         }
       </div>
@@ -251,6 +292,24 @@
         >
           <span class="ico">🔄</span>Remboursement
         </a>
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'operations', 'penalite-amende']"
+          [queryParams]="{ t: 'pen' }"
+          [routerLinkActiveOptions]="penaliteLinkActiveOpts"
+        >
+          <span class="ico">⚠</span>Pénalité
+        </a>
+        <a
+          class="ni"
+          routerLinkActive="on"
+          [routerLink]="['/organisations', orgShell()!, 'operations', 'penalite-amende']"
+          [queryParams]="{ t: 'am' }"
+          [routerLinkActiveOptions]="amendeLinkActiveOpts"
+        >
+          <span class="ico">🚫</span>Amende
+        </a>
       </div>
 
       <div class="nav-section">
@@ -359,16 +418,34 @@
   @if (!estMembreBureau() || peutMenu('membres')) {
   <a [routerLink]="['/organisations', orgShell()!, 'membres']" routerLinkActive="mob-on">Membres</a>
   }
+  @if (!estMembreBureau() || peutMenu('cotisations')) {
   <a
     [routerLink]="['/organisations', orgShell()!, 'operations', 'cotisation-mois']"
     [queryParams]="{ t: 'mois' }"
     routerLinkActive="mob-on"
     >Mois</a
   >
+  }
+  @if (!estMembreBureau() || peutMenu('remboursements')) {
   <a
     [routerLink]="['/organisations', orgShell()!, 'operations', 'remboursements']"
     [queryParams]="{ t: 'etale' }"
     routerLinkActive="mob-on"
     >Remb.</a
   >
+  }
+  @if (!estMembreBureau() || peutMenu('tresorerie')) {
+  <a
+    [routerLink]="['/organisations', orgShell()!, 'operations', 'penalite-amende']"
+    [queryParams]="{ t: 'pen' }"
+    routerLinkActive="mob-on"
+    >Pénal.</a
+  >
+  <a
+    [routerLink]="['/organisations', orgShell()!, 'operations', 'penalite-amende']"
+    [queryParams]="{ t: 'am' }"
+    routerLinkActive="mob-on"
+    >Amende</a
+  >
+  }
 </nav>

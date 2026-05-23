@@ -12,7 +12,7 @@ export const orgGuard: CanActivateFn = (route) => {
   const orgId = Number(route.paramMap.get('orgId'));
   if (auth.currentRole() === 'SUPERADMIN') return true;
   if (auth.currentOrgId() === orgId) {
-    if (auth.currentRole() === 'MEMBRE' && !droits.droits()) {
+    if (auth.currentRole() === 'MEMBRE' && auth.compteBureau() && !droits.droits()) {
       return droits.chargerEtMemoriser(orgId).pipe(
         tap((d) => droits.setDroits(d)),
         map(() => true),

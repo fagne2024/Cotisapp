@@ -10,8 +10,8 @@
           <option [value]="p.value">{{ p.label }}</option>
         }
       </select>
-      <button type="button" class="btn-s" (click)="exportToast('PDF')">📄 Exporter PDF</button>
-      <button type="button" class="btn-or" (click)="exportToast('Excel')">📊 Exporter Excel</button>
+      <button type="button" class="btn-s" appDroitAction="RAPPORT_EXPORT" (click)="exportToast('PDF')">📄 Exporter PDF</button>
+      <button type="button" class="btn-or" appDroitAction="RAPPORT_EXPORT" (click)="exportToast('Excel')">📊 Exporter Excel</button>
     </div>
   </div>
 
@@ -27,7 +27,7 @@
         </div>
         <div class="rh-actions">
           <button type="button" class="rh-btn" (click)="imprimer()">🖨 Imprimer</button>
-          <button type="button" class="rh-btn gold" (click)="exportToast('Excel')">📊 Excel</button>
+          <button type="button" class="rh-btn gold" appDroitAction="RAPPORT_EXPORT" (click)="exportToast('Excel')">📊 Excel</button>
           <button type="button" class="rh-btn" (click)="exportToast('PDF')">📄 PDF</button>
         </div>
       </div>
@@ -93,11 +93,11 @@
             <div class="part-lbl">{{ partMembresLabel() }}</div>
           </div>
           <div class="prog-block">
-            <div class="prog-lbl"><span>Hebdomadaire</span><span>{{ hebdoProgLabel() }}</span></div>
+            <div class="prog-lbl"><span>Hebdo (PLANAD)</span><span>{{ hebdoProgLabel() }}</span></div>
             <div class="prog-bar"><div class="prog-fill" [style.width.%]="hebdoProgPct()"></div></div>
           </div>
           <div class="prog-block">
-            <div class="prog-lbl"><span>Type Mois</span><span>{{ moisProgLabel() }}</span></div>
+            <div class="prog-lbl"><span>Mensuel (1×/mois)</span><span>{{ moisProgLabel() }}</span></div>
             <div class="prog-bar"><div class="prog-fill" [style.width.%]="moisProgPct()"></div></div>
           </div>
           <div class="prog-block">
@@ -132,7 +132,7 @@
               (input)="onFiltreRecherche($event)"
               aria-label="Rechercher"
             />
-            <span class="card-action" role="button" tabindex="0" (click)="exportToast('Excel')">Exporter</span>
+            <span class="card-action" role="button" tabindex="0" appDroitAction="RAPPORT_EXPORT" (click)="exportToast('Excel')">Exporter</span>
           </div>
         </div>
         <div class="table-wrap">
@@ -141,7 +141,7 @@
               <tr>
                 <th>Membre</th>
                 <th>Poste</th>
-                <th>Hebdo (semaines)</th>
+                <th>Hebdo (PLANAD)</th>
                 <th>Mois</th>
                 <th>Solidarité</th>
                 <th>Total période</th>
@@ -272,7 +272,7 @@
       <div class="card-inner">
         <div class="card-h">
           <span class="card-title">👥 Situation financière par membre</span>
-          <span class="card-action" role="button" tabindex="0" (click)="exportToast('Excel')">Exporter Excel</span>
+          <span class="card-action" role="button" tabindex="0" appDroitAction="RAPPORT_EXPORT" (click)="exportToast('Excel')">Exporter Excel</span>
         </div>
         <div class="table-wrap">
           <table class="rep-table">

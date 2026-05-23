@@ -12,7 +12,7 @@ export const orgWorkspaceRoutes: Routes = [
   {
     path: 'dashboard',
     canActivate: [roleGuard],
-    data: { roles: ['SUPERADMIN', 'ADMIN_GIE'] },
+    data: { roles: ['SUPERADMIN', 'ADMIN_GIE', 'MEMBRE'], sansFicheMembre: true },
     loadComponent: () => import('../../features/dashboard/dashboard.component').then((m) => m.DashboardComponent),
   },
   {

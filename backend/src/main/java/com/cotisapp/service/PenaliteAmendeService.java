@@ -126,7 +126,7 @@ public class PenaliteAmendeService {
 
         operation.setMouvements(mouvements);
         Operation saved = operationRepository.save(operation);
-        journalService.enregistrer(orgId, typeOp.name(), "Opération " + saved.getId());
+        journalService.enregistrerOperation(orgId, typeOp.name(), saved, membre);
         return operationMapperService.toResponse(saved);
     }
 

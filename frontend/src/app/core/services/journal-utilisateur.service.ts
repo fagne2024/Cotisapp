@@ -28,6 +28,7 @@ export interface JournalUtilisateurDto {
   details: string | null;
   ipAddress: string | null;
   userAgent: string | null;
+  navigateurResume: string | null;
   succes: boolean;
   dateCreation: string;
   libelleResume: string;

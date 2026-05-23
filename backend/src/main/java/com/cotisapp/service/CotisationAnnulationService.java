@@ -1,6 +1,7 @@
 package com.cotisapp.service;
 
 import com.cotisapp.domain.entity.Compte;
+import com.cotisapp.domain.entity.Membre;
 import com.cotisapp.domain.entity.MouvementCompte;
 import com.cotisapp.domain.entity.Operation;
 import com.cotisapp.domain.entity.SuiviMensuel;
@@ -11,6 +12,7 @@ import com.cotisapp.domain.enums.TypeOperation;
 import com.cotisapp.dto.response.CotisationAnnulationResponse;
 import com.cotisapp.exception.BusinessException;
 import com.cotisapp.repository.CompteRepository;
+import com.cotisapp.repository.MembreRepository;
 import com.cotisapp.repository.OperationRepository;
 import com.cotisapp.repository.SuiviMensuelRepository;
 import com.cotisapp.security.OrganisationContext;
@@ -32,6 +34,7 @@ public class CotisationAnnulationService {
     private final CompteService compteService;
     private final SuiviMensuelRepository suiviMensuelRepository;
     private final JournalService journalService;
+    private final MembreRepository membreRepository;
     private final OperationPlanadGuardService operationPlanadGuardService;
 
     @Transactional
@@ -106,8 +109,28 @@ public class CotisationAnnulationService {
             retirerPaiementSuiviMensuel(orgId, origine.getMembreId(), origine.getMoisAnnee(), origine.getMontant());
         }
 
-        journalService.enregistrer(orgId, "ANNULATION_COTISATION",
-                "Opération " + operationId + " annulée → contre-passation " + saved.getId());
+        Membre membre = origine.getMembreId() != null
+                ? membreRepository.findById(origine.getMembreId()).orElse(null)
+                : null;
+        String typeCot = origine.getTypeOperation() == TypeOperation.COTISATION_MOIS ? "mensuelle" : "hebdomadaire";
+        String cible = membre != null
+                ? JournalModificationFormatter.cibleMembre(
+                        membre.getCodeMembre(), membre.getPrenom(), membre.getNom(), membre.getId())
+                : "membre n°" + origine.getMembreId();
+        journalService.enregistrer(
+                orgId,
+                "ANNULATION_COTISATION",
+                "Annulation cotisation "
+                        + typeCot
+                        + " — "
+                        + cible
+                        + " — "
+                        + JournalModificationFormatter.montantFcfa(origine.getMontant())
+                        + (origine.getMoisAnnee() != null ? " — mois " + origine.getMoisAnnee() : "")
+                        + " — op. n°"
+                        + operationId
+                        + " → contre-passation n°"
+                        + saved.getId());
 
         return CotisationAnnulationResponse.builder()
                 .operationOrigineId(operationId)

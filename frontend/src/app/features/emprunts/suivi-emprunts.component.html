@@ -15,8 +15,8 @@
     </div>
     @if (!vueMembre()) {
       <div class="header-actions">
-        <button type="button" class="btn-s" (click)="exporterExcel()">📊 Rapport Excel</button>
-        <a class="btn-p" [routerLink]="['/organisations', orgCourante()!, 'operations', 'emprunts']">+ Nouvel emprunt</a>
+        <button type="button" class="btn-s" appDroitAction="RAPPORT_EXPORT" (click)="exporterExcel()">📊 Rapport Excel</button>
+        <a class="btn-p" appDroitAction="OP_EMPRUNT" [routerLink]="['/organisations', orgCourante()!, 'operations', 'emprunts']">+ Nouvel emprunt</a>
       </div>
     }
   </div>
@@ -150,7 +150,7 @@
                   👁 Détail
                 </button>
                 @if (!vueMembre() && !c.solde) {
-                  <button type="button" class="ec-btn remb" (click)="allerRemboursement(c, $event)">🔄 Rembourser</button>
+                  <button type="button" class="ec-btn remb" appDroitAction="OP_REMBOURSEMENT" (click)="allerRemboursement(c, $event)">🔄 Rembourser</button>
                 }
               </div>
             </div>
@@ -164,7 +164,7 @@
         <div class="recap-head">
           <span class="recap-title">📊 Tableau récapitulatif des échéances à venir</span>
           @if (!vueMembre()) {
-            <button type="button" class="btn-s btn-sm" (click)="exporterExcel()">📥 Exporter</button>
+            <button type="button" class="btn-s btn-sm" appDroitAction="RAPPORT_EXPORT" (click)="exporterExcel()">📥 Exporter</button>
           }
         </div>
         <div class="table-scroll">
@@ -206,7 +206,7 @@
                   @if (!vueMembre()) {
                     <td>
                       @if (l.enRetard) {
-                        <button type="button" class="ec-btn remb sm" (click)="allerRemboursementParId(l.empruntId)">
+                        <button type="button" class="ec-btn remb sm" appDroitAction="OP_REMBOURSEMENT" (click)="allerRemboursementParId(l.empruntId)">
                           Rembourser
                         </button>
                       } @else {
@@ -274,7 +274,7 @@
         <div class="modal-actions">
           <button type="button" class="btn-s" (click)="fermerDetail()">Fermer</button>
           @if (!vueMembre() && !c.solde) {
-            <button type="button" class="btn-p" (click)="allerRemboursement(c); fermerDetail()">🔄 Aller au remboursement</button>
+            <button type="button" class="btn-p" appDroitAction="OP_REMBOURSEMENT" (click)="allerRemboursement(c); fermerDetail()">🔄 Aller au remboursement</button>
           }
         </div>
       </div>

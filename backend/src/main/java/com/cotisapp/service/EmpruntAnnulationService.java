@@ -1,12 +1,14 @@
 package com.cotisapp.service;
 
 import com.cotisapp.domain.entity.Emprunt;
+import com.cotisapp.domain.entity.Membre;
 import com.cotisapp.domain.entity.Operation;
 import com.cotisapp.domain.enums.StatutEmprunt;
 import com.cotisapp.domain.enums.TypeOperation;
 import com.cotisapp.dto.response.CotisationAnnulationResponse;
 import com.cotisapp.exception.BusinessException;
 import com.cotisapp.repository.EmpruntRepository;
+import com.cotisapp.repository.MembreRepository;
 import com.cotisapp.repository.OperationRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -20,6 +22,7 @@ public class EmpruntAnnulationService {
     private final EmpruntRepository empruntRepository;
     private final OperationContrepassationService contrepassationService;
     private final JournalService journalService;
+    private final MembreRepository membreRepository;
 
     @Transactional
     public CotisationAnnulationResponse annuler(Long orgId, Long operationId) {
@@ -49,8 +52,26 @@ public class EmpruntAnnulationService {
         emprunt.setStatut(StatutEmprunt.ANNULE);
         empruntRepository.save(emprunt);
 
-        journalService.enregistrer(orgId, "ANNULATION_EMPRUNT",
-                "Emprunt " + emprunt.getId() + " annulé — opération " + operationId);
+        Membre membre = membreRepository.findById(emprunt.getMembreId()).orElse(null);
+        String cible = membre != null
+                ? JournalModificationFormatter.cibleMembre(
+                        membre.getCodeMembre(), membre.getPrenom(), membre.getNom(), membre.getId())
+                : "membre n°" + emprunt.getMembreId();
+        journalService.enregistrer(
+                orgId,
+                "ANNULATION_EMPRUNT",
+                "Annulation octroi emprunt "
+                        + emprunt.getTypeEmprunt().name()
+                        + " — "
+                        + cible
+                        + " — capital "
+                        + JournalModificationFormatter.montantFcfa(emprunt.getMontantTotal())
+                        + " — emprunt n°"
+                        + emprunt.getId()
+                        + " — op. n°"
+                        + operationId
+                        + " → contre-passation n°"
+                        + res.getOperationAnnulationId());
 
         return CotisationAnnulationResponse.builder()
                 .operationOrigineId(res.getOperationOrigineId())

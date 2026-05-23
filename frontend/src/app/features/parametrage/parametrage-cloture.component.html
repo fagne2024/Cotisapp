@@ -256,7 +256,7 @@
       </section>
 
       <footer class="actions">
-        <button type="button" class="btn-p" [disabled]="enregistrement()" (click)="enregistrer()">
+        <button type="button" class="btn-p" appDroitAction="PARAM_REGLES" [disabled]="enregistrement()" (click)="enregistrer()">
           {{ enregistrement() ? 'Enregistrement…' : 'Enregistrer le paramétrage' }}
         </button>
       </footer>

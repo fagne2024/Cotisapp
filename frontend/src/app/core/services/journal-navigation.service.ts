@@ -7,6 +7,7 @@ import { JournalUtilisateurService } from './journal-utilisateur.service';
 interface ModuleRouteInfo {
   code: string;
   libelle: string;
+  sousContexte?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -44,9 +45,19 @@ export class JournalNavigationService {
     }
     this.timer = setTimeout(() => {
       this.derniereRoute = path;
-      const module = resoudreModuleDepuisUrl(path);
+      const module = resoudreModuleDepuisUrl(path, url);
       if (!module) {
         return;
+      }
+      const utilisateur = this.auth.nomComplet() || 'Utilisateur';
+      const org = this.auth.currentOrgNom();
+      let details = `${utilisateur} a ouvert l'écran « ${module.libelle} »`;
+      if (module.sousContexte) {
+        details += ` (${module.sousContexte})`;
+      }
+      details += ` — ${path}`;
+      if (org) {
+        details += ` · ${org}`;
       }
       this.journalApi
         .enregistrerEvenement(orgId, {
@@ -55,32 +66,91 @@ export class JournalNavigationService {
           moduleCode: module.code,
           moduleLibelle: module.libelle,
           routePath: path,
-          details: `Visite du module ${module.libelle}`,
+          details,
         })
         .subscribe({ error: () => undefined });
     }, 400);
   }
 }
 
-function resoudreModuleDepuisUrl(url: string): ModuleRouteInfo | null {
-  if (url.includes('/dashboard')) return { code: 'DASHBOARD', libelle: 'Tableau de bord' };
-  if (url.includes('/mon-compte')) return { code: 'MON_COMPTE', libelle: 'Mon compte' };
-  if (/\/membres\/\d+/.test(url)) return { code: 'MEMBRES', libelle: 'Fiche membre' };
-  if (url.includes('/membres')) return { code: 'MEMBRES', libelle: 'Membres' };
-  if (url.includes('/gestion/comptes')) return { code: 'COMPTES', libelle: 'Comptes & Relevés' };
-  if (url.includes('/cotisation-mois')) return { code: 'COTISATION', libelle: 'Cotisation' };
-  if (url.includes('/suivi-mensuel')) return { code: 'SUIVI_MENSUEL', libelle: 'Suivi mensuel' };
-  if (url.includes('/operations/emprunts')) return { code: 'EMPRUNTS', libelle: 'Emprunts' };
-  if (url.includes('/remboursements')) return { code: 'REMBOURSEMENT', libelle: 'Remboursement' };
-  if (url.includes('/penalite-amende')) return { code: 'PENALITE', libelle: 'Pénalité & Amende' };
-  if (url.includes('/gestion/tresorerie') || url.includes('/depense-banque')) {
-    return { code: 'TRESORERIE', libelle: 'Trésorerie' };
+function resoudreModuleDepuisUrl(path: string, fullUrl: string): ModuleRouteInfo | null {
+  const q = fullUrl.includes('?') ? new URLSearchParams(fullUrl.split('?')[1]) : null;
+
+  if (path.includes('/dashboard')) {
+    return { code: 'DASHBOARD', libelle: 'Tableau de bord' };
   }
-  if (url.includes('/rapports')) return { code: 'RAPPORTS', libelle: 'Rapports' };
-  if (url.includes('/parametrage/')) return { code: 'PARAMETRAGE', libelle: 'Paramétrage' };
-  if (url.includes('/gestion/exercices')) return { code: 'EXERCICES', libelle: 'Exercices & PLANAD' };
-  if (url.includes('/gestion/utilisateurs')) return { code: 'UTILISATEURS', libelle: 'Utilisateurs & Droits' };
-  if (url.includes('/notifications')) return { code: 'NOTIFICATIONS', libelle: 'Notifications' };
-  if (url.includes('/mon-profil')) return { code: 'PROFIL', libelle: 'Mon profil' };
+  if (path.includes('/mon-compte/rapport')) {
+    return { code: 'MON_COMPTE', libelle: 'Mon compte', sousContexte: 'Rapport personnel' };
+  }
+  if (path.includes('/mon-compte')) {
+    return { code: 'MON_COMPTE', libelle: 'Mon compte', sousContexte: 'Fiche et opérations' };
+  }
+  if (/\/membres\/\d+\/rapport/.test(path)) {
+    return { code: 'MEMBRES', libelle: 'Membres', sousContexte: 'Rapport membre' };
+  }
+  if (/\/membres\/\d+/.test(path)) {
+    return { code: 'MEMBRES', libelle: 'Membres', sousContexte: 'Fiche membre' };
+  }
+  if (path.includes('/membres')) {
+    return { code: 'MEMBRES', libelle: 'Membres', sousContexte: 'Liste des membres' };
+  }
+  if (path.includes('/gestion/comptes')) {
+    return { code: 'COMPTES', libelle: 'Comptes & Relevés' };
+  }
+  if (path.includes('/cotisation-mois')) {
+    const t = q?.get('t');
+    if (t === 'mois') return { code: 'COTISATION', libelle: 'Cotisation', sousContexte: 'Versement mensuel' };
+    if (t === 'historique') return { code: 'COTISATION', libelle: 'Cotisation', sousContexte: 'Historique' };
+    return { code: 'COTISATION', libelle: 'Cotisation', sousContexte: 'Versement hebdomadaire (PLANAD)' };
+  }
+  if (path.includes('/suivi-mensuel')) {
+    return { code: 'SUIVI_MENSUEL', libelle: 'Suivi mensuel des cotisations' };
+  }
+  if (path.includes('/operations/emprunts/suivi')) {
+    return { code: 'EMPRUNTS', libelle: 'Emprunts', sousContexte: 'Suivi des emprunts' };
+  }
+  if (path.includes('/operations/emprunts')) {
+    return { code: 'EMPRUNTS', libelle: 'Emprunts', sousContexte: 'Octroi et gestion' };
+  }
+  if (path.includes('/operations/remboursements') || path.includes('/remboursements/')) {
+    const t = q?.get('t');
+    const sous =
+      t === 'solidarite' ? 'Solidarité' : t === 'caisse' ? 'Caisse' : t === 'etale' ? 'Étalé' : 'Remboursement';
+    return { code: 'REMBOURSEMENT', libelle: 'Remboursement', sousContexte: sous };
+  }
+  if (path.includes('/penalite-amende')) {
+    const t = q?.get('t');
+    if (t === 'am') return { code: 'AMENDE', libelle: 'Amende', sousContexte: 'Application amende' };
+    return { code: 'PENALITE', libelle: 'Pénalité', sousContexte: 'Application pénalité' };
+  }
+  if (path.includes('/gestion/tresorerie') || path.includes('/depense-banque')) {
+    return { code: 'TRESORERIE', libelle: 'Trésorerie', sousContexte: 'Dépenses et banque' };
+  }
+  if (path.includes('/rapports')) {
+    return { code: 'RAPPORTS', libelle: 'Rapports & analyses' };
+  }
+  if (path.includes('/parametrage/')) {
+    return { code: 'PARAMETRAGE', libelle: 'Paramétrage', sousContexte: 'Règles et configuration' };
+  }
+  if (path.includes('/gestion/exercices')) {
+    return { code: 'EXERCICES', libelle: 'Exercices & PLANAD' };
+  }
+  if (path.includes('/gestion/utilisateurs')) {
+    const onglet = q?.get('tab');
+    return {
+      code: 'UTILISATEURS',
+      libelle: 'Utilisateurs & Droits',
+      sousContexte: onglet === 'journal' ? 'Journal utilisateurs' : onglet === 'droits' ? 'Droits par profil' : undefined,
+    };
+  }
+  if (path.includes('/notifications')) {
+    return { code: 'NOTIFICATIONS', libelle: 'Notifications' };
+  }
+  if (path.includes('/recap-journee')) {
+    return { code: 'RECAP', libelle: 'Récapitulatif de journée (PLANAD)' };
+  }
+  if (path.includes('/mon-profil')) {
+    return { code: 'PROFIL', libelle: 'Mon profil utilisateur' };
+  }
   return null;
 }

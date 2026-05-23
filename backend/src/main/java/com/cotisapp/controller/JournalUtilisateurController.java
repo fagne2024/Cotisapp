@@ -4,6 +4,7 @@ import com.cotisapp.domain.enums.TypeEvenementJournal;
 import com.cotisapp.dto.request.EnregistrerEvenementJournalRequest;
 import com.cotisapp.dto.response.JournalUtilisateurResponse;
 import com.cotisapp.service.JournalUtilisateurService;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -41,7 +42,9 @@ public class JournalUtilisateurController {
     @PostMapping("/evenement")
     @PreAuthorize("isAuthenticated()")
     public void enregistrerEvenement(
-            @PathVariable Long orgId, @Valid @RequestBody EnregistrerEvenementJournalRequest request) {
-        journalUtilisateurService.enregistrerEvenementClient(orgId, request);
+            @PathVariable Long orgId,
+            @Valid @RequestBody EnregistrerEvenementJournalRequest request,
+            HttpServletRequest httpRequest) {
+        journalUtilisateurService.enregistrerEvenementClient(orgId, request, httpRequest);
     }
 }

@@ -11,4 +11,6 @@ import java.util.Map;
 public class MesDroitsResponse {
     private boolean peutGestion;
     private Map<String, NiveauDroit> actions;
+    /** Modules menu GIE visibles (membres, cotisations, rapports…). */
+    private Map<String, Boolean> modules;
 }

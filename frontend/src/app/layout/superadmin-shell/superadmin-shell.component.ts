@@ -75,6 +75,15 @@ export class SuperadminShellComponent implements OnInit {
     fragment: 'ignored' as const,
   };
 
+  readonly penaliteLinkActiveOpts = {
+    paths: 'subset' as const,
+    queryParams: 'exact' as const,
+    matrixParams: 'ignored' as const,
+    fragment: 'ignored' as const,
+  };
+
+  readonly amendeLinkActiveOpts = this.penaliteLinkActiveOpts;
+
   private readonly pageTitleSignal = signal('Vue Superadmin');
 
   readonly pageTitle = this.pageTitleSignal.asReadonly();
@@ -188,6 +197,8 @@ export class SuperadminShellComponent implements OnInit {
       return 'Remboursement';
     }
     if (url.includes('penalite-amende')) {
+      if (url.includes('t=am')) return 'Amende';
+      if (url.includes('t=pen')) return 'Pénalité';
       return 'Pénalité & Amende';
     }
     if (url.includes('gestion/tresorerie')) {

@@ -1,8 +1,10 @@
 package com.cotisapp.service;
 
 import com.cotisapp.domain.entity.Membre;
+import com.cotisapp.domain.entity.TypeProfil;
 import com.cotisapp.domain.entity.Utilisateur;
 import com.cotisapp.domain.entity.UtilisateurRole;
+import com.cotisapp.domain.enums.PosteMembre;
 import com.cotisapp.domain.enums.Role;
 import com.cotisapp.dto.request.ChangeMotDePasseInitialRequest;
 import com.cotisapp.dto.request.LoginRequest;
@@ -13,6 +15,7 @@ import com.cotisapp.exception.BusinessException;
 import com.cotisapp.security.OrganisationContext;
 import com.cotisapp.repository.MembreRepository;
 import com.cotisapp.repository.OrganisationRepository;
+import com.cotisapp.repository.TypeProfilRepository;
 import com.cotisapp.repository.UtilisateurRepository;
 import com.cotisapp.repository.UtilisateurRoleRepository;
 import com.cotisapp.security.CustomUserDetails;
@@ -50,6 +53,7 @@ public class AuthService {
     private final PasswordEncoder passwordEncoder;
     private final TotpService totpService;
     private final PresenceService presenceService;
+    private final TypeProfilRepository typeProfilRepository;
 
     @Transactional
     public AuthResponse login(LoginRequest request, HttpServletRequest httpRequest) {
@@ -90,12 +94,13 @@ public class AuthService {
                     .orElse(null);
         }
 
+        String modeId = TelephoneUtil.estEmail(identifiant) ? "adresse e-mail" : "numéro de téléphone";
         journalService.enregistrerConnexionReussie(
                 ctx.organisationId(),
                 u.getId(),
                 ctx.role(),
                 ctx.membreId(),
-                "Connexion via " + (TelephoneUtil.estEmail(identifiant) ? "email" : "téléphone"),
+                "Authentification par " + modeId + (orgNom != null ? " · organisation « " + orgNom + " »" : ""),
                 httpRequest);
 
         JwtClaims claims = new JwtClaims(
@@ -117,6 +122,7 @@ public class AuthService {
                     .organisationId(ctx.organisationId())
                     .organisationNom(orgNom)
                     .membreId(ctx.membreId())
+                    .compteBureau(resoudreCompteBureau(ctx))
                     .mustChangePassword(Boolean.TRUE.equals(u.getDoitChangerMotDePasse()))
                     .mustSetupTwoFactor(TotpPolicy.mustSetupTwoFactor(ctx.role(), u))
                     .build();
@@ -170,7 +176,8 @@ public class AuthService {
                 httpRequest);
 
         String token = jwtService.generateToken(claims);
-        ContexteConnexion ctx = new ContexteConnexion(u, claims.role(), claims.organisationId(), claims.membreId());
+        ContexteConnexion ctx = new ContexteConnexion(
+                u, claims.role(), claims.organisationId(), claims.membreId(), null);
         return buildAuthResponse(u, ctx, token, orgNom);
     }
 
@@ -199,6 +206,7 @@ public class AuthService {
         Role role = OrganisationContext.getRole();
         Long orgId = OrganisationContext.getOrganisationId();
         Long membreId = OrganisationContext.getMembreId();
+        Long typeProfilId = null;
         if (role == null) {
             UtilisateurRole ur = utilisateurRoleRepository.findByUtilisateurId(userId).stream()
                     .min(Comparator.comparingInt(r -> prioriteRole(r.getRole())))
@@ -206,6 +214,12 @@ public class AuthService {
             role = ur.getRole();
             orgId = ur.getOrganisationId();
             membreId = ur.getMembreId();
+            typeProfilId = ur.getTypeProfilId();
+        } else if (orgId != null) {
+            typeProfilId = utilisateurRoleRepository
+                    .findFirstByUtilisateurIdAndRoleAndOrganisationIdOrderByIdAsc(userId, role, orgId)
+                    .map(UtilisateurRole::getTypeProfilId)
+                    .orElse(null);
         }
 
         String orgNom = null;
@@ -217,7 +231,7 @@ public class AuthService {
 
         JwtClaims claims = new JwtClaims(u.getEmail(), u.getId(), role, orgId, membreId);
         String token = jwtService.generateToken(claims);
-        ContexteConnexion ctx = new ContexteConnexion(u, role, orgId, membreId);
+        ContexteConnexion ctx = new ContexteConnexion(u, role, orgId, membreId, typeProfilId);
         return buildAuthResponse(u, ctx, token, orgNom);
     }
 
@@ -235,6 +249,7 @@ public class AuthService {
                 .organisationId(ctx.organisationId())
                 .organisationNom(orgNom)
                 .membreId(ctx.membreId())
+                .compteBureau(resoudreCompteBureau(ctx))
                 .mustChangePassword(Boolean.TRUE.equals(u.getDoitChangerMotDePasse()))
                 .mustSetupTwoFactor(TotpPolicy.mustSetupTwoFactor(ctx.role(), u))
                 .build();
@@ -311,7 +326,8 @@ public class AuthService {
                     .orElseThrow(() -> new BusinessException(
                             "Aucun rôle actif pour cette organisation. Contactez l'administrateur du GIE."));
         }
-        return new ContexteConnexion(user, ur.getRole(), ur.getOrganisationId(), ur.getMembreId());
+        return new ContexteConnexion(
+                user, ur.getRole(), ur.getOrganisationId(), ur.getMembreId(), ur.getTypeProfilId());
     }
 
     private ContexteConnexion connexionTelephone(
@@ -346,7 +362,24 @@ public class AuthService {
                 .findFirstByMembreIdAndRole(membre.getId(), Role.MEMBRE)
                 .orElseThrow(() -> new BusinessException("Rôle membre introuvable pour cette fiche"));
 
-        return new ContexteConnexion(user, ur.getRole(), membre.getOrganisationId(), membre.getId());
+        return new ContexteConnexion(
+                user, ur.getRole(), membre.getOrganisationId(), membre.getId(), ur.getTypeProfilId());
+    }
+
+    private boolean resoudreCompteBureau(ContexteConnexion ctx) {
+        if (ctx.role() != Role.MEMBRE) {
+            return false;
+        }
+        if (ctx.membreId() == null) {
+            return true;
+        }
+        if (ctx.typeProfilId() == null) {
+            return false;
+        }
+        return typeProfilRepository.findById(ctx.typeProfilId())
+                .map(TypeProfil::getPosteMembre)
+                .filter(p -> p != null && p != PosteMembre.SIMPLE)
+                .isPresent();
     }
 
     private Membre selectionnerMembre(List<Membre> membres, Long organisationIdDemande, Long membreIdDemande) {
@@ -396,5 +429,6 @@ public class AuthService {
         };
     }
 
-    private record ContexteConnexion(Utilisateur utilisateur, Role role, Long organisationId, Long membreId) {}
+    private record ContexteConnexion(
+            Utilisateur utilisateur, Role role, Long organisationId, Long membreId, Long typeProfilId) {}
 }

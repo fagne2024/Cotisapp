@@ -26,6 +26,8 @@ public class JournalUtilisateurResponse {
     private String details;
     private String ipAddress;
     private String userAgent;
+    /** Navigateur et OS lisibles (ex. Chrome · Windows). */
+    private String navigateurResume;
     private Boolean succes;
     private LocalDateTime dateCreation;
     private String libelleResume;

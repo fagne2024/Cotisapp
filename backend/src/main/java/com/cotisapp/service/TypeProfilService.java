@@ -14,6 +14,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 
@@ -29,6 +30,7 @@ public class TypeProfilService {
     private final TypeProfilDroitService typeProfilDroitService;
     private final UtilisateurRoleRepository utilisateurRoleRepository;
     private final ActionDroitInitialisationService actionDroitInitialisationService;
+    private final JournalService journalService;
 
     @Transactional
     public List<TypeProfilResponse> listerPourOrganisation(Long orgId) {
@@ -84,6 +86,15 @@ public class TypeProfilService {
                 .ordre(request.getOrdre() != null ? request.getOrdre() : 100)
                 .build());
         typeProfilDroitService.appliquerDroitsParDefaut(saved);
+        journalService.enregistrer(
+                orgId,
+                "TYPE_PROFIL_CREATION",
+                JournalModificationFormatter.resumeCreation(
+                        "« " + saved.getLibelle() + " » (" + saved.getCode() + ")",
+                        "rôle " + JournalModificationFormatter.libelleRole(saved.getRole()),
+                        saved.getPosteMembre() != null
+                                ? "poste " + JournalModificationFormatter.libellePoste(saved.getPosteMembre())
+                                : null));
         return toResponse(saved);
     }
 
@@ -92,6 +103,11 @@ public class TypeProfilService {
         TypeProfil tp = typeProfilRepository
                 .findByIdAndOrganisationId(id, orgId)
                 .orElseThrow(() -> new BusinessException("Type de profil introuvable"));
+        String libelleAvant = tp.getLibelle();
+        PosteMembre posteAvant = tp.getPosteMembre();
+        var canalAvant = tp.getCanalConnexion();
+        Boolean actifAvant = tp.getActif();
+        Integer ordreAvant = tp.getOrdre();
         if (request.getLibelle() != null) {
             tp.setLibelle(request.getLibelle().trim());
         }
@@ -107,7 +123,18 @@ public class TypeProfilService {
         if (request.getOrdre() != null) {
             tp.setOrdre(request.getOrdre());
         }
-        return toResponse(typeProfilRepository.save(tp));
+        TypeProfil saved = typeProfilRepository.save(tp);
+        List<String> changements = new ArrayList<>();
+        JournalModificationFormatter.ajouterSiChange(changements, "Libellé", libelleAvant, saved.getLibelle());
+        JournalModificationFormatter.ajouterSiChange(changements, "Poste", posteAvant, saved.getPosteMembre());
+        JournalModificationFormatter.ajouterSiChange(changements, "Canal connexion", canalAvant, saved.getCanalConnexion());
+        JournalModificationFormatter.ajouterSiChange(changements, "Actif", actifAvant, saved.getActif());
+        JournalModificationFormatter.ajouterSiChange(changements, "Ordre", ordreAvant, saved.getOrdre());
+        journalService.enregistrer(
+                orgId,
+                "TYPE_PROFIL_MAJ",
+                JournalModificationFormatter.resumeModifications("Profil « " + saved.getLibelle() + " »", changements));
+        return toResponse(saved);
     }
 
     @Transactional
@@ -124,6 +151,10 @@ public class TypeProfilService {
                     "Ce type est assigné à " + usages + " utilisateur(s). Réassignez-les avant suppression.");
         }
         typeProfilRepository.delete(tp);
+        journalService.enregistrer(
+                orgId,
+                "TYPE_PROFIL_SUPPRESSION",
+                "Suppression du type de profil « " + tp.getLibelle() + " » (" + tp.getCode() + ")");
     }
 
     static boolean estCodeSysteme(String code) {
