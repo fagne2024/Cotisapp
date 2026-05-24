@@ -45,6 +45,11 @@
         <div class="kpi-lbl">En cours</div>
         <div class="kpi-sub">Remboursements à venir</div>
       </button>
+      <button type="button" class="kpi k-proche" [class.active]="kpiActive('proches')" (click)="setKpi('proches')">
+        <div class="kpi-val">{{ kpi().proches }}</div>
+        <div class="kpi-lbl">Échéances proches</div>
+        <div class="kpi-sub">Délai paramétré (max {{ joursAlerteProcheMax() }} j)</div>
+      </button>
       <button type="button" class="kpi k-solde" [class.active]="kpiActive('soldes')" (click)="setKpi('soldes')">
         <div class="kpi-val">{{ kpi().soldesMois }}</div>
         <div class="kpi-lbl">Soldés ce mois</div>
@@ -75,6 +80,18 @@
       </button>
     </div>
 
+    @if (empruntsProchesCount() > 0 && alerteProchesVisible()) {
+      <div class="alert alert-proche">
+        <span class="alert-ico">⏰</span>
+        <div class="alert-body">
+          <strong>{{ empruntsProchesCount() }} échéance(s) à échéance proche</strong>
+          — Préparez les remboursements avant l'échéance.
+          <button type="button" class="alert-link-btn" (click)="setKpi('proches')">Voir la liste →</button>
+        </div>
+        <button type="button" class="alert-close" (click)="alerteProchesVisible.set(false)" aria-label="Fermer">×</button>
+      </div>
+    }
+
     <div class="filters-bar">
       <div class="f-search">
         <span class="search-ico" aria-hidden="true">🔍</span>
@@ -88,6 +105,7 @@
         <option value="tous">Tous les statuts</option>
         <option value="retard">En retard</option>
         <option value="encours">En cours</option>
+        <option value="proche">Échéance proche</option>
         <option value="solde">Soldé</option>
       </select>
       <span class="count-label">{{ cartesFiltrees().length }} emprunt(s) affiché(s)</span>
@@ -97,7 +115,7 @@
       <p class="empty-hint">Aucun emprunt pour ces filtres.</p>
     } @else {
       <div class="emp-grid">
-        @for (c of cartesFiltrees(); track c.emprunt.id) {
+        @for (c of cartesFiltreesPage(); track c.emprunt.id) {
           <article class="emp-card" [class]="c.carteClass" (click)="ouvrirDetail(c)">
             <div class="ec-header">
               <div class="ec-mbr">
@@ -157,6 +175,16 @@
           </article>
         }
       </div>
+      @if (cartesFiltrees().length > cartesPageSize) {
+        <app-list-pagination
+          class="suivi-cartes-pagination"
+          [page]="cartesPage()"
+          [total]="cartesFiltrees().length"
+          [pageSize]="cartesPageSize"
+          unit="emprunt(s)"
+          (pageChange)="goCartesPage($event)"
+        />
+      }
     }
 
     @if (recapEcheances().length) {
@@ -184,7 +212,7 @@
               </tr>
             </thead>
             <tbody>
-              @for (l of recapEcheances(); track l.empruntId) {
+              @for (l of recapEcheancesPage(); track l.empruntId) {
                 <tr [class]="l.rowClass">
                   @if (!vueMembre()) {
                     <td class="fw">
@@ -219,6 +247,16 @@
             </tbody>
           </table>
         </div>
+        @if (recapEcheances().length > recapPageSize) {
+          <app-list-pagination
+            class="suivi-recap-pagination"
+            [page]="recapPage()"
+            [total]="recapEcheances().length"
+            [pageSize]="recapPageSize"
+            unit="ligne(s)"
+            (pageChange)="goRecapPage($event)"
+          />
+        }
       </div>
     }
   }
@@ -258,7 +296,7 @@
             </tr>
           </thead>
           <tbody>
-            @for (row of modalEcheanceRows(c.emprunt); track row.numero) {
+            @for (row of modalEcheanceRows(c.emprunt, reglesEmprunt()); track row.numero) {
               <tr [class]="row.rowClass">
                 <td>{{ row.numero }}</td>
                 <td>{{ row.dateLabel }}</td>

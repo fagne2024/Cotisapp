@@ -38,7 +38,6 @@ public class AccorderEmpruntService {
         Membre membre = membreRepository.findByIdAndOrganisationId(request.getMembreId(), orgId)
                 .orElseThrow(() -> new BusinessException("Membre introuvable"));
 
-        verifierPasDEmpruntEnCoursMemeType(orgId, request.getMembreId(), request.getTypeEmprunt());
         operationMemeJourControleService.verifierOctroiEmprunt(
                 orgId, request.getMembreId(), request.getTypeEmprunt(), request.getDateOctroi());
 
@@ -48,6 +47,7 @@ public class AccorderEmpruntService {
         }
 
         EmpruntCalculHelper.validerMontant(request.getMontant(), regle);
+        verifierPlafondCapitalCumule(orgId, request.getMembreId(), request.getTypeEmprunt(), request.getMontant(), regle);
         EmpruntCalculHelper.SimulationEmprunt sim = EmpruntCalculHelper.simuler(
                 request.getMontant(), regle, request.getNbEcheances());
         EmpruntCalculHelper.validerMontantEcheance(sim, regle);
@@ -272,16 +272,29 @@ public class AccorderEmpruntService {
     }
 
     /**
-     * Un membre peut avoir un emprunt en cours par type (étalé, solidarité, caisse) en parallèle,
-     * mais pas deux crédits actifs pour le même type.
+     * Plusieurs emprunts du même type sont autorisés tant que la somme des capitaux restants
+     * + le nouveau montant ne dépasse pas le plafond de la règle.
      */
-    private void verifierPasDEmpruntEnCoursMemeType(Long orgId, Long membreId, TypeEmprunt typeDemande) {
-        if (empruntRepository.existsByMembreIdAndOrganisationIdAndStatutAndTypeEmprunt(
-                membreId, orgId, StatutEmprunt.EN_COURS, typeDemande)) {
-            throw new BusinessException(
-                    "Ce membre a déjà un emprunt « "
-                            + libelleTypeEmprunt(typeDemande)
-                            + " » en cours. Remboursez-le avant d'en octroyer un nouveau du même type.");
+    private void verifierPlafondCapitalCumule(
+            Long orgId, Long membreId, TypeEmprunt typeDemande, BigDecimal nouveauCapital, RegleOperation regle) {
+        if (regle.getMontantMax() == null) {
+            return;
+        }
+        List<Emprunt> encours = empruntRepository.findByMembreIdAndOrganisationIdAndStatutAndTypeEmprunt(
+                membreId, orgId, StatutEmprunt.EN_COURS, typeDemande);
+        BigDecimal capitalEncours = encours.stream()
+                .map(EmpruntCalculHelper::capitalRestantEmprunt)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalApres = capitalEncours.add(nouveauCapital);
+        if (totalApres.compareTo(regle.getMontantMax()) > 0) {
+            BigDecimal disponible = regle.getMontantMax().subtract(capitalEncours).max(BigDecimal.ZERO);
+            throw new BusinessException(String.format(
+                    "Plafond emprunt « %s » dépassé pour ce membre : capital en cours %s FCFA + nouveau %s FCFA > maximum %s FCFA (reste disponible : %s FCFA).",
+                    libelleTypeEmprunt(typeDemande),
+                    capitalEncours,
+                    nouveauCapital,
+                    regle.getMontantMax(),
+                    disponible));
         }
     }
 

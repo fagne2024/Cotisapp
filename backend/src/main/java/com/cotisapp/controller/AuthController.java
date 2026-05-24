@@ -2,6 +2,7 @@ package com.cotisapp.controller;
 
 import com.cotisapp.dto.request.ChangeMotDePasseInitialRequest;
 import com.cotisapp.dto.request.LoginRequest;
+import com.cotisapp.dto.request.RefreshTokenRequest;
 import com.cotisapp.dto.request.TelephoneLookupRequest;
 import com.cotisapp.dto.request.VerifyTwoFactorRequest;
 import com.cotisapp.dto.response.AuthResponse;
@@ -51,5 +52,10 @@ public class AuthController {
     @PostMapping("/changer-mot-de-passe-initial")
     public AuthResponse changerMotDePasseInitial(@Valid @RequestBody ChangeMotDePasseInitialRequest request) {
         return authService.changerMotDePasseInitial(request);
+    }
+
+    @PostMapping("/refresh")
+    public AuthResponse refresh(@Valid @RequestBody RefreshTokenRequest request) {
+        return authService.rafraichirToken(request.getRefreshToken());
     }
 }

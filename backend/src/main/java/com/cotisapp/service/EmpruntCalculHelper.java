@@ -92,6 +92,24 @@ public final class EmpruntCalculHelper {
         return restEch.subtract(capitalNominalRestant(emprunt, ech)).max(BigDecimal.ZERO);
     }
 
+    /** Capital nominal encore dû sur un emprunt (hors frais), pour le plafond cumulé à l'octroi. */
+    public static BigDecimal capitalRestantEmprunt(Emprunt emprunt) {
+        if (emprunt == null) {
+            return BigDecimal.ZERO;
+        }
+        BigDecimal totalEmprunt = nz(emprunt.getMontantTotal());
+        BigDecimal fraisTotal = nz(emprunt.getMontantFrais());
+        BigDecimal capitalTotal = totalEmprunt.subtract(fraisTotal).max(BigDecimal.ZERO);
+        BigDecimal rembourse = nz(emprunt.getMontantRembourse());
+        BigDecimal fraisRembourse = fraisTotal.min(rembourse.subtract(capitalTotal).max(BigDecimal.ZERO));
+        BigDecimal capitalRembourse = capitalTotal.min(rembourse.subtract(fraisRembourse).max(BigDecimal.ZERO));
+        return capitalTotal.subtract(capitalRembourse).max(BigDecimal.ZERO);
+    }
+
+    private static BigDecimal nz(BigDecimal v) {
+        return v != null ? v : BigDecimal.ZERO;
+    }
+
     /**
      * Part intérêts / frais dans un paiement sur une échéance (le reste du paiement est affecté au nominal).
      */

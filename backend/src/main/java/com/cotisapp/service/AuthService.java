@@ -1,6 +1,7 @@
 package com.cotisapp.service;
 
 import com.cotisapp.domain.entity.Membre;
+import com.cotisapp.domain.entity.RefreshToken;
 import com.cotisapp.domain.entity.TypeProfil;
 import com.cotisapp.domain.entity.Utilisateur;
 import com.cotisapp.domain.entity.UtilisateurRole;
@@ -45,6 +46,7 @@ public class AuthService {
 
     private final AuthenticationManager authenticationManager;
     private final JwtService jwtService;
+    private final RefreshTokenService refreshTokenService;
     private final UtilisateurRepository utilisateurRepository;
     private final UtilisateurRoleRepository utilisateurRoleRepository;
     private final MembreRepository membreRepository;
@@ -138,7 +140,30 @@ public class AuthService {
         Long orgId = OrganisationContext.getOrganisationId();
         if (userId != null) {
             journalService.enregistrerDeconnexion(orgId, userId, request);
+            refreshTokenService.revoquerParUtilisateur(userId);
         }
+    }
+
+    @Transactional
+    public AuthResponse rafraichirToken(String refreshToken) {
+        RefreshToken rt = refreshTokenService.validerEtRoter(refreshToken);
+        Utilisateur u = utilisateurRepository.findById(rt.getUtilisateurId())
+                .orElseThrow(() -> new BusinessException("Compte introuvable"));
+        if (!Boolean.TRUE.equals(u.getActif())) {
+            throw new BusinessException("Compte suspendu");
+        }
+        String orgNom = null;
+        if (rt.getOrganisationId() != null) {
+            orgNom = organisationRepository.findById(rt.getOrganisationId())
+                    .map(com.cotisapp.domain.entity.Organisation::getNom)
+                    .orElse(null);
+        }
+        JwtClaims claims = new JwtClaims(
+                u.getEmail(), u.getId(), rt.getRole(), rt.getOrganisationId(), rt.getMembreId());
+        String newAccessToken = jwtService.generateToken(claims);
+        ContexteConnexion ctx = new ContexteConnexion(
+                u, rt.getRole(), rt.getOrganisationId(), rt.getMembreId(), null);
+        return buildAuthResponse(u, ctx, newAccessToken, orgNom, rt);
     }
 
     @Transactional
@@ -241,11 +266,19 @@ public class AuthService {
 
     private AuthResponse buildAuthResponse(
             Utilisateur u, ContexteConnexion ctx, String token, String orgNom) {
+        RefreshToken rt = refreshTokenService.creer(
+                u.getId(), ctx.role(), ctx.organisationId(), ctx.membreId());
+        return buildAuthResponse(u, ctx, token, orgNom, rt);
+    }
+
+    private AuthResponse buildAuthResponse(
+            Utilisateur u, ContexteConnexion ctx, String token, String orgNom, RefreshToken rt) {
         if (ctx.organisationId() != null) {
             presenceService.touch(u.getId(), ctx.organisationId());
         }
         return AuthResponse.builder()
                 .token(token)
+                .refreshToken(rt.getToken())
                 .userId(u.getId())
                 .email(u.getEmail())
                 .nomComplet(u.getPrenom() + " " + u.getNom())

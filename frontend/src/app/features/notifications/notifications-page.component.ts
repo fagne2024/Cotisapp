@@ -79,6 +79,10 @@ export class NotificationsPageComponent {
   readonly urgenceCount = computed(
     () => this.notifications().filter((n) => !n.lu && n.severite === 'urgence').length
   );
+
+  readonly procheCount = computed(
+    () => this.notifications().filter((n) => !n.lu && n.id.startsWith('emprunt-proche:')).length
+  );
   readonly luesCount = computed(() => this.notifications().filter((n) => n.lu).length);
   readonly totalCount = computed(() => this.notifications().length);
 

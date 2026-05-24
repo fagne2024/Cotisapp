@@ -53,6 +53,7 @@ public class SecurityConfig {
                                 "/api/auth/login",
                                 "/api/auth/verify-2fa",
                                 "/api/auth/comptes-membre",
+                                "/api/auth/refresh",
                                 "/api/maintenance/reinitialiser-2fa",
                                 "/actuator/health")
                         .permitAll()

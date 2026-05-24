@@ -1,4 +1,8 @@
+import { TypeEmprunt } from '../services/emprunt.service';
 import { EmpruntsReglesDto, RegleOperationDto } from '../services/regle-operation.service';
+
+/** Valeur par défaut si la règle n'a pas de délai paramétré. */
+export const JOURS_ALERTE_ECHEANCE_PROCHE = 7;
 
 export type EmpruntTypeUi = 'etale' | 'caisse' | 'sol';
 
@@ -32,6 +36,7 @@ export const REGLE_EMPRUNT_ETALE_FALLBACK: RegleOperationDto = {
   nbEcheancesMin: 3,
   nbEcheancesMax: 12,
   nbEcheancesDefaut: 4,
+  joursAlerteEcheanceProche: 7,
   montantEcheanceMin: 5_000,
   montantEcheanceMax: 150_000,
   typePenalite: 'FIXE',
@@ -56,6 +61,7 @@ export const REGLE_EMPRUNT_CAISSE_FALLBACK: RegleOperationDto = {
   nbEcheancesMin: 1,
   nbEcheancesMax: 6,
   nbEcheancesDefaut: 3,
+  joursAlerteEcheanceProche: 7,
   montantEcheanceMin: 10_000,
   montantEcheanceMax: 400_000,
   typePenalite: 'POURCENTAGE',
@@ -80,6 +86,7 @@ export const REGLE_EMPRUNT_SOLIDARITE_FALLBACK: RegleOperationDto = {
   nbEcheancesMin: 1,
   nbEcheancesMax: 1,
   nbEcheancesDefaut: 1,
+  joursAlerteEcheanceProche: 7,
   montantEcheanceMin: 5_000,
   montantEcheanceMax: 150_000,
   typePenalite: 'FIXE',
@@ -130,6 +137,21 @@ export function libelleFraisEmprunt(regle: RegleOperationDto): string {
     return `Frais fixes (${regle.montantFrais} F)`;
   }
   return 'Aucun frais';
+}
+
+/** Délai d'alerte « échéance proche » issu de la règle (défaut 7 j). */
+export function joursAlerteEcheanceProche(regle: RegleOperationDto | null | undefined): number {
+  const j = regle?.joursAlerteEcheanceProche;
+  return j != null && j >= 0 ? Math.floor(j) : JOURS_ALERTE_ECHEANCE_PROCHE;
+}
+
+export function joursAlertePourTypeEmprunt(
+  regles: EmpruntsReglesDto | null | undefined,
+  type: TypeEmprunt
+): number {
+  const ui: EmpruntTypeUi =
+    type === 'SOLIDARITE' ? 'sol' : type === 'CAISSE' ? 'caisse' : 'etale';
+  return joursAlerteEcheanceProche(regleEmpruntEffective(regles, ui));
 }
 
 export function libellePenaliteEmprunt(regle: RegleOperationDto): string {

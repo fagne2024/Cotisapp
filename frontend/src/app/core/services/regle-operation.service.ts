@@ -53,6 +53,8 @@ export interface RegleOperationDto {
   nbEcheancesDefaut?: number | null;
   uniteEcheance?: UniteEcheance | null;
   jourEcheanceMois?: number | null;
+  /** Jours avant l'échéance pour l'alerte « proche » (emprunts). */
+  joursAlerteEcheanceProche?: number | null;
   montantEcheanceMin?: number | null;
   montantEcheanceMax?: number | null;
   typePenalite?: TypeModeCalcul | null;
@@ -93,6 +95,8 @@ export interface UpdateRegleOperationBody {
   nbEcheancesDefaut?: number | null;
   uniteEcheance?: UniteEcheance | null;
   jourEcheanceMois?: number | null;
+  /** Jours avant l'échéance pour l'alerte « proche » (emprunts). */
+  joursAlerteEcheanceProche?: number | null;
   montantEcheanceMin?: number | null;
   montantEcheanceMax?: number | null;
   typePenalite?: TypeModeCalcul | null;

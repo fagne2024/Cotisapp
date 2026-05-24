@@ -127,7 +127,7 @@
                     <td colspan="8" class="empty-filtre">Chargement…</td>
                   </tr>
                 } @else {
-                  @for (h of historiqueFiltre(); track h.ligneId) {
+                  @for (h of historiquePaged(); track h.ligneId) {
                     <tr [class.hist-row-annulee]="h.annulee">
                       <td>
                         <div class="h-name">{{ h.membreNom }}</div>
@@ -186,6 +186,13 @@
               </tbody>
             </table>
           </div>
+          <app-list-pagination
+            [page]="histPage()"
+            [total]="historiqueFiltre().length"
+            [pageSize]="histPageSize"
+            unit="remboursement(s)"
+            (pageChange)="goHistPage($event)"
+          />
         </div>
       </div>
     </div>
@@ -276,6 +283,14 @@
                     Aucun emprunt ne correspond.
                     <button type="button" class="btn-link-inline" (click)="effacerFiltresEmprunts()">Effacer les filtres</button>
                   </p>
+                } @else {
+                  <app-list-pagination
+                    [page]="unitairePage()"
+                    [total]="empruntsFiltres().length"
+                    [pageSize]="unitairePageSize"
+                    unit="emprunt(s)"
+                    (pageChange)="goUnitairePage($event)"
+                  />
                 }
               } @else {
                 <p class="bulk-mode-hint">
@@ -419,7 +434,7 @@
                     <div class="fl emprunt-pick-top">
                       <label for="remb-emprunt">EMPRUNT</label>
                       <select id="remb-emprunt" class="emprunt-pick-select" formControlName="empruntId" (change)="onEmpruntSelectChange($event)">
-                        @for (e of empruntsFiltres(); track e.id) {
+                        @for (e of empruntsFiltresPaged(); track e.id) {
                           <option [value]="e.id">{{ empruntLabel(e) }}</option>
                         }
                       </select>

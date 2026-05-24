@@ -34,6 +34,7 @@ public class RegleOperationResponse {
     private Integer nbEcheancesDefaut;
     private UniteEcheance uniteEcheance;
     private Integer jourEcheanceMois;
+    private Integer joursAlerteEcheanceProche;
     private BigDecimal montantEcheanceMin;
     private BigDecimal montantEcheanceMax;
     private TypeModeCalcul typePenalite;

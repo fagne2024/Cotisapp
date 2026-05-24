@@ -4,6 +4,8 @@ package com.cotisapp.service;
 
 import com.cotisapp.domain.entity.Compte;
 
+import com.cotisapp.domain.entity.Emprunt;
+
 import com.cotisapp.domain.entity.Membre;
 
 import com.cotisapp.domain.entity.RegleOperation;
@@ -163,28 +165,70 @@ class AccorderEmpruntServiceTest {
 
 
     @Test
-    void accorder_refuse_si_membre_a_deja_un_emprunt_en_cours_meme_type() {
-        when(membreRepository.findByIdAndOrganisationId(MEMBRE_ID, ORG_ID))
-                .thenReturn(Optional.of(Membre.builder().id(MEMBRE_ID).organisationId(ORG_ID).build()));
-        when(empruntRepository.existsByMembreIdAndOrganisationIdAndStatutAndTypeEmprunt(
+    void accorder_refuse_si_plafond_capital_cumule_depasse() {
+        stubMembreEtRegles();
+        Emprunt existant = Emprunt.builder()
+                .organisationId(ORG_ID)
+                .membreId(MEMBRE_ID)
+                .typeEmprunt(TypeEmprunt.CAISSE)
+                .montantTotal(new BigDecimal("450000"))
+                .montantFrais(new BigDecimal("5000"))
+                .montantRembourse(BigDecimal.ZERO)
+                .statut(StatutEmprunt.EN_COURS)
+                .build();
+        when(empruntRepository.findByMembreIdAndOrganisationIdAndStatutAndTypeEmprunt(
                         MEMBRE_ID, ORG_ID, StatutEmprunt.EN_COURS, TypeEmprunt.CAISSE))
-                .thenReturn(true);
+                .thenReturn(List.of(existant));
 
-        AccorderEmpruntRequest req = request(TypeEmprunt.CAISSE, new BigDecimal("5000"));
+        AccorderEmpruntRequest req = request(TypeEmprunt.CAISSE, new BigDecimal("100000"));
 
         assertThatThrownBy(() -> accorderEmpruntService.accorder(ORG_ID, req))
                 .isInstanceOf(BusinessException.class)
-                .hasMessageContaining("caisse")
-                .hasMessageContaining("même type");
+                .hasMessageContaining("Plafond")
+                .hasMessageContaining("caisse");
         verify(empruntRepository, never()).save(any());
+    }
+
+    @Test
+    void accorder_autorise_plusieurs_emprunts_meme_type_sous_plafond() {
+        stubMembreEtRegles();
+        Emprunt existant = Emprunt.builder()
+                .organisationId(ORG_ID)
+                .membreId(MEMBRE_ID)
+                .typeEmprunt(TypeEmprunt.CAISSE)
+                .montantTotal(new BigDecimal("100000"))
+                .montantFrais(BigDecimal.ZERO)
+                .montantRembourse(BigDecimal.ZERO)
+                .statut(StatutEmprunt.EN_COURS)
+                .build();
+        when(empruntRepository.findByMembreIdAndOrganisationIdAndStatutAndTypeEmprunt(
+                        MEMBRE_ID, ORG_ID, StatutEmprunt.EN_COURS, TypeEmprunt.CAISSE))
+                .thenReturn(List.of(existant));
+        when(compteService.getCompteOrg(ORG_ID, TypeCompte.CAISSE)).thenReturn(caisse);
+        when(compteService.getCompteMembre(eq(MEMBRE_ID), eq(TypeCompte.EPARGNE_HEBDO)))
+                .thenReturn(Compte.builder().id(20L).membreId(MEMBRE_ID).solde(BigDecimal.ZERO).build());
+        when(empruntRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+        when(operationRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+        AccorderEmpruntRequest req = request(TypeEmprunt.CAISSE, new BigDecimal("50000"));
+        accorderEmpruntService.accorder(ORG_ID, req);
+
+        verify(empruntRepository).save(any());
     }
 
     @Test
     void accorder_autorise_si_emprunt_en_cours_autre_type() {
         stubMembreEtRegles();
-        when(empruntRepository.existsByMembreIdAndOrganisationIdAndStatutAndTypeEmprunt(
+        when(empruntRepository.findByMembreIdAndOrganisationIdAndStatutAndTypeEmprunt(
                         eq(MEMBRE_ID), eq(ORG_ID), eq(StatutEmprunt.EN_COURS), any(TypeEmprunt.class)))
-                .thenAnswer(inv -> TypeEmprunt.ETALE.equals(inv.getArgument(3)));
+                .thenAnswer(inv -> TypeEmprunt.ETALE.equals(inv.getArgument(3))
+                        ? List.of(Emprunt.builder()
+                                .montantTotal(new BigDecimal("200000"))
+                                .montantFrais(BigDecimal.ZERO)
+                                .montantRembourse(BigDecimal.ZERO)
+                                .statut(StatutEmprunt.EN_COURS)
+                                .build())
+                        : List.of());
 
         when(compteService.getCompteOrg(ORG_ID, TypeCompte.SOLIDARITE)).thenReturn(solidarite);
         when(compteService.getCompteOrg(ORG_ID, TypeCompte.CAISSE)).thenReturn(caisse);
@@ -346,9 +390,9 @@ class AccorderEmpruntServiceTest {
                 .thenReturn(Optional.of(Membre.builder().id(MEMBRE_ID).organisationId(ORG_ID).build()));
 
         lenient()
-                .when(empruntRepository.existsByMembreIdAndOrganisationIdAndStatutAndTypeEmprunt(
+                .when(empruntRepository.findByMembreIdAndOrganisationIdAndStatutAndTypeEmprunt(
                         eq(MEMBRE_ID), eq(ORG_ID), eq(StatutEmprunt.EN_COURS), any(TypeEmprunt.class)))
-                .thenReturn(false);
+                .thenReturn(List.of());
 
         RegleOperation regleCaisse = regle("Emprunt Caisse", new BigDecimal("5000"));
 

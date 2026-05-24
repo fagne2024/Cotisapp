@@ -16,6 +16,10 @@
   padding: 8px 16px 12px;
 }
 
+.panel-emprunts-pagination {
+  margin-top: 10px;
+}
+
 .loading-state-inline {
   display: flex;
   align-items: center;
@@ -1074,6 +1078,10 @@
 
 .historique-panel {
   max-width: 100%;
+}
+
+.historique-pagination {
+  margin-top: 10px;
 }
 
 .historique-h {

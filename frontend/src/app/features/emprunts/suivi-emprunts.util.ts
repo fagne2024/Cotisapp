@@ -1,9 +1,15 @@
 import { EmpruntDto, EcheanceDto, TypeEmprunt } from '../../core/services/emprunt.service';
+import { EmpruntsReglesDto } from '../../core/services/regle-operation.service';
+import { joursAlertePourTypeEmprunt } from '../../core/util/regle-emprunt.util';
 import {
   echeanceEnRetard,
+  echeanceProche,
   echeanceRestant,
   empruntEnRetard,
+  empruntEcheanceProche,
+  joursAvantEcheance,
   premiereEcheanceEnRetard,
+  premiereEcheanceProche,
   prochaineEcheanceOuverte,
   progressPctEmprunt,
   referenceEmprunt,
@@ -12,7 +18,7 @@ import {
 import { postePourCodeMembre } from '../membres/membres-poste.util';
 
 export type SuiviTab = 'tous' | 'etale' | 'caisse' | 'sol' | 'soldes';
-export type SuiviKpiFiltre = 'tous' | 'retard' | 'encours' | 'soldes' | 'montant';
+export type SuiviKpiFiltre = 'tous' | 'retard' | 'encours' | 'proches' | 'soldes' | 'montant';
 
 export type SuiviCarteStatut = 'retard' | 'encours' | 'solde' | 'sol';
 
@@ -90,7 +96,8 @@ export function empruntSoldeCeMois(emp: EmpruntDto, ref = new Date()): boolean {
   return dc.startsWith(`${y}-${m}`);
 }
 
-export function buildSuiviCard(emp: EmpruntDto): SuiviEmpruntCard {
+export function buildSuiviCard(emp: EmpruntDto, regles?: EmpruntsReglesDto | null): SuiviEmpruntCard {
+  const seuilJours = joursAlertePourTypeEmprunt(regles ?? null, emp.typeEmprunt);
   const solde = empruntEstSolde(emp);
   const enRetard = !solde && empruntEnRetard(emp);
   const poste = postePourCodeMembre(emp.codeMembre);
@@ -115,7 +122,7 @@ export function buildSuiviCard(emp: EmpruntDto): SuiviEmpruntCard {
     footerEch = totalEch ? `Éch. ${payees}/${totalEch} payée(s)` : '—';
   }
 
-  const { alerteHtml, alerteClass } = buildAlerte(emp, solde, enRetard);
+  const { alerteHtml, alerteClass } = buildAlerte(emp, solde, enRetard, seuilJours);
 
   const frais = Number(emp.montantFrais) || 0;
   const initial =
@@ -151,7 +158,12 @@ export function buildSuiviCard(emp: EmpruntDto): SuiviEmpruntCard {
   };
 }
 
-function buildAlerte(emp: EmpruntDto, solde: boolean, enRetard: boolean): { alerteHtml: string; alerteClass: string } {
+function buildAlerte(
+  emp: EmpruntDto,
+  solde: boolean,
+  enRetard: boolean,
+  seuilJours: number
+): { alerteHtml: string; alerteClass: string } {
   if (solde) {
     const dc = emp.dateCreation ? formatDateFrCourt(emp.dateCreation) : '—';
     return {
@@ -169,6 +181,18 @@ function buildAlerte(emp: EmpruntDto, solde: boolean, enRetard: boolean): { aler
         alerteClass: 'alert-retard',
       };
     }
+  }
+  const echProche = premiereEcheanceProche(emp, seuilJours);
+  if (echProche) {
+    const jours = joursAvantEcheance(echProche.dateEcheance);
+    const montant = echeanceRestant(echProche);
+    const date = formatDateFrCourt(echProche.dateEcheance);
+    const delai =
+      jours === 0 ? "aujourd'hui" : jours === 1 ? 'demain' : `dans ${jours} jours`;
+    return {
+      alerteHtml: `⏰ Échéance ${echProche.numero} ${delai} · ${montant.toLocaleString('fr-FR')} F le ${date}`,
+      alerteClass: 'alert-proche',
+    };
   }
   const prochaine = prochaineEcheanceOuverte(emp);
   if (prochaine) {
@@ -194,14 +218,21 @@ function buildAlerte(emp: EmpruntDto, solde: boolean, enRetard: boolean): { aler
   return { alerteHtml: 'Aucune échéance ouverte.', alerteClass: 'alert-muted' };
 }
 
-export function buildEcheancesRecap(emprunts: EmpruntDto[]): SuiviEcheanceRecapLigne[] {
+export function buildEcheancesRecap(
+  emprunts: EmpruntDto[],
+  regles?: EmpruntsReglesDto | null
+): SuiviEcheanceRecapLigne[] {
   const lignes: SuiviEcheanceRecapLigne[] = [];
   for (const emp of emprunts) {
     if (empruntEstSolde(emp)) continue;
+    const seuil = joursAlertePourTypeEmprunt(regles ?? null, emp.typeEmprunt);
     const ech =
-      premiereEcheanceEnRetard(emp) ?? prochaineEcheanceOuverte(emp);
+      premiereEcheanceEnRetard(emp) ??
+      premiereEcheanceProche(emp, seuil) ??
+      prochaineEcheanceOuverte(emp);
     if (!ech) continue;
     const enRetard = echeanceEnRetard(ech);
+    const proche = !enRetard && echeanceProche(ech, seuil);
     const poste = postePourCodeMembre(emp.codeMembre);
     const posteSuffix = poste.kind !== 'simple' ? `(${poste.label})` : null;
     lignes.push({
@@ -214,14 +245,17 @@ export function buildEcheancesRecap(emprunts: EmpruntDto[]): SuiviEcheanceRecapL
       dateLabel: formatDateFrCourt(ech.dateEcheance),
       dateRetardSuffix: enRetard ? `(retard ${joursRetard(ech.dateEcheance)}j)` : null,
       montantDu: echeanceRestant(ech),
-      statutBadgeClass: enRetard ? 'b-red' : 'b-or',
-      statutBadgeLabel: enRetard ? '⚠ Retard' : 'À venir',
-      rowClass: enRetard ? 'row-retard' : '',
+      statutBadgeClass: enRetard ? 'b-red' : proche ? 'b-or' : 'b-gray',
+      statutBadgeLabel: enRetard ? '⚠ Retard' : proche ? '⏰ Proche' : 'À venir',
+      rowClass: enRetard ? 'row-retard' : proche ? 'row-proche' : '',
       enRetard,
     });
   }
   return lignes.sort((a, b) => {
     if (a.enRetard !== b.enRetard) return a.enRetard ? -1 : 1;
+    const aProche = a.rowClass === 'row-proche';
+    const bProche = b.rowClass === 'row-proche';
+    if (aProche !== bProche) return aProche ? -1 : 1;
     return a.membreNom.localeCompare(b.membreNom, 'fr');
   });
 }
@@ -241,10 +275,29 @@ export function filtrerParTab(cartes: SuiviEmpruntCard[], tab: SuiviTab): SuiviE
   }
 }
 
-export function filtrerParKpi(cartes: SuiviEmpruntCard[], kpi: SuiviKpiFiltre | null): SuiviEmpruntCard[] {
+export function filtrerParKpi(
+  cartes: SuiviEmpruntCard[],
+  kpi: SuiviKpiFiltre | null,
+  regles?: EmpruntsReglesDto | null
+): SuiviEmpruntCard[] {
   if (!kpi || kpi === 'tous' || kpi === 'montant') return cartes;
   if (kpi === 'retard') return cartes.filter((c) => c.enRetard);
-  if (kpi === 'encours') return cartes.filter((c) => !c.solde && !c.enRetard);
+  if (kpi === 'encours') {
+    return cartes.filter(
+      (c) =>
+        !c.solde &&
+        !c.enRetard &&
+        !empruntEcheanceProche(c.emprunt, joursAlertePourTypeEmprunt(regles ?? null, c.emprunt.typeEmprunt))
+    );
+  }
+  if (kpi === 'proches') {
+    return cartes.filter(
+      (c) =>
+        !c.solde &&
+        !c.enRetard &&
+        empruntEcheanceProche(c.emprunt, joursAlertePourTypeEmprunt(regles ?? null, c.emprunt.typeEmprunt))
+    );
+  }
   if (kpi === 'soldes') return cartes.filter((c) => c.solde);
   return cartes;
 }
@@ -300,7 +353,10 @@ function joursRetard(dateEcheance: string, ref = new Date()): number {
   return Math.max(0, Math.floor(diff / 86_400_000));
 }
 
-export function modalEcheanceRows(emp: EmpruntDto): {
+export function modalEcheanceRows(
+  emp: EmpruntDto,
+  regles: EmpruntsReglesDto | null = null,
+): {
   numero: number;
   dateLabel: string;
   capital: number;
@@ -312,11 +368,12 @@ export function modalEcheanceRows(emp: EmpruntDto): {
   const frais = Number(emp.montantFrais) || 0;
   const capitalTotal = Math.max(0, (Number(emp.montantTotal) || 0) - frais);
   const n = (emp.echeances ?? []).length || 1;
+  const seuil = joursAlertePourTypeEmprunt(regles, emp.typeEmprunt);
   return (emp.echeances ?? [])
     .slice()
     .sort((a, b) => a.numero - b.numero)
     .map((ech) => {
-      const ui = statutEcheanceUi(ech);
+      const ui = statutEcheanceUi(ech, new Date(), seuil);
       const statutLabel =
         ui === 'paye'
           ? '✓ Payée'
@@ -326,7 +383,7 @@ export function modalEcheanceRows(emp: EmpruntDto): {
               ? 'Partiel'
               : 'À venir';
       const statutClass =
-        ui === 'paye' ? 'b-green' : ui === 'retard' ? 'b-red' : 'b-gray';
+        ui === 'paye' ? 'b-green' : ui === 'retard' ? 'b-red' : ui === 'proche' ? 'b-or' : 'b-gray';
       return {
         numero: ech.numero,
         dateLabel: formatDateFrLong(ech.dateEcheance),
@@ -334,7 +391,7 @@ export function modalEcheanceRows(emp: EmpruntDto): {
         total: Number(ech.montantEcheance) || 0,
         statutClass,
         statutLabel,
-        rowClass: ui === 'paye' ? 'paid' : ui === 'retard' ? 'retard' : '',
+        rowClass: ui === 'paye' ? 'paid' : ui === 'retard' ? 'retard' : ui === 'proche' ? 'proche' : '',
       };
     });
 }

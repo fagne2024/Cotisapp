@@ -3,7 +3,9 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Subscription } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { EmpruntDto, EmpruntService } from '../../core/services/emprunt.service';
+import { EmpruntsReglesDto, RegleOperationService } from '../../core/services/regle-operation.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { joursAlertePourTypeEmprunt } from '../../core/util/regle-emprunt.util';
 import { organisationCouranteId } from '../../core/util/org-route.util';
 import { formatFcfa } from '../../core/utils/currency.util';
 import { matchTextQuery } from '../../shared/util/filter.util';
@@ -20,12 +22,19 @@ import {
   SuiviKpiFiltre,
   SuiviTab,
 } from './suivi-emprunts.util';
+import { empruntEcheanceProche } from '../remboursements/remboursement-emprunt.util';
 import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
+import { ListPaginationComponent } from '../../shared/components/list-pagination/list-pagination.component';
+import {
+  clampPage,
+  paginateSlice,
+  paginationTotalPages,
+} from '../../shared/util/pagination.util';
 
 @Component({
   selector: 'app-suivi-emprunts',
   standalone: true,
-  imports: [RouterLink, ...DROIT_ACTION_IMPORTS],
+  imports: [RouterLink, ListPaginationComponent, ...DROIT_ACTION_IMPORTS],
   templateUrl: './suivi-emprunts.component.html',
   styleUrl: './suivi-emprunts.component.scss',
 })
@@ -35,6 +44,7 @@ export class SuiviEmpruntsComponent implements OnInit, OnDestroy {
   private readonly router = inject(Router);
   readonly auth = inject(AuthService);
   private readonly empruntService = inject(EmpruntService);
+  private readonly regleService = inject(RegleOperationService);
   private readonly notify = inject(NotificationService);
 
   readonly formatFcfa = formatFcfa;
@@ -44,35 +54,60 @@ export class SuiviEmpruntsComponent implements OnInit, OnDestroy {
   readonly vueMembre = computed(() => this.auth.currentRole() === 'MEMBRE');
 
   readonly emprunts = signal<EmpruntDto[]>([]);
+  readonly reglesEmprunt = signal<EmpruntsReglesDto | null>(null);
   readonly loading = signal(true);
   readonly tab = signal<SuiviTab>('tous');
   readonly kpiActif = signal<SuiviKpiFiltre | null>('tous');
   readonly recherche = signal('');
-  readonly filtreStatut = signal<'tous' | 'retard' | 'encours' | 'solde'>('tous');
+  readonly filtreStatut = signal<'tous' | 'retard' | 'encours' | 'proche' | 'solde'>('tous');
+  readonly alerteProchesVisible = signal(true);
   readonly detailCarte = signal<SuiviEmpruntCard | null>(null);
 
-  readonly cartes = computed(() => this.emprunts().map(buildSuiviCard));
+  readonly cartes = computed(() =>
+    this.emprunts().map((e) => buildSuiviCard(e, this.reglesEmprunt()))
+  );
 
   readonly kpi = computed(() => {
+    const regles = this.reglesEmprunt();
     const all = this.cartes();
     const actifs = all.filter((c) => !c.solde);
+    const seuil = (c: SuiviEmpruntCard) =>
+      joursAlertePourTypeEmprunt(regles, c.emprunt.typeEmprunt);
     return {
       totalActifs: actifs.length,
       retard: actifs.filter((c) => c.enRetard).length,
-      encours: actifs.filter((c) => !c.enRetard).length,
+      encours: actifs.filter(
+        (c) => !c.enRetard && !empruntEcheanceProche(c.emprunt, seuil(c))
+      ).length,
       soldesMois: all.filter((c) => c.solde && empruntSoldeCeMois(c.emprunt)).length,
+      proches: actifs.filter(
+        (c) => !c.enRetard && empruntEcheanceProche(c.emprunt, seuil(c))
+      ).length,
       encoursMontant: actifs.reduce((s, c) => s + c.montantRestant, 0),
     };
   });
 
+  readonly empruntsProchesCount = computed(() => this.kpi().proches);
+
   readonly compteurs = computed(() => compteursTab(this.cartes()));
 
   readonly cartesFiltrees = computed(() => {
+    const regles = this.reglesEmprunt();
     let list = filtrerParTab(this.cartes(), this.tab());
-    list = filtrerParKpi(list, this.kpiActif());
+    list = filtrerParKpi(list, this.kpiActif(), regles);
     const fs = this.filtreStatut();
+    const seuil = (c: SuiviEmpruntCard) =>
+      joursAlertePourTypeEmprunt(regles, c.emprunt.typeEmprunt);
     if (fs === 'retard') list = list.filter((c) => c.enRetard);
-    else if (fs === 'encours') list = list.filter((c) => !c.solde && !c.enRetard);
+    else if (fs === 'encours') {
+      list = list.filter(
+        (c) => !c.solde && !c.enRetard && !empruntEcheanceProche(c.emprunt, seuil(c))
+      );
+    } else if (fs === 'proche') {
+      list = list.filter(
+        (c) => !c.solde && !c.enRetard && empruntEcheanceProche(c.emprunt, seuil(c))
+      );
+    }
     else if (fs === 'solde') list = list.filter((c) => c.solde);
     const q = this.recherche();
     if (q.trim()) {
@@ -83,14 +118,54 @@ export class SuiviEmpruntsComponent implements OnInit, OnDestroy {
     return list;
   });
 
-  readonly recapEcheances = computed(() => buildEcheancesRecap(this.emprunts()));
+  readonly cartesPage = signal(1);
+
+  readonly cartesPageSize = 10;
+
+  readonly cartesFiltreesPage = computed(() =>
+    paginateSlice(this.cartesFiltrees(), this.cartesPage(), this.cartesPageSize)
+  );
+
+  readonly recapEcheances = computed(() =>
+    buildEcheancesRecap(this.emprunts(), this.reglesEmprunt())
+  );
+
+  /** Délai max affiché (plus grand des 3 types) pour les libellés génériques. */
+  readonly joursAlerteProcheMax = computed(() => {
+    const r = this.reglesEmprunt();
+    if (!r) return 7;
+    return Math.max(
+      joursAlertePourTypeEmprunt(r, 'ETALE'),
+      joursAlertePourTypeEmprunt(r, 'CAISSE'),
+      joursAlertePourTypeEmprunt(r, 'SOLIDARITE')
+    );
+  });
+
+  readonly recapPage = signal(1);
+
+  readonly recapPageSize = 10;
+
+  readonly recapEcheancesPage = computed(() =>
+    paginateSlice(this.recapEcheances(), this.recapPage(), this.recapPageSize)
+  );
 
   private orgId = 0;
   private sub = new Subscription();
 
   ngOnInit(): void {
     this.orgId = organisationCouranteId(this.route, this.auth) ?? 0;
+    this.chargerRegles();
     this.charger();
+  }
+
+  private chargerRegles(): void {
+    if (this.orgId < 1) return;
+    this.sub.add(
+      this.regleService.obtenirEmprunts(this.orgId).subscribe({
+        next: (r) => this.reglesEmprunt.set(r),
+        error: () => this.reglesEmprunt.set(null),
+      })
+    );
   }
 
   ngOnDestroy(): void {
@@ -119,6 +194,7 @@ export class SuiviEmpruntsComponent implements OnInit, OnDestroy {
     } else if (event.key === 'Escape') {
       event.preventDefault();
       this.recherche.set('');
+      this.cartesPage.set(1);
     }
   }
 
@@ -135,10 +211,14 @@ export class SuiviEmpruntsComponent implements OnInit, OnDestroy {
       req.subscribe({
         next: (list) => {
           this.emprunts.set(list ?? []);
+          this.cartesPage.set(1);
+          this.recapPage.set(1);
           this.loading.set(false);
         },
         error: () => {
           this.emprunts.set([]);
+          this.cartesPage.set(1);
+          this.recapPage.set(1);
           this.loading.set(false);
           this.notify.error('Impossible de charger les emprunts.');
         },
@@ -153,12 +233,14 @@ export class SuiviEmpruntsComponent implements OnInit, OnDestroy {
   setTab(t: SuiviTab): void {
     this.tab.set(t);
     this.kpiActif.set(null);
+    this.cartesPage.set(1);
   }
 
   setKpi(k: SuiviKpiFiltre): void {
     this.kpiActif.set(this.kpiActif() === k ? null : k);
     if (k === 'soldes') this.tab.set('soldes');
-    else if (k === 'retard' || k === 'encours') this.tab.set('tous');
+    else if (k === 'retard' || k === 'encours' || k === 'proches') this.tab.set('tous');
+    this.cartesPage.set(1);
   }
 
   kpiActive(k: SuiviKpiFiltre): boolean {
@@ -167,13 +249,25 @@ export class SuiviEmpruntsComponent implements OnInit, OnDestroy {
 
   onRecherche(ev: Event): void {
     this.recherche.set((ev.target as HTMLInputElement).value);
+    this.cartesPage.set(1);
   }
 
   onFiltreStatut(ev: Event): void {
     const v = (ev.target as HTMLSelectElement).value;
     this.filtreStatut.set(
-      v === 'retard' || v === 'encours' || v === 'solde' ? v : 'tous'
+      v === 'retard' || v === 'encours' || v === 'proche' || v === 'solde' ? v : 'tous'
     );
+    this.cartesPage.set(1);
+  }
+
+  goCartesPage(p: number): void {
+    const total = paginationTotalPages(this.cartesFiltrees().length, this.cartesPageSize);
+    this.cartesPage.set(clampPage(p, total));
+  }
+
+  goRecapPage(p: number): void {
+    const total = paginationTotalPages(this.recapEcheances().length, this.recapPageSize);
+    this.recapPage.set(clampPage(p, total));
   }
 
   ouvrirDetail(c: SuiviEmpruntCard): void {
@@ -193,7 +287,7 @@ export class SuiviEmpruntsComponent implements OnInit, OnDestroy {
   allerRemboursementParId(empruntId: number): void {
     const emp = this.emprunts().find((e) => e.id === empruntId);
     if (!emp) return;
-    this.allerRemboursement(buildSuiviCard(emp));
+    this.allerRemboursement(buildSuiviCard(emp, this.reglesEmprunt()));
   }
 
   allerRemboursement(c: SuiviEmpruntCard, ev?: Event): void {

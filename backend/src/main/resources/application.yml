@@ -38,6 +38,7 @@ cotisapp:
   jwt:
     secret: ${JWT_SECRET:ChangeMeToASecureSecretKeyAtLeast256BitsLongForProductionUse123456}
     expiration-ms: ${JWT_EXPIRATION_MS:86400000}
+    refresh-expiration-ms: ${JWT_REFRESH_EXPIRATION_MS:2592000000}
   totp:
     issuer: ${TOTP_ISSUER:CotisApp}
     encryption-key: ${TOTP_ENCRYPTION_KEY:CotisAppTotp@AES256SecretKey#2026Dev}

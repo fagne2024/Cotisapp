@@ -33,6 +33,11 @@
   display: block;
 }
 
+.suivi-cartes-pagination,
+.suivi-recap-pagination {
+  margin-top: 12px;
+}
+
 .suivi-page {
   animation: fadeIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
 
@@ -153,7 +158,7 @@
 
 .kpi-band {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(6, 1fr);
   gap: 12px;
   margin-bottom: 20px;
 }
@@ -196,6 +201,9 @@
 .kpi.k-encours {
   border-top-color: var(--or2);
 }
+.kpi.k-proche {
+  border-top-color: #1565c0;
+}
 .kpi.k-solde {
   border-top-color: var(--g4);
 }
@@ -221,6 +229,9 @@
 }
 .kpi.k-encours .kpi-val {
   color: var(--or);
+}
+.kpi.k-proche .kpi-val {
+  color: #1565c0;
 }
 .kpi.k-solde .kpi-val {
   color: var(--g2);
@@ -548,6 +559,50 @@
   background: var(--re2);
 }
 
+.alert-proche {
+  color: #1565c0;
+  font-weight: 600;
+  background: #e8f4fd;
+}
+
+.alert {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 16px;
+  padding: 12px 16px;
+  border-radius: var(--r);
+  border: 1px solid #90caf9;
+  background: #e8f4fd;
+  font-size: 12.5px;
+}
+
+.alert-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.alert-link-btn {
+  margin-left: 8px;
+  font-weight: 700;
+  color: #1565c0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: inherit;
+  text-decoration: underline;
+}
+
+.alert-close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  color: #1565c0;
+  line-height: 1;
+}
+
 .alert-info-bl {
   color: var(--bl);
   background: var(--bl2);
@@ -683,6 +738,10 @@
 
 .recap-table tr.row-retard {
   background: #fff8f8;
+}
+
+.recap-table tr.row-proche {
+  background: #f3f9ff;
 }
 
 .fw {

@@ -188,6 +188,17 @@
                 </a>
               </div>
             }
+            @if (procheCount() > 0) {
+              <div class="action-box action-or">
+                <div class="action-box-title">⏰ {{ procheCount() }} échéance(s) proche(s)</div>
+                <p class="action-box-text">
+                  Des remboursements sont attendus dans les 7 prochains jours — anticipez depuis le suivi des emprunts.
+                </p>
+                <a class="action-box-link" [routerLink]="orgBase().concat(['operations', 'emprunts', 'suivi'])">
+                  Ouvrir le suivi →
+                </a>
+              </div>
+            }
             <div class="action-box action-or">
               <div class="action-box-title">⏰ Cotisations à saisir</div>
               <p class="action-box-text">Consultez le suivi des cotisations hebdomadaires pour les membres en retard.</p>

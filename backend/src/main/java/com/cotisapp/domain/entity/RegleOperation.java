@@ -101,6 +101,10 @@ public class RegleOperation implements OrganisationScoped {
     @Column(name = "jour_echeance_mois")
     private Integer jourEcheanceMois;
 
+    /** Nombre de jours avant l'échéance pour déclencher une alerte « proche » (emprunts uniquement). */
+    @Column(name = "jours_alerte_echeance_proche")
+    private Integer joursAlerteEcheanceProche;
+
     @Column(name = "montant_echeance_min", precision = 19, scale = 2)
     private BigDecimal montantEcheanceMin;
 

@@ -24,6 +24,7 @@ export interface CompteMembreLogin {
 
 export interface AuthResponse {
   token?: string;
+  refreshToken?: string;
   userId: number;
   email: string;
   nomComplet: string;

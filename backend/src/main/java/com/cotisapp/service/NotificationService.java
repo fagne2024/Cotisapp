@@ -102,6 +102,7 @@ public class NotificationService {
             brutes.addAll(demandesOperationsEnAttente(orgId, membresParId));
         }
         brutes.addAll(empruntsEnRetard(orgId, today, membresParId, null));
+        brutes.addAll(empruntsEcheancesProches(orgId, today, membresParId, null));
         brutes.addAll(cotisationsSemaineManquantes(orgId, today, membresParId));
         brutes.addAll(soldeSolidariteBas(orgId));
         brutes.addAll(membresRecents(orgId, membresParId));
@@ -122,6 +123,7 @@ public class NotificationService {
         List<NotificationResponse> brutes = new ArrayList<>();
         brutes.addAll(demandesMembre(orgId, membre));
         brutes.addAll(empruntsEnRetard(orgId, today, Map.of(membreId, membre), membreId));
+        brutes.addAll(empruntsEcheancesProches(orgId, today, Map.of(membreId, membre), membreId));
         brutes.addAll(cotisationSemaineManquanteMembre(orgId, today, membreId, membre));
         return brutes;
     }
@@ -406,6 +408,78 @@ public class NotificationService {
                         .tag("Emprunt en retard")
                         .tagClass("tag-re")
                         .actionLabel(membreIdFiltre != null ? "Mes emprunts →" : "Voir le remboursement →")
+                        .actionSegments(membreIdFiltre != null
+                                ? List.of("operations", "emprunts", "suivi")
+                                : actionRemboursement(emprunt.getTypeEmprunt()))
+                        .actionQueryParams(membreIdFiltre != null
+                                ? Map.of()
+                                : actionRemboursementParams(emprunt.getTypeEmprunt()))
+                        .typeFiltre("EMPRUNT")
+                        .dateTri(dateTri)
+                        .build());
+            }
+        }
+        return list;
+    }
+
+    private List<NotificationResponse> empruntsEcheancesProches(
+            Long orgId, LocalDate today, Map<Long, Membre> membresParId, Long membreIdFiltre) {
+        List<NotificationResponse> list = new ArrayList<>();
+        for (Emprunt emprunt : empruntRepository.findByOrganisationId(orgId)) {
+            if (membreIdFiltre != null && !membreIdFiltre.equals(emprunt.getMembreId())) {
+                continue;
+            }
+            if (emprunt.getStatut() != StatutEmprunt.EN_COURS || emprunt.getEcheances() == null) {
+                continue;
+            }
+            Membre membre = membresParId.get(emprunt.getMembreId());
+            String nomMembre = membre != null ? membre.getNomComplet() : "Membre";
+            int joursAlerte = EmpruntRegleHelper.joursAlerteEcheanceProchePourType(
+                    regleOperationRepository, orgId, emprunt.getTypeEmprunt());
+            LocalDate limite = today.plusDays(joursAlerte);
+            for (Echeance ech : emprunt.getEcheances()) {
+                if (ech.getStatut() == StatutEcheance.PAYE) {
+                    continue;
+                }
+                if (ech.getDateEcheance().isBefore(today)) {
+                    continue;
+                }
+                if (ech.getDateEcheance().isAfter(limite)) {
+                    continue;
+                }
+                long joursRestants = ChronoUnit.DAYS.between(today, ech.getDateEcheance());
+                BigDecimal restant = ech.getMontantEcheance().subtract(ech.getMontantPaye()).max(BigDecimal.ZERO);
+                String cle = "emprunt-proche:" + ech.getId();
+                LocalDateTime dateTri = ech.getDateEcheance().atStartOfDay();
+                String typeEmprunt = libelleTypeEmprunt(emprunt.getTypeEmprunt());
+                String libelleDelai = joursRestants == 0
+                        ? "aujourd'hui"
+                        : joursRestants == 1
+                                ? "demain"
+                                : String.format(Locale.FRENCH, "dans %d jours", joursRestants);
+                list.add(NotificationResponse.builder()
+                        .id(cle)
+                        .groupe(groupe(dateTri, false))
+                        .severite("warning")
+                        .lu(false)
+                        .icone("⏰")
+                        .iconeClass("ico-or")
+                        .titre(membreIdFiltre != null
+                                ? "Échéance proche — votre emprunt"
+                                : "Échéance proche — " + nomMembre)
+                        .description(String.format(
+                                Locale.FRENCH,
+                                "Échéance %d de %s (%s) %s — prévue le %s. Montant dû : %s FCFA.",
+                                ech.getNumero(),
+                                formatMontant(ech.getMontantEcheance()),
+                                typeEmprunt,
+                                libelleDelai,
+                                ech.getDateEcheance().format(DateTimeFormatter.ofPattern("dd/MM/yyyy")),
+                                formatMontant(restant)))
+                        .temps(tempsRelatif(dateTri))
+                        .tag("Échéance proche")
+                        .tagClass("tag-or")
+                        .actionLabel(membreIdFiltre != null ? "Mes emprunts →" : "Préparer le remboursement →")
                         .actionSegments(membreIdFiltre != null
                                 ? List.of("operations", "emprunts", "suivi")
                                 : actionRemboursement(emprunt.getTypeEmprunt()))

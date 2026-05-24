@@ -331,6 +331,18 @@ export class RemboursementComponent implements OnInit, OnDestroy {
     });
   });
 
+  readonly histPage = signal(1);
+  readonly histPageSize = 15;
+  readonly historiquePaged = computed(() =>
+    paginateSlice(this.historiqueFiltre(), this.histPage(), this.histPageSize)
+  );
+
+  readonly unitairePage = signal(1);
+  readonly unitairePageSize = 10;
+  readonly empruntsFiltresPaged = computed(() =>
+    paginateSlice(this.empruntsFiltres(), this.unitairePage(), this.unitairePageSize)
+  );
+
   readonly historiqueTotaux = computed(() => {
     const rows = this.historiqueFiltre().filter((r) => !r.annulee);
     const sum = (type: string) =>
@@ -642,6 +654,7 @@ export class RemboursementComponent implements OnInit, OnDestroy {
             annulable: !!l.annulable,
           }))
         );
+        this.histPage.set(1);
         this.historiqueLoading.set(false);
       },
       error: (err) => {
@@ -672,24 +685,39 @@ export class RemboursementComponent implements OnInit, OnDestroy {
     const v = (ev.target as HTMLSelectElement).value;
     if (v === 'etale' || v === 'caisse' || v === 'solidarite' || v === 'tous') {
       this.filtreHistType.set(v);
+      this.histPage.set(1);
     }
   }
 
   onFiltreHistRecherche(ev: Event): void {
     this.filtreHistRecherche.set((ev.target as HTMLInputElement).value);
+    this.histPage.set(1);
   }
 
   onFiltreHistDateDebut(ev: Event): void {
     this.filtreHistDateDebut.set((ev.target as HTMLInputElement).value);
+    this.histPage.set(1);
   }
 
   onFiltreHistDateFin(ev: Event): void {
     this.filtreHistDateFin.set((ev.target as HTMLInputElement).value);
+    this.histPage.set(1);
   }
 
   reinitialiserFiltreHistDates(): void {
     this.filtreHistDateDebut.set('');
     this.filtreHistDateFin.set('');
+    this.histPage.set(1);
+  }
+
+  goHistPage(p: number): void {
+    const max = paginationTotalPages(this.historiqueFiltre().length, this.histPageSize);
+    this.histPage.set(Math.min(max, Math.max(1, p)));
+  }
+
+  goUnitairePage(p: number): void {
+    const max = paginationTotalPages(this.empruntsFiltres().length, this.unitairePageSize);
+    this.unitairePage.set(Math.min(max, Math.max(1, p)));
   }
 
   estAnnulationEnCours(operationId: number): boolean {
@@ -817,17 +845,20 @@ export class RemboursementComponent implements OnInit, OnDestroy {
 
   onFiltreRecherche(ev: Event): void {
     this.filtreRecherche.set((ev.target as HTMLInputElement).value);
+    this.unitairePage.set(1);
   }
 
   onFiltreStatut(ev: Event): void {
     const v = (ev.target as HTMLSelectElement).value;
     this.filtreStatut.set(v === 'retard' ? 'retard' : 'tous');
+    this.unitairePage.set(1);
   }
 
   effacerFiltresEmprunts(): void {
     this.filtreRecherche.set('');
     this.filtreStatut.set('tous');
     this.membreCodeNumero.set('');
+    this.unitairePage.set(1);
   }
 
   setType(t: RembTypeUi): void {

@@ -56,6 +56,25 @@
     </div>
   }
 
+  @if (procheEmprunts().length > 0 && alerteProchesVisible()) {
+    <div class="alert alert-proche">
+      <span class="alert-ico">⏰</span>
+      <div class="alert-body">
+        <strong>{{ procheEmprunts().length }} échéance(s) proche(s)</strong>
+        <span class="alert-sub">(délai paramétré par type, max {{ joursAlerteProcheMax() }} j)</span>
+        — {{ procheSummary() }}
+        <a
+          class="alert-link"
+          [routerLink]="isMembreSimple()
+            ? ['/organisations', auth.currentOrgId()!, 'operations', 'emprunts', 'suivi']
+            : ['/organisations', auth.currentOrgId()!, 'operations', 'emprunts', 'suivi']">
+          Voir le suivi →
+        </a>
+      </div>
+      <button type="button" class="alert-close" (click)="dismissAlerteProches()" aria-label="Fermer">×</button>
+    </div>
+  }
+
   @if (loading()) {
     <p class="dash-loading">Chargement des soldes…</p>
   } @else if (loadError()) {
@@ -86,6 +105,8 @@
         <div class="kpi-label">En cours</div>
         @if (overdueEmprunts().length > 0) {
           <div class="kpi-trend tr-warn">⚠ {{ overdueEmprunts().length }} en retard</div>
+        } @else if (procheEmprunts().length > 0) {
+          <div class="kpi-trend tr-warn">⏰ {{ procheEmprunts().length }} échéance(s) proche(s)</div>
         } @else {
           <div class="kpi-trend tr-up">À jour</div>
         }
@@ -123,6 +144,8 @@
         <div class="kpi-label">En cours</div>
         @if (overdueEmprunts().length > 0) {
           <div class="kpi-trend tr-warn">⚠ {{ overdueEmprunts().length }} en retard</div>
+        } @else if (procheEmprunts().length > 0) {
+          <div class="kpi-trend tr-warn">⏰ {{ procheEmprunts().length }} échéance(s) proche(s)</div>
         } @else {
           <div class="kpi-trend tr-up">À jour</div>
         }

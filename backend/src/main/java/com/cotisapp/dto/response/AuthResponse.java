@@ -21,4 +21,5 @@ public class AuthResponse {
     private boolean requiresTwoFactor;
     private String twoFactorToken;
     private boolean mustSetupTwoFactor;
+    private String refreshToken;
 }

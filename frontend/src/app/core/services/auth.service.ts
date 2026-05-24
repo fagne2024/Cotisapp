@@ -1,12 +1,14 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Router } from '@angular/router';
-import { tap } from 'rxjs/operators';
+import { Observable } from 'rxjs';
+import { map, tap } from 'rxjs/operators';
 import { environment } from '../../../environments/environment';
 import { AuthResponse, AuthUser, CompteMembreLogin, Role } from '../models/role.model';
 import { DroitAccesService } from './droit-acces.service';
 
 const TOKEN_KEY = 'cotisapp_token';
+const REFRESH_TOKEN_KEY = 'cotisapp_refresh_token';
 const USER_KEY = 'cotisapp_user';
 const MUST_CHANGE_KEY = 'cotisapp_must_change_pwd';
 const MUST_SETUP_2FA_KEY = 'cotisapp_must_setup_2fa';
@@ -107,6 +109,7 @@ export class AuthService {
 
   private viderSession(): void {
     localStorage.removeItem(TOKEN_KEY);
+    localStorage.removeItem(REFRESH_TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(MUST_CHANGE_KEY);
     localStorage.removeItem(MUST_SETUP_2FA_KEY);
@@ -158,6 +161,20 @@ export class AuthService {
     return localStorage.getItem(TOKEN_KEY);
   }
 
+  getRefreshToken(): string | null {
+    return localStorage.getItem(REFRESH_TOKEN_KEY);
+  }
+
+  refresh(): Observable<boolean> {
+    const refreshToken = this.getRefreshToken();
+    return this.http
+      .post<AuthResponse>(`${environment.apiUrl}/auth/refresh`, { refreshToken })
+      .pipe(
+        tap((res) => this.persistSession(res)),
+        map(() => true),
+      );
+  }
+
   hasRole(roles: Role[]): boolean {
     const role = this.currentRole();
     return role != null && roles.includes(role);
@@ -202,6 +219,9 @@ export class AuthService {
       return;
     }
     localStorage.setItem(TOKEN_KEY, res.token);
+    if (res.refreshToken) {
+      localStorage.setItem(REFRESH_TOKEN_KEY, res.refreshToken);
+    }
     const mustChange = !!res.mustChangePassword;
     const mustSetup2fa = !!res.mustSetupTwoFactor;
     localStorage.setItem(MUST_CHANGE_KEY, mustChange ? 'true' : 'false');

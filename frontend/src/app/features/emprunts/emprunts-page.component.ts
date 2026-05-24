@@ -35,6 +35,7 @@ import { organisationCouranteId } from '../../core/util/org-route.util';
 import { buildOrgRoute } from '../../core/util/notifications-route.util';
 import { formatFcfa } from '../../core/utils/currency.util';
 import { postePourCodeMembre } from '../membres/membres-poste.util';
+import { sommeEncoursEmpruntsAvecFrais } from '../membres/membre-fiche.util';
 import { FilterQueryNav, qpEnum, qpString } from '../../shared/util/filter-query.util';
 import { matchTextQuery } from '../../shared/util/filter.util';
 import { empruntEnRetard } from '../remboursements/remboursement-emprunt.util';
@@ -47,6 +48,7 @@ import {
 } from '../../shared/util/membre-code-lookup.util';
 import { ListPaginationComponent } from '../../shared/components/list-pagination/list-pagination.component';
 import {
+  clampPage,
   paginateSlice,
   paginationTotalPages,
 } from '../../shared/util/pagination.util';
@@ -230,6 +232,14 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
     };
   });
 
+  readonly historiquePage = signal(1);
+
+  readonly historiquePageSize = 10;
+
+  readonly historiqueFiltrePage = computed(() =>
+    paginateSlice(this.historiqueFiltre(), this.historiquePage(), this.historiquePageSize)
+  );
+
   readonly totalEncours = computed(() =>
     this.emprunts()
       .filter((e) => e.statut === 'EN_COURS')
@@ -242,20 +252,29 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
     return this.membresRecherche().find((m) => m.id === id) ?? null;
   });
 
-  /** Emprunt EN_COURS du membre pour le type demandé (onglet) — bloque un second octroi du même type uniquement. */
-  readonly empruntEnCoursMembreSelectionne = computed(() => {
+  /** Emprunts EN_COURS du membre pour le type d'octroi actif. */
+  readonly empruntsEnCoursMembreType = computed(() => {
     const id = this.form.controls.membreId.value;
-    if (id == null) return null;
     const typeDemande = this.typeEmpruntPourOctroiCourant();
-    if (typeDemande == null) return null;
-    return (
-      this.emprunts().find(
-        (e) => e.membreId === id && e.statut === 'EN_COURS' && e.typeEmprunt === typeDemande
-      ) ?? null
+    if (id == null || typeDemande == null) return [];
+    return this.emprunts().filter(
+      (e) => e.membreId === id && e.statut === 'EN_COURS' && e.typeEmprunt === typeDemande
     );
   });
 
-  readonly octroiBloqueEmpruntEnCours = computed(() => this.empruntEnCoursMembreSelectionne() != null);
+  readonly capitalEncoursMembreType = computed(
+    () => sommeEncoursEmpruntsAvecFrais(this.empruntsEnCoursMembreType()).capitalRestant
+  );
+
+  /** Plafond règle moins le capital déjà emprunté (même type, en cours). */
+  readonly montantMaxDisponibleOctroi = computed(() =>
+    Math.max(0, this.montantMax() - this.capitalEncoursMembreType())
+  );
+
+  readonly octroiDepassePlafond = computed(() => {
+    const m = Math.max(0, Number(this.form.controls.montant.value) || 0);
+    return m > this.montantMaxDisponibleOctroi();
+  });
 
   readonly compteMembreSimLabel = computed(() => {
     switch (this.typeUi()) {
@@ -311,6 +330,10 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
   readonly filtrePanelStatut = signal<'tous' | 'retard' | 'cours'>('tous');
   readonly filtrePanelRecherche = signal('');
 
+  readonly panelPage = signal(1);
+
+  readonly panelPageSize = 5;
+
   readonly panelItemsFiltres = computed(() => {
     const items: EmpruntPanelItem[] = this.emprunts()
       .filter((e) => e.statut === 'EN_COURS')
@@ -325,6 +348,10 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
       return matchTextQuery(q, item.nom, item.sousTitre);
     });
   });
+
+  readonly panelItemsFiltresPage = computed(() =>
+    paginateSlice(this.panelItemsFiltres(), this.panelPage(), this.panelPageSize)
+  );
 
   readonly sousTitre = computed(() => {
     const tab = this.typeUi();
@@ -388,25 +415,31 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
     this.sub.add(
       this.route.queryParamMap.subscribe((pm) => {
         const tab = this.parsePageTab(pm.get('t'));
-        if (tab !== this.typeUi()) {
+        const tabChanged = tab !== this.typeUi();
+        if (tabChanged) {
           this.typeUi.set(tab);
           if (tab === 'historique') {
             this.chargerHistorique();
           } else {
-            this.syncFiltrePanelAvecType(tab);
             this.appliquerContraintesRegle();
             this.recalc();
           }
         }
         this.queryNav.runSync(() => {
-          this.filtrePanelType.set(
-            qpEnum(pm, 'empType', ['tous', 'ETALE', 'CAISSE', 'SOLIDARITE'] as const, 'tous')
-          );
+          let ft = qpEnum(pm, 'empType', ['tous', 'ETALE', 'CAISSE', 'SOLIDARITE'] as const, 'tous');
+          if (tab !== 'historique' && !pm.get('empType')) {
+            ft = this.typeEmpruntApi(tab);
+          }
+          this.filtrePanelType.set(ft);
           this.filtrePanelStatut.set(
             qpEnum(pm, 'empStatut', ['tous', 'retard', 'cours'] as const, 'tous')
           );
           this.filtrePanelRecherche.set(qpString(pm, 'q'));
         });
+        if (tabChanged && tab !== 'historique') {
+          this.syncFiltrePanelAvecType(tab);
+          queueMicrotask(() => this.pushFiltersToUrl());
+        }
       })
     );
 
@@ -529,9 +562,13 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
 
   setType(t: EmpruntPageTab): void {
     if (t === this.typeUi()) return;
+    const queryParams: Record<string, string> = { t };
+    if (t !== 'historique') {
+      queryParams['empType'] = this.typeEmpruntApi(t);
+    }
     void this.router.navigate([], {
       relativeTo: this.route,
-      queryParams: { t },
+      queryParams,
       queryParamsHandling: 'merge',
       replaceUrl: true,
     });
@@ -564,9 +601,8 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
     if (tab === 'historique') {
       return;
     }
-    const ft: 'tous' | TypeEmprunt =
-      tab === 'sol' ? 'SOLIDARITE' : tab === 'caisse' ? 'CAISSE' : 'ETALE';
-    this.filtrePanelType.set(ft);
+    this.filtrePanelType.set(this.typeEmpruntApi(tab));
+    this.panelPage.set(1);
   }
 
   private parsePageTab(raw: string | null): EmpruntPageTab {
@@ -587,6 +623,7 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
             annulable: !!l.annulable,
           }))
         );
+        this.historiquePage.set(1);
         this.historiqueLoading.set(false);
       },
       error: (err) => {
@@ -617,24 +654,34 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
     const v = (ev.target as HTMLSelectElement).value;
     if (v === 'ETALE' || v === 'CAISSE' || v === 'SOLIDARITE' || v === 'tous') {
       this.filtreHistType.set(v);
+      this.historiquePage.set(1);
     }
   }
 
   onFiltreHistRecherche(ev: Event): void {
     this.filtreHistRecherche.set((ev.target as HTMLInputElement).value);
+    this.historiquePage.set(1);
   }
 
   onFiltreHistDateDebut(ev: Event): void {
     this.filtreHistDateDebut.set((ev.target as HTMLInputElement).value);
+    this.historiquePage.set(1);
   }
 
   onFiltreHistDateFin(ev: Event): void {
     this.filtreHistDateFin.set((ev.target as HTMLInputElement).value);
+    this.historiquePage.set(1);
   }
 
   reinitialiserFiltreHistDates(): void {
     this.filtreHistDateDebut.set('');
     this.filtreHistDateFin.set('');
+    this.historiquePage.set(1);
+  }
+
+  goHistoriquePage(p: number): void {
+    const total = paginationTotalPages(this.historiqueFiltre().length, this.historiquePageSize);
+    this.historiquePage.set(clampPage(p, total));
   }
 
   estAnnulationEnCours(operationId: number): boolean {
@@ -850,12 +897,14 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
     this.membreListOpen.set(false);
     const typeDemande = this.typeEmpruntPourOctroiCourant();
     if (typeDemande != null) {
-      const encours = this.emprunts().find(
+      const encours = this.emprunts().filter(
         (e) => e.membreId === m.id && e.statut === 'EN_COURS' && e.typeEmprunt === typeDemande
       );
-      if (encours) {
+      if (encours.length > 0) {
+        const { capitalRestant } = sommeEncoursEmpruntsAvecFrais(encours);
+        const dispo = Math.max(0, this.montantMax() - capitalRestant);
         this.showToast(
-          `Emprunt ${this.libelleTypeEmprunt(encours.typeEmprunt)} en cours (n° ${encours.id}). Octroi impossible tant qu'il n'est pas soldé pour ce type.`
+          `${encours.length} emprunt(s) ${this.libelleTypeEmprunt(typeDemande)} en cours (capital restant : ${formatFcfa(capitalRestant)}). Reste octroyable : ${formatFcfa(dispo)}.`
         );
       }
     }
@@ -967,18 +1016,26 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
     this.filtrePanelType.set(
       v === 'ETALE' || v === 'CAISSE' || v === 'SOLIDARITE' ? v : 'tous'
     );
+    this.panelPage.set(1);
     this.pushFiltersToUrl();
   }
 
   onFiltrePanelStatut(ev: Event): void {
     const v = (ev.target as HTMLSelectElement).value;
     this.filtrePanelStatut.set(v === 'retard' || v === 'cours' ? v : 'tous');
+    this.panelPage.set(1);
     this.pushFiltersToUrl();
   }
 
   onFiltrePanelRecherche(ev: Event): void {
     this.filtrePanelRecherche.set((ev.target as HTMLInputElement).value);
+    this.panelPage.set(1);
     this.pushFiltersToUrl(true);
+  }
+
+  goPanelPage(p: number): void {
+    const total = paginationTotalPages(this.panelItemsFiltres().length, this.panelPageSize);
+    this.panelPage.set(clampPage(p, total));
   }
 
   typeLabel(t: TypeEmprunt): string {
@@ -1170,17 +1227,16 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
       );
       return;
     }
-    const encours = this.empruntEnCoursMembreSelectionne();
-    if (encours) {
-      this.showToast(
-        `Ce membre a déjà un emprunt ${this.libelleTypeEmprunt(encours.typeEmprunt)} en cours (n° ${encours.id}). Remboursez-le avant d'en octroyer un autre du même type.`
-      );
-      return;
-    }
     const m = Number(this.form.controls.montant.value);
     if (m < this.montantMin() || m > this.montantMax()) {
       this.showToast(
         `Montant hors limites : ${formatFcfa(this.montantMin())} – ${formatFcfa(this.montantMax())}.`
+      );
+      return;
+    }
+    if (m > this.montantMaxDisponibleOctroi()) {
+      this.showToast(
+        `Plafond dépassé : capital en cours ${formatFcfa(this.capitalEncoursMembreType())} + nouveau ${formatFcfa(m)} > maximum ${formatFcfa(this.montantMax())} (reste disponible : ${formatFcfa(this.montantMaxDisponibleOctroi())}).`
       );
       return;
     }
@@ -1241,13 +1297,18 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
     }
 
     const typeDemande = this.typeEmpruntApi(tipo);
-    const bloques = membres.filter((mem) =>
-      this.emprunts().some(
+    const plafondMax = this.montantMax();
+    const bloquesPlafond = membres.filter((mem) => {
+      const encours = this.emprunts().filter(
         (e) => e.membreId === mem.id && e.statut === 'EN_COURS' && e.typeEmprunt === typeDemande
-      )
-    );
-    if (bloques.length === membres.length) {
-      this.showToast('Tous les membres sélectionnés ont déjà un emprunt en cours pour ce type.');
+      );
+      const { capitalRestant } = sommeEncoursEmpruntsAvecFrais(encours);
+      return capitalRestant + m > plafondMax;
+    });
+    if (bloquesPlafond.length === membres.length) {
+      this.showToast(
+        `Plafond dépassé pour tous les membres (maximum ${formatFcfa(plafondMax)} de capital ${this.libelleTypeEmprunt(typeDemande)} en cours cumulé).`
+      );
       return;
     }
 
@@ -1259,14 +1320,16 @@ export class EmpruntsPageComponent implements OnInit, OnDestroy {
     from(membres)
       .pipe(
         concatMap((mem) => {
-          const encours = this.emprunts().find(
+          const encoursType = this.emprunts().filter(
             (e) => e.membreId === mem.id && e.statut === 'EN_COURS' && e.typeEmprunt === typeDemande
           );
-          if (encours) {
+          const { capitalRestant } = sommeEncoursEmpruntsAvecFrais(encoursType);
+          if (capitalRestant + m > this.montantMax()) {
+            const dispo = Math.max(0, this.montantMax() - capitalRestant);
             return of({
               membre: mem,
               ok: false as const,
-              message: `Emprunt ${this.libelleTypeEmprunt(typeDemande)} déjà en cours (n° ${encours.id}).`,
+              message: `Plafond ${this.libelleTypeEmprunt(typeDemande)} dépassé (reste disponible : ${formatFcfa(dispo)}).`,
             });
           }
           return this.empruntService

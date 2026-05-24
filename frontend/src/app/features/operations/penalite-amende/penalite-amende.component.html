@@ -407,7 +407,7 @@
                       <td colspan="5" class="empty-sub">Aucune sanction pour ce filtre.</td>
                     </tr>
                   }
-                  @for (h of historiqueAffiche(); track h.membreNom + h.dateLabel + h.montant) {
+                  @for (h of historiquePaged(); track h.membreNom + h.dateLabel + h.montant) {
                     <tr>
                       <td>
                         <div class="h-name">{{ h.membreNom }}</div>
@@ -428,6 +428,13 @@
                 </tbody>
               </table>
             </div>
+            <app-list-pagination
+              [page]="histPage()"
+              [total]="historiqueAffiche().length"
+              [pageSize]="histPageSize"
+              unit="sanction(s)"
+              (pageChange)="goHistPage($event)"
+            />
           </div>
         </div>
 

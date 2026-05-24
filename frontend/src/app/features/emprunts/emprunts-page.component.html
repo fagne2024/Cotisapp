@@ -72,7 +72,7 @@
                   @if (historiqueLoading()) {
                     <tr><td colspan="8" class="empty-filtre"><div class="loading-state-inline"><div class="spinner-small"></div><span>Chargement…</span></div></td></tr>
                   } @else {
-                    @for (h of historiqueFiltre(); track h.ligneId) {
+                    @for (h of historiqueFiltrePage(); track h.ligneId) {
                       <tr [class.hist-row-annulee]="h.annulee">
                         <td><div class="h-name">{{ h.membreNom }}</div><div class="h-code">{{ h.codeMembre }}</div></td>
                         <td>
@@ -108,6 +108,16 @@
                 </tbody>
               </table>
             </div>
+            @if (!historiqueLoading() && historiqueFiltre().length > historiquePageSize) {
+              <app-list-pagination
+                class="historique-pagination"
+                [page]="historiquePage()"
+                [total]="historiqueFiltre().length"
+                [pageSize]="historiquePageSize"
+                unit="ligne(s)"
+                (pageChange)="goHistoriquePage($event)"
+              />
+            }
           </div>
         </div>
       </div>
@@ -362,26 +372,40 @@
               }
             }
 
-            @if (modeSaisieMembre() === 'unitaire' && empruntEnCoursMembreSelectionne(); as encours) {
-              <p class="field-error emprunt-encours-alert" role="alert">
-                Ce membre a déjà un emprunt
-                {{ encours.typeEmprunt === 'ETALE' ? 'étalé' : encours.typeEmprunt === 'CAISSE' ? 'caisse' : 'solidarité' }}
-                en cours (n° {{ encours.id }}). Remboursez-le avant d'en octroyer un autre du même type.
+            @if (modeSaisieMembre() === 'unitaire' && empruntsEnCoursMembreType().length > 0) {
+              <p class="emprunt-encours-alert" role="status">
+                {{ empruntsEnCoursMembreType().length }} emprunt(s) en cours pour ce type — capital restant :
+                <strong>{{ formatFcfa(capitalEncoursMembreType()) }}</strong>
+                · reste octroyable :
+                <strong>{{ formatFcfa(montantMaxDisponibleOctroi()) }}</strong>
+                (plafond {{ formatFcfa(montantMax()) }}).
+              </p>
+            }
+            @if (modeSaisieMembre() === 'unitaire' && octroiDepassePlafond()) {
+              <p class="field-error" role="alert">
+                Le montant saisi dépasse le plafond : maximum {{ formatFcfa(montantMax()) }}, reste disponible
+                {{ formatFcfa(montantMaxDisponibleOctroi()) }}.
               </p>
             }
 
             <div class="sect-title mt18">💰 Paramètres de l'emprunt</div>
             <div class="form-grid">
               <div class="fl">
-                <label for="montant"
-                  >Montant emprunté (FCFA) — {{ formatFcfa(montantMin()) }} à {{ formatFcfa(montantMax()) }}</label
-                >
+                <label for="montant">
+                  Montant emprunté (FCFA) — {{ formatFcfa(montantMin()) }} à
+                  @if (capitalEncoursMembreType() > 0) {
+                    {{ formatFcfa(montantMaxDisponibleOctroi()) }} (reste disponible, plafond
+                    {{ formatFcfa(montantMax()) }})
+                  } @else {
+                    {{ formatFcfa(montantMax()) }}
+                  }
+                </label>
                 <input
                   id="montant"
                   type="number"
                   formControlName="montant"
                   [min]="montantMin()"
-                  [max]="montantMax()"
+                  [max]="montantMaxDisponibleOctroi()"
                 />
               </div>
               @if (typeUi() === 'etale') {
@@ -490,7 +514,7 @@
                 type="button"
                 class="btn-p"
                 appDroitAction="OP_EMPRUNT"
-                [disabled]="enregistrement() || (modeSaisieMembre() === 'unitaire' && octroiBloqueEmpruntEnCours())"
+                [disabled]="enregistrement() || (modeSaisieMembre() === 'unitaire' && octroiDepassePlafond())"
                 (click)="valider()"
               >
                 @if (enregistrement()) {
@@ -537,7 +561,7 @@
               />
               <span class="filtre-count">{{ panelItemsFiltres().length }} emprunt(s)</span>
             </div>
-            @for (item of panelItemsFiltres(); track item.empruntId) {
+            @for (item of panelItemsFiltresPage(); track item.empruntId) {
               <div
                 class="emp-item"
                 [class]="item.itemClass"
@@ -564,6 +588,16 @@
               </div>
             } @empty {
               <p class="empty-filtre">Aucun emprunt pour ces filtres.</p>
+            }
+            @if (panelItemsFiltres().length > panelPageSize) {
+              <app-list-pagination
+                class="panel-emprunts-pagination"
+                [page]="panelPage()"
+                [total]="panelItemsFiltres().length"
+                [pageSize]="panelPageSize"
+                unit="emprunt(s)"
+                (pageChange)="goPanelPage($event)"
+              />
             }
           </div>
         </div>

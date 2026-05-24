@@ -129,6 +129,7 @@ public class RegleOperationService {
         regle.setJourEcheanceMois(
                 request.getUniteEcheance() == com.cotisapp.domain.enums.UniteEcheance.JOURS
                         ? null : request.getJourEcheanceMois());
+        regle.setJoursAlerteEcheanceProche(request.getJoursAlerteEcheanceProche());
         regle.setMontantEcheanceMin(request.getMontantEcheanceMin());
         regle.setMontantEcheanceMax(request.getMontantEcheanceMax());
         regle.setTypePenalite(request.getTypePenalite());
@@ -209,6 +210,7 @@ public class RegleOperationService {
                 .nbEcheancesDefaut(regle.getNbEcheancesDefaut())
                 .uniteEcheance(regle.getUniteEcheance())
                 .jourEcheanceMois(regle.getJourEcheanceMois())
+                .joursAlerteEcheanceProche(regle.getJoursAlerteEcheanceProche())
                 .montantEcheanceMin(regle.getMontantEcheanceMin())
                 .montantEcheanceMax(regle.getMontantEcheanceMax())
                 .typePenalite(regle.getTypePenalite())

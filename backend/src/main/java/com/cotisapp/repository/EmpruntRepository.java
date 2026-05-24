@@ -54,6 +54,9 @@ public interface EmpruntRepository extends JpaRepository<Emprunt, Long> {
     boolean existsByMembreIdAndOrganisationIdAndStatutAndTypeEmprunt(
             Long membreId, Long organisationId, StatutEmprunt statut, TypeEmprunt typeEmprunt);
 
+    List<Emprunt> findByMembreIdAndOrganisationIdAndStatutAndTypeEmprunt(
+            Long membreId, Long organisationId, StatutEmprunt statut, TypeEmprunt typeEmprunt);
+
     long countByMembreId(Long membreId);
     Optional<Emprunt> findByIdAndOrganisationId(Long id, Long organisationId);
 

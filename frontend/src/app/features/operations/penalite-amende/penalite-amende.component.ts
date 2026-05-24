@@ -375,6 +375,16 @@ export class PenaliteAmendeComponent implements OnInit, OnDestroy {
 
   });
 
+  readonly histPage = signal(1);
+
+  readonly histPageSize = 15;
+
+  readonly historiquePaged = computed(() =>
+
+    paginateSlice(this.historiqueAffiche(), this.histPage(), this.histPageSize)
+
+  );
+
 
 
   private orgId = 0;
@@ -612,6 +622,7 @@ export class PenaliteAmendeComponent implements OnInit, OnDestroy {
           });
 
           this.historique.set(panneau.historique.map((h) => this.mapHistorique(h)));
+          this.histPage.set(1);
 
           this.topPenalises.set(panneau.topPenalises.map((t, i) => this.mapTop(t, i === 0)));
 
@@ -707,6 +718,8 @@ export class PenaliteAmendeComponent implements OnInit, OnDestroy {
 
     this.filtreHistType.set(v === 'pen' || v === 'am' ? v : 'tous');
 
+    this.histPage.set(1);
+
     this.pushFiltersToUrl();
 
   }
@@ -717,7 +730,19 @@ export class PenaliteAmendeComponent implements OnInit, OnDestroy {
 
     this.filtreHistRecherche.set((ev.target as HTMLInputElement).value);
 
+    this.histPage.set(1);
+
     this.pushFiltersToUrl(true);
+
+  }
+
+
+
+  goHistPage(p: number): void {
+
+    const max = paginationTotalPages(this.historiqueAffiche().length, this.histPageSize);
+
+    this.histPage.set(Math.min(max, Math.max(1, p)));
 
   }
 

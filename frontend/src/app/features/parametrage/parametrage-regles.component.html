@@ -107,6 +107,12 @@
                     <div class="rp-val">{{ echeanceLibelle(r) }}</div>
                   </div>
                 }
+                @if (r.typeOperation === 'EMPRUNT' && r.joursAlerteEcheanceProche != null) {
+                  <div class="rp-item">
+                    <div class="rp-label">Alerte échéance</div>
+                    <div class="rp-val">{{ r.joursAlerteEcheanceProche }} j avant</div>
+                  </div>
+                }
                 @if (r.typeOperation === 'EMPRUNT' && r.typePenalite) {
                   <div class="rp-item">
                     <div class="rp-label">Pénalité</div>
@@ -237,6 +243,19 @@
                     max="31"
                     placeholder="Ex. 15"
                   />
+                </div>
+                <div class="fl">
+                  <label for="r-jours-alerte">Alerte échéance proche (jours)</label>
+                  <input
+                    id="r-jours-alerte"
+                    type="number"
+                    formControlName="joursAlerteEcheanceProche"
+                    min="0"
+                    max="90"
+                  />
+                  <p class="field-hint">
+                    Notification et bandeaux si une échéance arrive dans ce délai (hors retards).
+                  </p>
                 </div>
                 <div class="fl">
                   <label for="r-sim-date">Date d'octroi (simulation)</label>

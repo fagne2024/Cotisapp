@@ -1,7 +1,10 @@
 import { EmpruntDto, EcheanceDto, TypeEmprunt } from '../../core/services/emprunt.service';
 import { RegleOperationDto } from '../../core/services/regle-operation.service';
 import { calculerPenalite } from '../parametrage/regle-emprunt-calcul.util';
-import { libellePenaliteEmprunt } from '../../core/util/regle-emprunt.util';
+import {
+  JOURS_ALERTE_ECHEANCE_PROCHE as JOURS_ALERTE_DEFAUT,
+  libellePenaliteEmprunt,
+} from '../../core/util/regle-emprunt.util';
 import { formatFcfa } from '../../core/utils/currency.util';
 
 export type RembAlertLevel = 'info' | 'warn' | 'error' | 'ok';
@@ -66,6 +69,50 @@ export function echeanceEnRetard(ech: EcheanceDto, refDate = new Date()): boolea
   today.setHours(0, 0, 0, 0);
   const d = new Date(ech.dateEcheance + 'T12:00:00');
   return d < today;
+}
+
+/** Nombre de jours avant l'échéance pour déclencher une alerte « proche » (défaut ; voir règle emprunt). */
+export const JOURS_ALERTE_ECHEANCE_PROCHE = JOURS_ALERTE_DEFAUT;
+
+export function joursAvantEcheance(dateEcheance: string, refDate = new Date()): number {
+  const today = new Date(refDate);
+  today.setHours(0, 0, 0, 0);
+  const d = new Date(dateEcheance + 'T12:00:00');
+  d.setHours(0, 0, 0, 0);
+  return Math.floor((d.getTime() - today.getTime()) / 86_400_000);
+}
+
+/** Échéance à payer dans les N prochains jours (aujourd'hui inclus), sans être en retard. */
+export function echeanceProche(
+  ech: EcheanceDto,
+  seuilJours = JOURS_ALERTE_ECHEANCE_PROCHE,
+  refDate = new Date()
+): boolean {
+  if (ech.statut === 'PAYE') return false;
+  if (echeanceEnRetard(ech, refDate)) return false;
+  const jours = joursAvantEcheance(ech.dateEcheance, refDate);
+  return jours >= 0 && jours <= seuilJours;
+}
+
+export function empruntEcheanceProche(
+  emp: EmpruntDto,
+  seuilJours = JOURS_ALERTE_ECHEANCE_PROCHE,
+  refDate = new Date()
+): boolean {
+  return (emp.echeances ?? []).some((e) => echeanceProche(e, seuilJours, refDate));
+}
+
+/** Première échéance ouverte dans la fenêtre « proche » (hors retard). */
+export function premiereEcheanceProche(
+  emp: EmpruntDto,
+  seuilJours = JOURS_ALERTE_ECHEANCE_PROCHE,
+  refDate = new Date()
+): EcheanceDto | null {
+  return (
+    (emp.echeances ?? [])
+      .filter((e) => echeanceProche(e, seuilJours, refDate))
+      .sort((a, b) => a.numero - b.numero)[0] ?? null
+  );
 }
 
 /** Échéance à solder en priorité : la plus ancienne en retard, sinon la prochaine ouverte. */
@@ -138,12 +185,17 @@ export function badgeRetardEmprunt(emp: EmpruntDto): string | null {
   return ech ? `⚠ Retard éch. ${ech.numero}` : null;
 }
 
-export type StatutEcheanceUi = 'paye' | 'retard' | 'avenir' | 'partiel' | 'apayer';
+export type StatutEcheanceUi = 'paye' | 'retard' | 'proche' | 'avenir' | 'partiel' | 'apayer';
 
-export function statutEcheanceUi(ech: EcheanceDto, refDate = new Date()): StatutEcheanceUi {
+export function statutEcheanceUi(
+  ech: EcheanceDto,
+  refDate: Date = new Date(),
+  seuilJours = JOURS_ALERTE_ECHEANCE_PROCHE,
+): StatutEcheanceUi {
   if (ech.statut === 'PAYE') return 'paye';
   if (echeanceEnRetard(ech, refDate)) return 'retard';
   if (ech.statut === 'PARTIEL') return 'partiel';
+  if (echeanceProche(ech, seuilJours, refDate)) return 'proche';
   const today = new Date(refDate);
   today.setHours(0, 0, 0, 0);
   const d = new Date(ech.dateEcheance + 'T12:00:00');
@@ -153,9 +205,11 @@ export function statutEcheanceUi(ech: EcheanceDto, refDate = new Date()): Statut
 
 export function statutEcheanceLabel(ech: EcheanceDto, refDate = new Date()): string {
   const ui = statutEcheanceUi(ech, refDate);
+  const jours = joursAvantEcheance(ech.dateEcheance, refDate);
   const labels: Record<StatutEcheanceUi, string> = {
     paye: '✓ Payée',
     retard: '⚠ En retard',
+    proche: jours === 0 ? "⏰ Aujourd'hui" : `⏰ Dans ${jours} j`,
     avenir: 'À venir',
     partiel: 'Partiel',
     apayer: 'À payer',

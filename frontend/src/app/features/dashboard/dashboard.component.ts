@@ -3,6 +3,8 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { DashboardDto, DashboardService } from '../../core/services/dashboard.service';
 import { EmpruntService, EmpruntDto } from '../../core/services/emprunt.service';
+import { EmpruntsReglesDto, RegleOperationService } from '../../core/services/regle-operation.service';
+import { joursAlertePourTypeEmprunt } from '../../core/util/regle-emprunt.util';
 import { MembreDto, MembreService } from '../../core/services/membre.service';
 import { SuiviMensuelDto } from '../../core/services/suivi-mensuel.service';
 
@@ -13,6 +15,7 @@ export interface MesSoldeDashboard {
 }
 import { buildChartViewModel, ligneBureau, operationDashboardVersLigne } from './dashboard.util';
 import { formatFcfa } from '../../core/utils/currency.util';
+import { empruntEcheanceProche, empruntEnRetard } from '../remboursements/remboursement-emprunt.util';
 import { forkJoin, interval, Subscription } from 'rxjs';
 import { filter } from 'rxjs/operators';
 
@@ -28,12 +31,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   private readonly empruntService = inject(EmpruntService);
   private readonly dashboardService = inject(DashboardService);
   private readonly membreService = inject(MembreService);
+  private readonly regleService = inject(RegleOperationService);
 
   readonly alertVisible = signal(true);
+  readonly alerteProchesVisible = signal(true);
   readonly loading = signal(true);
   readonly loadError = signal(false);
   readonly dashboard = signal<DashboardDto | null>(null);
   readonly emprunts = signal<EmpruntDto[]>([]);
+  readonly reglesEmprunt = signal<EmpruntsReglesDto | null>(null);
   readonly mesSolde = signal<MesSoldeDashboard | null>(null);
   readonly mesSuiviMensuel = signal<SuiviMensuelDto | null>(null);
 
@@ -62,10 +68,27 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   readonly enCours = computed(() => this.emprunts().filter((e) => e.statut === 'EN_COURS'));
 
-  readonly overdueEmprunts = computed(() => {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return this.enCours().filter((emp) => this.empruntHasOverdue(emp, today));
+  readonly overdueEmprunts = computed(() =>
+    this.enCours().filter((emp) => empruntEnRetard(emp))
+  );
+
+  readonly joursAlerteProcheMax = computed(() => {
+    const r = this.reglesEmprunt();
+    if (!r) return 7;
+    return Math.max(
+      joursAlertePourTypeEmprunt(r, 'ETALE'),
+      joursAlertePourTypeEmprunt(r, 'CAISSE'),
+      joursAlertePourTypeEmprunt(r, 'SOLIDARITE'),
+    );
+  });
+
+  readonly procheEmprunts = computed(() => {
+    const regles = this.reglesEmprunt();
+    return this.enCours().filter((emp) => {
+      if (empruntEnRetard(emp)) return false;
+      const seuil = joursAlertePourTypeEmprunt(regles, emp.typeEmprunt);
+      return empruntEcheanceProche(emp, seuil);
+    });
   });
 
   readonly topEmpruntsForCard = computed(() => this.enCours().slice(0, 2));
@@ -141,10 +164,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
         dashboard: this.dashboardService.obtenir(id),
         emprunts: this.empruntService.listerMesEmprunts(id),
         monCompte: this.membreService.chargerMonCompte(id),
+        regles: this.regleService.obtenirEmprunts(id),
       }).subscribe({
-        next: ({ dashboard, emprunts, monCompte }) => {
+        next: ({ dashboard, emprunts, monCompte, regles }) => {
           this.dashboard.set(dashboard);
           this.emprunts.set(emprunts);
+          this.reglesEmprunt.set(regles);
           const s = monCompte.solde;
           this.mesSolde.set({
             epargne: Number(s?.epargne ?? 0),
@@ -167,10 +192,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
     forkJoin({
       dashboard: this.dashboardService.obtenir(id),
       emprunts: this.empruntService.lister(id),
+      regles: this.regleService.obtenirEmprunts(id),
     }).subscribe({
-      next: ({ dashboard, emprunts }) => {
+      next: ({ dashboard, emprunts, regles }) => {
         this.dashboard.set(dashboard);
         this.emprunts.set(emprunts);
+        this.reglesEmprunt.set(regles);
         this.loading.set(false);
       },
       error: () => {
@@ -237,6 +264,21 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   dismissAlert(): void {
     this.alertVisible.set(false);
+  }
+
+  dismissAlerteProches(): void {
+    this.alerteProchesVisible.set(false);
+  }
+
+  procheSummary(): string {
+    const list = this.procheEmprunts();
+    if (list.length === 0) return '';
+    const head = list
+      .slice(0, 2)
+      .map((e) => e.membreNom)
+      .join(' et ');
+    const extra = list.length > 2 ? ` et ${list.length - 2} autre(s)` : '';
+    return head + extra;
   }
 
   changeMonth(offset: number): void {
