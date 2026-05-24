@@ -18,6 +18,8 @@ export type Periodicite = 'HEBDOMADAIRE' | 'MENSUEL' | 'LIBRE';
 
 export type TypeModeCalcul = 'FIXE' | 'POURCENTAGE';
 
+export type UniteEcheance = 'MOIS' | 'JOURS';
+
 export type SensMouvement = 'DEBIT' | 'CREDIT';
 
 export interface MouvementRegleDto {
@@ -49,6 +51,7 @@ export interface RegleOperationDto {
   nbEcheancesMin?: number | null;
   nbEcheancesMax?: number | null;
   nbEcheancesDefaut?: number | null;
+  uniteEcheance?: UniteEcheance | null;
   jourEcheanceMois?: number | null;
   montantEcheanceMin?: number | null;
   montantEcheanceMax?: number | null;
@@ -88,6 +91,7 @@ export interface UpdateRegleOperationBody {
   nbEcheancesMin?: number | null;
   nbEcheancesMax?: number | null;
   nbEcheancesDefaut?: number | null;
+  uniteEcheance?: UniteEcheance | null;
   jourEcheanceMois?: number | null;
   montantEcheanceMin?: number | null;
   montantEcheanceMax?: number | null;

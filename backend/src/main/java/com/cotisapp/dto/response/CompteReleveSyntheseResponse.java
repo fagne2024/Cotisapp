@@ -12,6 +12,7 @@ public class CompteReleveSyntheseResponse {
     private List<CompteOrgCardResponse> comptesOrganisation;
     private BigDecimal totalActifs;
     private BigDecimal encoursEmprunts;
+    private long nbEmpruntsEnCours;
     private BigDecimal variationJourGlobale;
     private List<CompteMembreResumeResponse> membres;
 }

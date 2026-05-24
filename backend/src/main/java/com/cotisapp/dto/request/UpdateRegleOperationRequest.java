@@ -2,6 +2,7 @@ package com.cotisapp.dto.request;
 
 import com.cotisapp.domain.enums.Periodicite;
 import com.cotisapp.domain.enums.TypeModeCalcul;
+import com.cotisapp.domain.enums.UniteEcheance;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -40,6 +41,7 @@ public class UpdateRegleOperationRequest {
     private Integer nbEcheancesMin;
     private Integer nbEcheancesMax;
     private Integer nbEcheancesDefaut;
+    private UniteEcheance uniteEcheance;
     private Integer jourEcheanceMois;
     private BigDecimal montantEcheanceMin;
     private BigDecimal montantEcheanceMax;

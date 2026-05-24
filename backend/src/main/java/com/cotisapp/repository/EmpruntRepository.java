@@ -59,6 +59,8 @@ public interface EmpruntRepository extends JpaRepository<Emprunt, Long> {
 
     long countByOrganisationId(Long organisationId);
 
+    long countByOrganisationIdAndStatut(Long organisationId, StatutEmprunt statut);
+
     @Query("""
             SELECT COALESCE(SUM(e.montantTotal - COALESCE(e.montantRembourse, 0)), 0)
             FROM Emprunt e

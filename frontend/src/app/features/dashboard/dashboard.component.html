@@ -6,28 +6,10 @@
     </div>
     <div class="ph-right">
       <div class="period-selector">
-        <button
-          type="button"
-          class="period-btn"
-          (click)="changeMonth(-1)"
-          title="Mois précédent">
-          ←
-        </button>
+        <button type="button" class="period-btn" (click)="changeMonth(-1)" title="Mois précédent">←</button>
         <span class="period-display">{{ monthLabel() }} {{ selectedYear() }}</span>
-        <button
-          type="button"
-          class="period-btn"
-          (click)="changeMonth(1)"
-          title="Mois suivant">
-          →
-        </button>
-        <button
-          type="button"
-          class="period-reset"
-          (click)="resetToToday()"
-          title="Revenir à aujourd'hui">
-          ⟲
-        </button>
+        <button type="button" class="period-btn" (click)="changeMonth(1)" title="Mois suivant">→</button>
+        <button type="button" class="period-reset" (click)="resetToToday()" title="Revenir à aujourd'hui">⟲</button>
         <button
           type="button"
           [class.auto-refresh-on]="autoRefreshEnabled()"
@@ -37,25 +19,21 @@
           ⟳
         </button>
       </div>
-      <a
-        class="btn-s btn-recap"
-        [routerLink]="['/organisations', auth.currentOrgId()!, 'recap-journee']"
-      >
-        📋 Récap journée
-      </a>
-      <button
-        type="button"
-        class="btn-s"
-        (click)="exportPDF()"
-        title="Télécharger le rapport en PDF">
-        📊 Rapport PDF
-      </button>
-      <a
-        class="btn-p"
-        [routerLink]="['/organisations', auth.currentOrgId()!, 'operations', 'cotisation-mois']"
-      >
-        + Cotisation
-      </a>
+      @if (!isMembreSimple()) {
+        <a class="btn-s btn-recap" [routerLink]="['/organisations', auth.currentOrgId()!, 'recap-journee']">
+          📋 Récap journée
+        </a>
+        <button type="button" class="btn-s" (click)="exportPDF()" title="Télécharger le rapport en PDF">
+          📊 Rapport PDF
+        </button>
+        <a class="btn-p" [routerLink]="['/organisations', auth.currentOrgId()!, 'operations', 'cotisation-mois']">
+          + Cotisation
+        </a>
+      } @else {
+        <a class="btn-p" [routerLink]="['/organisations', auth.currentOrgId()!, 'mon-compte']">
+          Mon compte
+        </a>
+      }
     </div>
   </div>
 
@@ -67,9 +45,10 @@
         — {{ overdueSummary() }}
         <a
           class="alert-link"
-          [routerLink]="['/organisations', auth.currentOrgId()!, 'operations', 'remboursements']"
-          [queryParams]="{ t: 'etale' }"
-        >
+          [routerLink]="isMembreSimple()
+            ? ['/organisations', auth.currentOrgId()!, 'mon-compte']
+            : ['/organisations', auth.currentOrgId()!, 'operations', 'remboursements']"
+          [queryParams]="isMembreSimple() ? {} : { t: 'etale' }">
           Voir les emprunts →
         </a>
       </div>
@@ -83,65 +62,94 @@
     <p class="dash-err">Impossible de charger les données du tableau de bord.</p>
   }
 
+  <!-- ── KPI grid ──────────────────────────────────────────────────────────── -->
   <div class="kpi-grid">
-    <a
-      [routerLink]="['/organisations', auth.currentOrgId()!, 'gestion', 'comptes']"
-      class="kpi k1"
-      title="Voir les comptes et relevés">
-      <div class="kpi-glow"></div>
-      <span class="kpi-icon">🏦</span>
-      <div class="kpi-val">{{ formatFcfaUnit(soldeCaisse()) }} <span class="kpi-unit">FCFA</span></div>
-      <div class="kpi-label">Solde Caisse</div>
-      <div class="kpi-trend tr-up">Compte organisation</div>
-    </a>
-    <a
-      [routerLink]="['/organisations', auth.currentOrgId()!, 'membres']"
-      class="kpi k2"
-      title="Voir les membres et soldes">
-      <div class="kpi-glow"></div>
-      <span class="kpi-icon">🤝</span>
-      <div class="kpi-val">{{ formatFcfaUnit(soldeSolidarite()) }} <span class="kpi-unit">FCFA</span></div>
-      <div class="kpi-label">Fonds Solidarité</div>
-      <div class="kpi-trend tr-up">Compte organisation</div>
-    </a>
-    <a
-      [routerLink]="['/organisations', auth.currentOrgId()!, 'operations', 'remboursements']"
-      [queryParams]="{ t: 'etale' }"
-      class="kpi k3"
-      title="Voir les emprunts et remboursements">
-      <div class="kpi-glow"></div>
-      <span class="kpi-icon">📋</span>
-      <div class="kpi-val">{{ enCours().length }} <span class="kpi-unit">emprunts</span></div>
-      <div class="kpi-label">En cours</div>
-      @if (overdueEmprunts().length > 0) {
-        <div class="kpi-trend tr-warn">⚠ {{ overdueEmprunts().length }} en retard</div>
-      } @else {
-        <div class="kpi-trend tr-up">À jour</div>
-      }
-    </a>
-    <a
-      [routerLink]="['/organisations', auth.currentOrgId()!, 'membres']"
-      class="kpi k4"
-      title="Voir la liste des membres">
-      <div class="kpi-glow"></div>
-      <span class="kpi-icon">👥</span>
-      <div class="kpi-val">{{ nbMembresActifs() }} <span class="kpi-unit">membres</span></div>
-      <div class="kpi-label">Actifs · {{ nbMembresBureau() }} bureau</div>
-      <div class="kpi-trend tr-up">{{ nbMembresSimples() }} membre(s) simple(s)</div>
-    </a>
+    @if (isMembreSimple()) {
+      <a [routerLink]="['/organisations', auth.currentOrgId()!, 'mon-compte']" class="kpi k1" title="Mon épargne">
+        <div class="kpi-glow"></div>
+        <span class="kpi-icon">💰</span>
+        <div class="kpi-val">{{ formatFcfaUnit(mesSolde()?.epargne ?? 0) }} <span class="kpi-unit">FCFA</span></div>
+        <div class="kpi-label">Mon épargne</div>
+        <div class="kpi-trend tr-up">Cumul exercice</div>
+      </a>
+      <a [routerLink]="['/organisations', auth.currentOrgId()!, 'mon-compte']" class="kpi k2" title="Ma solidarité">
+        <div class="kpi-glow"></div>
+        <span class="kpi-icon">🤝</span>
+        <div class="kpi-val">{{ formatFcfaUnit(mesSolde()?.solidarite ?? 0) }} <span class="kpi-unit">FCFA</span></div>
+        <div class="kpi-label">Ma solidarité</div>
+        <div class="kpi-trend tr-up">Cumul exercice</div>
+      </a>
+      <a [routerLink]="['/organisations', auth.currentOrgId()!, 'operations', 'emprunts', 'suivi']" class="kpi k3" title="Mes emprunts en cours">
+        <div class="kpi-glow"></div>
+        <span class="kpi-icon">📋</span>
+        <div class="kpi-val">{{ enCours().length }} <span class="kpi-unit">emprunt(s)</span></div>
+        <div class="kpi-label">En cours</div>
+        @if (overdueEmprunts().length > 0) {
+          <div class="kpi-trend tr-warn">⚠ {{ overdueEmprunts().length }} en retard</div>
+        } @else {
+          <div class="kpi-trend tr-up">À jour</div>
+        }
+      </a>
+      <a [routerLink]="['/organisations', auth.currentOrgId()!, 'mon-compte']" class="kpi k4" title="Cotisation du mois">
+        <div class="kpi-glow"></div>
+        <span class="kpi-icon">📅</span>
+        <div class="kpi-val">{{ formatFcfaUnit(mesSuiviMensuel()?.montantPaye ?? 0) }} <span class="kpi-unit">FCFA</span></div>
+        <div class="kpi-label">Cotisation du mois</div>
+        <div class="kpi-trend" [class]="soldeSuiviClass()">{{ soldeSuiviLabel() }}</div>
+      </a>
+    } @else {
+      <a [routerLink]="['/organisations', auth.currentOrgId()!, 'gestion', 'comptes']" class="kpi k1" title="Voir les comptes et relevés">
+        <div class="kpi-glow"></div>
+        <span class="kpi-icon">🏦</span>
+        <div class="kpi-val">{{ formatFcfaUnit(soldeCaisse()) }} <span class="kpi-unit">FCFA</span></div>
+        <div class="kpi-label">Solde Caisse</div>
+        <div class="kpi-trend tr-up">Compte organisation</div>
+      </a>
+      <a [routerLink]="['/organisations', auth.currentOrgId()!, 'membres']" class="kpi k2" title="Voir les membres et soldes">
+        <div class="kpi-glow"></div>
+        <span class="kpi-icon">🤝</span>
+        <div class="kpi-val">{{ formatFcfaUnit(soldeSolidarite()) }} <span class="kpi-unit">FCFA</span></div>
+        <div class="kpi-label">Fonds Solidarité</div>
+        <div class="kpi-trend tr-up">Compte organisation</div>
+      </a>
+      <a
+        [routerLink]="['/organisations', auth.currentOrgId()!, 'operations', 'remboursements']"
+        [queryParams]="{ t: 'etale' }"
+        class="kpi k3"
+        title="Voir les emprunts et remboursements">
+        <div class="kpi-glow"></div>
+        <span class="kpi-icon">📋</span>
+        <div class="kpi-val">{{ enCours().length }} <span class="kpi-unit">emprunts</span></div>
+        <div class="kpi-label">En cours</div>
+        @if (overdueEmprunts().length > 0) {
+          <div class="kpi-trend tr-warn">⚠ {{ overdueEmprunts().length }} en retard</div>
+        } @else {
+          <div class="kpi-trend tr-up">À jour</div>
+        }
+      </a>
+      <a [routerLink]="['/organisations', auth.currentOrgId()!, 'membres']" class="kpi k4" title="Voir la liste des membres">
+        <div class="kpi-glow"></div>
+        <span class="kpi-icon">👥</span>
+        <div class="kpi-val">{{ nbMembresActifs() }} <span class="kpi-unit">membres</span></div>
+        <div class="kpi-label">Actifs · {{ nbMembresBureau() }} bureau</div>
+        <div class="kpi-trend tr-up">{{ nbMembresSimples() }} membre(s) simple(s)</div>
+      </a>
+    }
   </div>
 
+  <!-- ── Graphique + Opérations récentes ───────────────────────────────────── -->
   <div class="dash-grid">
     <div class="card card-chart">
       <div class="card-h">
-        <span class="card-title">📈 Évolution des cotisations {{ chartView().annee }}</span>
+        <span class="card-title">
+          📈 {{ isMembreSimple() ? 'Mes cotisations' : 'Évolution des cotisations' }} {{ chartView().annee }}
+        </span>
         <div class="card-actions">
-          <a
-            class="card-action"
-            [routerLink]="['/organisations', auth.currentOrgId()!, 'rapports']"
-            title="Voir le rapport complet">
-            Rapport complet
-          </a>
+          @if (!isMembreSimple()) {
+            <a class="card-action" [routerLink]="['/organisations', auth.currentOrgId()!, 'rapports']" title="Voir le rapport complet">
+              Rapport complet
+            </a>
+          }
           <button type="button" class="card-action-btn" title="Télécharger les données">📥</button>
         </div>
       </div>
@@ -169,11 +177,7 @@
                 role="button"
                 tabindex="0">
                 <div class="bar-pair">
-                  <div
-                    class="bar bar-cotis"
-                    [class.bar-cotis--over]="col.atteintObjectif"
-                    [style.height.%]="col.cotisPct"
-                  ></div>
+                  <div class="bar bar-cotis" [class.bar-cotis--over]="col.atteintObjectif" [style.height.%]="col.cotisPct"></div>
                   <div class="bar bar-obj" [style.height.%]="col.objPct"></div>
                 </div>
                 <span class="bar-lbl" [class.bar-lbl--active]="hoveredBarMonth() === col.mois">{{ col.label }}</span>
@@ -186,8 +190,7 @@
         <span class="leg-item"><span class="leg-dot g"></span>Cotisations</span>
         <span class="leg-item"><span class="leg-dot o"></span>Objectif (moyenne mensuelle)</span>
         <span class="chart-total">
-          Total {{ chartView().annee }} :
-          <strong>{{ formatFcfa(chartView().totalCotisations) }}</strong>
+          Total {{ chartView().annee }} : <strong>{{ formatFcfa(chartView().totalCotisations) }}</strong>
         </span>
       </div>
     </div>
@@ -196,12 +199,15 @@
       <div class="card-h">
         <span class="card-title">🕐 Opérations récentes</span>
         <div class="card-actions">
-          <a
-            class="card-action"
-            [routerLink]="['/organisations', auth.currentOrgId()!, 'recap-journee']"
-            title="Voir toutes les opérations">
-            Tout voir
-          </a>
+          @if (!isMembreSimple()) {
+            <a class="card-action" [routerLink]="['/organisations', auth.currentOrgId()!, 'recap-journee']" title="Voir toutes les opérations">
+              Tout voir
+            </a>
+          } @else {
+            <a class="card-action" [routerLink]="['/organisations', auth.currentOrgId()!, 'mon-compte']">
+              Mon compte
+            </a>
+          }
           <button type="button" class="card-action-btn" (click)="refreshData()" title="Rafraîchir">🔄</button>
         </div>
       </div>
@@ -223,45 +229,76 @@
     </div>
   </div>
 
+  <!-- ── Soldes / Emprunts + Bureau ────────────────────────────────────────── -->
   <div class="dash-grid2">
     <div class="card">
-      <div class="card-h">
-        <span class="card-title">🏦 Soldes des comptes</span>
-        <a class="card-action" href="#">Détails</a>
-      </div>
-      <div class="soldes-grid mb">
-        <div class="solde-card caisse">
-          <div class="sc-icon">💵</div>
-          <div class="sc-label">Caisse</div>
-          <div class="sc-val">{{ formatFcfaUnit(soldeCaisse()) }}</div>
+      @if (isMembreSimple()) {
+        <!-- Vue membre : mes comptes personnels -->
+        <div class="card-h">
+          <span class="card-title">💰 Mes comptes</span>
+          <a class="card-action" [routerLink]="['/organisations', auth.currentOrgId()!, 'mon-compte']">Détails</a>
         </div>
-        <div class="solde-card banque">
-          <div class="sc-icon">🏛</div>
-          <div class="sc-label">Banque</div>
-          <div class="sc-val">{{ formatFcfaUnit(soldeBanque()) }}</div>
+        <div class="soldes-grid mb">
+          <div class="solde-card caisse">
+            <div class="sc-icon">💵</div>
+            <div class="sc-label">Épargne</div>
+            <div class="sc-val">{{ formatFcfaUnit(mesSolde()?.epargne ?? 0) }}</div>
+          </div>
+          <div class="solde-card solidarite">
+            <div class="sc-icon">🤝</div>
+            <div class="sc-label">Solidarité</div>
+            <div class="sc-val">{{ formatFcfaUnit(mesSolde()?.solidarite ?? 0) }}</div>
+          </div>
+          <div class="solde-card banque">
+            <div class="sc-icon">📋</div>
+            <div class="sc-label">Emprunts</div>
+            <div class="sc-val">{{ formatFcfaUnit(mesSolde()?.emprunts ?? 0) }}</div>
+          </div>
         </div>
-        <div class="solde-card solidarite">
-          <div class="sc-icon">🤝</div>
-          <div class="sc-label">Solidarité</div>
-          <div class="sc-val">{{ formatFcfaUnit(soldeSolidarite()) }}</div>
+      } @else {
+        <!-- Vue org : soldes des comptes de l'organisation -->
+        <div class="card-h">
+          <span class="card-title">🏦 Soldes des comptes</span>
+          <a class="card-action" href="#">Détails</a>
         </div>
-      </div>
+        <div class="soldes-grid mb">
+          <div class="solde-card caisse">
+            <div class="sc-icon">💵</div>
+            <div class="sc-label">Caisse</div>
+            <div class="sc-val">{{ formatFcfaUnit(soldeCaisse()) }}</div>
+          </div>
+          <div class="solde-card banque">
+            <div class="sc-icon">🏛</div>
+            <div class="sc-label">Banque</div>
+            <div class="sc-val">{{ formatFcfaUnit(soldeBanque()) }}</div>
+          </div>
+          <div class="solde-card solidarite">
+            <div class="sc-icon">🤝</div>
+            <div class="sc-label">Solidarité</div>
+            <div class="sc-val">{{ formatFcfaUnit(soldeSolidarite()) }}</div>
+          </div>
+        </div>
+      }
+
+      <!-- Emprunts actifs (données déjà cloisonnées selon le rôle) -->
       <div class="card-h card-h-tight">
-        <span class="card-title sm">📋 Emprunts actifs</span>
-        <a
-          class="card-action"
-          [routerLink]="['/organisations', auth.currentOrgId()!, 'operations', 'remboursements']"
-          [queryParams]="{ t: 'etale' }"
-          >Voir tout</a
-        >
+        <span class="card-title sm">📋 {{ isMembreSimple() ? 'Mes emprunts actifs' : 'Emprunts actifs' }}</span>
+        @if (!isMembreSimple()) {
+          <a
+            class="card-action"
+            [routerLink]="['/organisations', auth.currentOrgId()!, 'operations', 'remboursements']"
+            [queryParams]="{ t: 'etale' }">Voir tout</a>
+        } @else {
+          <a class="card-action" [routerLink]="['/organisations', auth.currentOrgId()!, 'operations', 'emprunts', 'suivi']">Voir tout</a>
+        }
       </div>
       @if (topEmpruntsForCard().length === 0) {
-        <p class="emp-empty">Aucun emprunt en cours pour cette organisation.</p>
+        <p class="emp-empty">{{ isMembreSimple() ? 'Aucun emprunt en cours.' : 'Aucun emprunt en cours pour cette organisation.' }}</p>
       }
       @for (emp of topEmpruntsForCard(); track emp.id) {
         <div class="emp-row">
           <div class="emp-top">
-            <span class="emp-name">{{ emp.membreNom }}</span>
+            <span class="emp-name">{{ isMembreSimple() ? typeLabel(emp.typeEmprunt) : emp.membreNom }}</span>
             @if (empruntHasOverdue(emp)) {
               <span class="badge-retard">⚠ Retard</span>
             } @else {
@@ -269,27 +306,23 @@
             }
           </div>
           <div class="prog-lbl">
-            <span
-              >{{ typeLabel(emp.typeEmprunt) }} · {{ formatFcfaUnit(emp.montantRembourse) }} /
-              {{ formatFcfaUnit(emp.montantTotal) }} F</span
-            >
+            <span>{{ typeLabel(emp.typeEmprunt) }} · {{ formatFcfaUnit(emp.montantRembourse) }} / {{ formatFcfaUnit(emp.montantTotal) }} F</span>
             <span>{{ progressPct(emp) }}%</span>
           </div>
           <div class="prog-bar">
-            <div
-              class="prog-fill"
-              [class.red]="empruntHasOverdue(emp)"
-              [style.width.%]="progressPct(emp)"
-            ></div>
+            <div class="prog-fill" [class.red]="empruntHasOverdue(emp)" [style.width.%]="progressPct(emp)"></div>
           </div>
         </div>
       }
     </div>
 
+    <!-- Bureau du GIE (toujours visible, info publique) -->
     <div class="card">
       <div class="card-h">
         <span class="card-title">👑 Bureau du GIE</span>
-        <a class="card-action" [routerLink]="['/organisations', auth.currentOrgId()!, 'membres']">Voir membres</a>
+        @if (!isMembreSimple()) {
+          <a class="card-action" [routerLink]="['/organisations', auth.currentOrgId()!, 'membres']">Voir membres</a>
+        }
       </div>
       <div class="bureau-list">
         @if (bureau().length === 0) {

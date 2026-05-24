@@ -31,6 +31,7 @@ export interface CompteReleveSyntheseDto {
   comptesOrganisation: CompteOrgCardDto[];
   totalActifs: number;
   encoursEmprunts: number;
+  nbEmpruntsEnCours: number;
   variationJourGlobale: number;
   membres: CompteMembreResumeDto[];
 }

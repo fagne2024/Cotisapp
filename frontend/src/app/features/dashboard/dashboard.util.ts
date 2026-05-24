@@ -236,6 +236,44 @@ function formatAxisValue(n: number): string {
   return String(Math.round(n));
 }
 
+/**
+ * Construit les stats mensuelles de cotisation d'un membre à partir de son historique d'opérations.
+ * Utilisé pour le graphique du dashboard quand l'utilisateur est un membre simple.
+ */
+export function buildEvolutionFromOperations(
+  operations: OperationMembreDto[],
+  annee: number
+): { mois: number; montantCotisations: number; objectif: number }[] {
+  const parMois = new Map<number, number>();
+
+  for (const op of operations) {
+    if (op.typeOperation !== 'COTISATION' && op.typeOperation !== 'COTISATION_MOIS') continue;
+
+    let mois: number | null = null;
+    if (op.moisAnnee) {
+      const [y, m] = op.moisAnnee.split('-').map(Number);
+      if (y === annee) mois = m;
+    } else if (op.dateOperation) {
+      const d = new Date(op.dateOperation + 'T12:00:00');
+      if (d.getFullYear() === annee) mois = d.getMonth() + 1;
+    }
+
+    if (mois != null && mois >= 1 && mois <= 12) {
+      parMois.set(mois, (parMois.get(mois) ?? 0) + Number(op.montant));
+    }
+  }
+
+  const values = [...parMois.values()].filter((v) => v > 0);
+  const objectif =
+    values.length > 0 ? Math.round(values.reduce((s, v) => s + v, 0) / values.length) : 0;
+
+  return Array.from({ length: 12 }, (_, i) => ({
+    mois: i + 1,
+    montantCotisations: parMois.get(i + 1) ?? 0,
+    objectif,
+  }));
+}
+
 export function ligneBureau(membre: MembreDto): BureauLigne {
   const poste = posteBureau(membre);
   const styles = bureauStyles(poste.kind);

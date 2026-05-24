@@ -55,6 +55,23 @@
             }
 
             @if (synthese(); as s) {
+              <div class="section-lbl">Emprunts en cours</div>
+              <a class="compte-btn encours-emprunts-card" [routerLink]="lienEmpruntsSuivi()">
+                <div class="cb-icon" style="background: var(--or3)">📋</div>
+                <div class="cb-info">
+                  <div class="cb-label">Encours emprunts</div>
+                  <div class="cb-type">
+                    {{ nbEmpruntsEnCours() }} emprunt{{ nbEmpruntsEnCours() > 1 ? 's' : '' }} actif{{
+                      nbEmpruntsEnCours() > 1 ? 's' : ''
+                    }}
+                  </div>
+                </div>
+                <div class="cb-solde">
+                  <div class="cb-val" style="color: var(--or)">{{ formatFcfa(encoursEmpruntsMontant()) }}</div>
+                  <div class="cb-unit">FCFA restant</div>
+                </div>
+              </a>
+
               <div class="section-lbl">Synthèse globale</div>
               <div class="synthese-card">
                 <div class="syn-lbl">Total actifs GIE</div>
@@ -62,7 +79,7 @@
                 <div class="syn-sub">Caisse + Banque + Solidarité + Intérêts + Amendes & pénalités</div>
                 <div class="syn-row">
                   <span>💰 Encours emprunts :</span>
-                  <span class="syn-or">−{{ formatFcfa(n(s.encoursEmprunts)) }}</span>
+                  <span class="syn-or">{{ formatFcfa(encoursEmpruntsMontant()) }}</span>
                 </div>
                 <div class="syn-row">
                   <span>📈 Variation du jour :</span>
@@ -185,7 +202,7 @@
                 </div>
               </div>
             } @else {
-              <div class="solde-hero">
+              <div class="solde-hero solde-hero-org">
                 <div class="sh-card sh-solde">
                   <div class="shc-val">{{ formatFcfa(n(r.soldeActuel)) }}</div>
                   <div class="shc-lbl">Solde actuel</div>
@@ -205,6 +222,11 @@
                   <div class="shc-val">{{ formatFcfa(n(r.variationMois)) }}</div>
                   <div class="shc-lbl">Variation nette du mois</div>
                 </div>
+                <a class="sh-card sh-encours" [routerLink]="lienEmpruntsSuivi()">
+                  <div class="shc-val">{{ formatFcfa(encoursEmpruntsMontant()) }}</div>
+                  <div class="shc-lbl">📋 Emprunts en cours</div>
+                  <div class="shc-sub">{{ nbEmpruntsEnCours() }} emprunt{{ nbEmpruntsEnCours() > 1 ? 's' : '' }}</div>
+                </a>
               </div>
             }
           </header>

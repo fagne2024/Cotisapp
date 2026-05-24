@@ -78,6 +78,8 @@ public class CompteReleveService {
 
         BigDecimal encours =
                 nz(empruntRepository.sumEncoursByOrganisationIdAndStatut(orgId, StatutEmprunt.EN_COURS));
+        long nbEmpruntsEnCours =
+                empruntRepository.countByOrganisationIdAndStatut(orgId, StatutEmprunt.EN_COURS);
 
         Map<Long, Membre> membresMap = membreRepository.findByOrganisationId(orgId).stream()
                 .collect(Collectors.toMap(Membre::getId, m -> m));
@@ -91,6 +93,7 @@ public class CompteReleveService {
                 .comptesOrganisation(orgCards)
                 .totalActifs(totalActifs)
                 .encoursEmprunts(encours)
+                .nbEmpruntsEnCours(nbEmpruntsEnCours)
                 .variationJourGlobale(variationJour)
                 .membres(membres)
                 .build();

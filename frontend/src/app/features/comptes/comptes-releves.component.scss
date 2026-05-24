@@ -297,6 +297,38 @@
   color: var(--md);
 }
 
+.encours-emprunts-card {
+  text-decoration: none;
+  color: inherit;
+  border-color: #f0d9a8;
+
+  &:hover {
+    border-color: var(--or);
+    background: var(--or3);
+  }
+}
+
+.solde-hero-org {
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+}
+
+.sh-encours {
+  background: var(--or3);
+  text-decoration: none;
+  color: inherit;
+  display: block;
+
+  .shc-val {
+    color: var(--or);
+  }
+
+  .shc-sub {
+    font-size: 10px;
+    color: var(--md);
+    margin-top: 4px;
+  }
+}
+
 .synthese-card {
   background: linear-gradient(135deg, var(--g1), var(--g2));
   border-radius: 12px;

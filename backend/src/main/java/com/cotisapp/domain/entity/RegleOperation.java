@@ -4,6 +4,7 @@ import com.cotisapp.domain.OrganisationScoped;
 import com.cotisapp.domain.enums.Periodicite;
 import com.cotisapp.domain.enums.TypeModeCalcul;
 import com.cotisapp.domain.enums.TypeOperation;
+import com.cotisapp.domain.enums.UniteEcheance;
 import jakarta.persistence.*;
 import lombok.*;
 import org.hibernate.annotations.JdbcTypeCode;
@@ -90,7 +91,13 @@ public class RegleOperation implements OrganisationScoped {
     @Column(name = "nb_echeances_defaut")
     private Integer nbEcheancesDefaut;
 
-    /** Jour du mois pour les dates d'échéance (1–31), optionnel. */
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.VARCHAR)
+    @Column(name = "unite_echeance", length = 10)
+    @Builder.Default
+    private UniteEcheance uniteEcheance = UniteEcheance.MOIS;
+
+    /** Jour du mois pour les dates d'échéance (1–31), optionnel, uniquement si uniteEcheance = MOIS. */
     @Column(name = "jour_echeance_mois")
     private Integer jourEcheanceMois;
 

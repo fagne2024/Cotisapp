@@ -3,7 +3,14 @@ import { RouterLink } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import { DashboardDto, DashboardService } from '../../core/services/dashboard.service';
 import { EmpruntService, EmpruntDto } from '../../core/services/emprunt.service';
-import { MembreDto } from '../../core/services/membre.service';
+import { MembreDto, MembreService } from '../../core/services/membre.service';
+import { SuiviMensuelDto } from '../../core/services/suivi-mensuel.service';
+
+export interface MesSoldeDashboard {
+  epargne: number;
+  solidarite: number;
+  emprunts: number;
+}
 import { buildChartViewModel, ligneBureau, operationDashboardVersLigne } from './dashboard.util';
 import { formatFcfa } from '../../core/utils/currency.util';
 import { forkJoin, interval, Subscription } from 'rxjs';
@@ -20,12 +27,15 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly auth = inject(AuthService);
   private readonly empruntService = inject(EmpruntService);
   private readonly dashboardService = inject(DashboardService);
+  private readonly membreService = inject(MembreService);
 
   readonly alertVisible = signal(true);
   readonly loading = signal(true);
   readonly loadError = signal(false);
   readonly dashboard = signal<DashboardDto | null>(null);
   readonly emprunts = signal<EmpruntDto[]>([]);
+  readonly mesSolde = signal<MesSoldeDashboard | null>(null);
+  readonly mesSuiviMensuel = signal<SuiviMensuelDto | null>(null);
 
   readonly selectedYear = signal(new Date().getFullYear());
   readonly selectedMonth = signal(new Date().getMonth() + 1);
@@ -92,9 +102,68 @@ export class DashboardComponent implements OnInit, OnDestroy {
     this.autoRefreshSubscription?.unsubscribe();
   }
 
+  isMembreSimple(): boolean {
+    return this.auth.currentRole() === 'MEMBRE' && !this.auth.compteBureau();
+  }
+
+  soldeSuiviLabel(): string {
+    const s = this.mesSuiviMensuel();
+    if (!s) {
+      return 'Suivi non disponible';
+    }
+    if (s.statut === 'PAYE') {
+      return 'Cotisation du mois payée';
+    }
+    const reste = Math.max(0, Number(s.montantDu) - Number(s.montantPaye));
+    if (s.statut === 'PARTIEL') {
+      return `Partiel · reste ${this.formatFcfaUnit(reste)} F`;
+    }
+    return `À payer · ${this.formatFcfaUnit(s.montantDu)} F`;
+  }
+
+  soldeSuiviClass(): string {
+    const s = this.mesSuiviMensuel();
+    if (!s) {
+      return 'tr-zero';
+    }
+    if (s.statut === 'PAYE') {
+      return 'tr-up';
+    }
+    return 'tr-warn';
+  }
+
   private loadDashboardData(): void {
     const id = this.auth.currentOrgId();
     if (id == null) return;
+
+    if (this.isMembreSimple()) {
+      forkJoin({
+        dashboard: this.dashboardService.obtenir(id),
+        emprunts: this.empruntService.listerMesEmprunts(id),
+        monCompte: this.membreService.chargerMonCompte(id),
+      }).subscribe({
+        next: ({ dashboard, emprunts, monCompte }) => {
+          this.dashboard.set(dashboard);
+          this.emprunts.set(emprunts);
+          const s = monCompte.solde;
+          this.mesSolde.set({
+            epargne: Number(s?.epargne ?? 0),
+            solidarite: Number(s?.solidarite ?? 0),
+            emprunts: Number(s?.emprunts ?? 0),
+          });
+          this.mesSuiviMensuel.set(monCompte.suiviMensuel ?? null);
+          this.loading.set(false);
+        },
+        error: () => {
+          this.loadError.set(true);
+          this.loading.set(false);
+        },
+      });
+      return;
+    }
+
+    this.mesSolde.set(null);
+    this.mesSuiviMensuel.set(null);
     forkJoin({
       dashboard: this.dashboardService.obtenir(id),
       emprunts: this.empruntService.lister(id),
@@ -198,19 +267,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
   refreshData(): void {
     this.loading.set(true);
-    const id = this.auth.currentOrgId();
-    if (id == null) return;
-
-    this.dashboardService.obtenir(id).subscribe({
-      next: (data) => {
-        this.dashboard.set(data);
-        this.loading.set(false);
-      },
-      error: () => {
-        this.loadError.set(true);
-        this.loading.set(false);
-      },
-    });
+    this.loadError.set(false);
+    this.loadDashboardData();
   }
 
   exportPDF(): void {

@@ -1,5 +1,5 @@
 import { Component, computed, inject, OnDestroy, OnInit, signal, HostListener } from '@angular/core';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import {
   catchError,
   debounceTime,
@@ -67,7 +67,7 @@ interface ReleveLoadParams {
 @Component({
   selector: 'app-comptes-releves',
   standalone: true,
-  imports: [ListPaginationComponent, ...DROIT_ACTION_IMPORTS],
+  imports: [RouterLink, ListPaginationComponent, ...DROIT_ACTION_IMPORTS],
   templateUrl: './comptes-releves.component.html',
   styleUrls: ['./comptes-releves.component.scss', '../../shared/styles/pagination.scss'],
 })
@@ -110,6 +110,9 @@ export class ComptesRelevesComponent implements OnInit, OnDestroy {
   readonly pageSizeMembres = 12;
 
   readonly vueMembre = computed(() => this.panelTab() === 'mbr');
+
+  readonly encoursEmpruntsMontant = computed(() => n(this.synthese()?.encoursEmprunts));
+  readonly nbEmpruntsEnCours = computed(() => this.synthese()?.nbEmpruntsEnCours ?? 0);
 
   /** Relevé affiché = brut + filtres instantanés (sans API). */
   readonly releve = computed(() => {
@@ -421,5 +424,12 @@ export class ComptesRelevesComponent implements OnInit, OnDestroy {
     if (params.membreId != null) q.membreId = params.membreId;
     else if (params.compteId != null) q.compteId = params.compteId;
     return q;
+  }
+
+  lienEmpruntsSuivi(): (string | number)[] {
+    if (this.orgId == null) {
+      return ['/organisations', 0, 'operations', 'emprunts', 'suivi'];
+    }
+    return ['/organisations', this.orgId, 'operations', 'emprunts', 'suivi'];
   }
 }

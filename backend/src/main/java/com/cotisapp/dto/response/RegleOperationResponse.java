@@ -3,6 +3,7 @@ package com.cotisapp.dto.response;
 import com.cotisapp.domain.enums.Periodicite;
 import com.cotisapp.domain.enums.TypeModeCalcul;
 import com.cotisapp.domain.enums.TypeOperation;
+import com.cotisapp.domain.enums.UniteEcheance;
 import lombok.Builder;
 import lombok.Data;
 
@@ -31,6 +32,7 @@ public class RegleOperationResponse {
     private Integer nbEcheancesMin;
     private Integer nbEcheancesMax;
     private Integer nbEcheancesDefaut;
+    private UniteEcheance uniteEcheance;
     private Integer jourEcheanceMois;
     private BigDecimal montantEcheanceMin;
     private BigDecimal montantEcheanceMax;
