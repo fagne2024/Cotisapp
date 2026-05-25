@@ -23,4 +23,6 @@ public class PostePartageClotureRequest {
     private Integer groupePartage;
     /** En mode ADDITIONNER : inclure ce poste dans le pool additionné. */
     private boolean inclureDansPoolAdditionne;
+    /** En mode PRORATA global : appliquer parts / % sur ce poste. */
+    private boolean appliquerProrata = true;
 }

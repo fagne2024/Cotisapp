@@ -9,6 +9,7 @@ import com.cotisapp.domain.enums.SensMouvement;
 import com.cotisapp.domain.enums.StatutExercice;
 import com.cotisapp.domain.enums.TypeModeCalcul;
 import com.cotisapp.domain.enums.TypeOperation;
+import com.cotisapp.dto.request.ParametrageClotureExerciceRequest;
 import com.cotisapp.dto.response.MembreRepartitionClotureResponse;
 import com.cotisapp.dto.response.PostePartageClotureResponse;
 import com.cotisapp.dto.response.PreviewClotureExerciceResponse;
@@ -54,7 +55,15 @@ public class ClotureExerciceRepartitionService {
         if (!exercice.getId().equals(exerciceId)) {
             throw new BusinessException("La prévisualisation concerne uniquement l'exercice en cours");
         }
-        return calculerPreview(orgId, exercice);
+        return calculerPreview(orgId, exercice, parametrageClotureExerciceService.assurerParametrage(orgId));
+    }
+
+    @Transactional(readOnly = true)
+    public PreviewClotureExerciceResponse previsualiserDepuisRequest(
+            Long orgId, ParametrageClotureExerciceRequest request) {
+        Exercice exercice = requireExerciceCourant(orgId);
+        ParametrageClotureExercice sim = parametrageClotureExerciceService.simulerDepuisRequest(orgId, request);
+        return calculerPreview(orgId, exercice, sim);
     }
 
     @Transactional
@@ -63,7 +72,8 @@ public class ClotureExerciceRepartitionService {
         if (!exercice.getId().equals(exerciceId)) {
             throw new BusinessException("La répartition ne peut être effectuée que sur l'exercice en cours");
         }
-        PreviewClotureExerciceResponse preview = calculerPreview(orgId, exercice);
+        PreviewClotureExerciceResponse preview =
+                calculerPreview(orgId, exercice, parametrageClotureExerciceService.assurerParametrage(orgId));
         if (preview.getNetADistribuer().compareTo(BigDecimal.ZERO) <= 0) {
             throw new BusinessException("Aucun montant à distribuer après frais et retenues");
         }
@@ -141,8 +151,8 @@ public class ClotureExerciceRepartitionService {
         return preview;
     }
 
-    private PreviewClotureExerciceResponse calculerPreview(Long orgId, Exercice exercice) {
-        ParametrageClotureExercice param = parametrageClotureExerciceService.assurerParametrage(orgId);
+    private PreviewClotureExerciceResponse calculerPreview(
+            Long orgId, Exercice exercice, ParametrageClotureExercice param) {
         Long exerciceId = exercice.getId();
         ModeRepartitionCloture mode = param.getModeRepartition() != null
                 ? param.getModeRepartition()
@@ -177,6 +187,7 @@ public class ClotureExerciceRepartitionService {
                     .typeOperation(poste.typeOperation())
                     .groupePartage(poste.groupePartage())
                     .inclureDansPoolAdditionne(poste.inclureDansPoolAdditionne())
+                    .appliquerProrata(poste.appliquerProrata())
                     .montantPool(pool)
                     .build());
         }
@@ -323,7 +334,8 @@ public class ClotureExerciceRepartitionService {
                                 ref.compteSourceOrg(),
                                 null,
                                 g,
-                                false));
+                                false,
+                                ref.appliquerProrata()));
                     }
                 }
             }
@@ -385,7 +397,8 @@ public class ClotureExerciceRepartitionService {
                     refPool.compteSourceOrg(),
                     null,
                     null,
-                    true));
+                    true,
+                    refPool.appliquerProrata()));
         }
         return cles;
     }
@@ -415,7 +428,8 @@ public class ClotureExerciceRepartitionService {
                             premier.compteSourceOrg(),
                             null,
                             groupe,
-                            false));
+                            false,
+                            premier.appliquerProrata()));
                 }
             }
             return groupes;
@@ -554,10 +568,11 @@ public class ClotureExerciceRepartitionService {
             if (montantPoste.signum() <= 0 || eligibles.isEmpty()) {
                 continue;
             }
-            if (mode == ModeRepartitionCloture.EQUITABLE) {
-                repartirEquitable(eligibles, poste.code(), montantPoste);
-            } else {
+            boolean prorataSurPoste = mode == ModeRepartitionCloture.PRORATA && poste.appliquerProrata();
+            if (prorataSurPoste) {
                 repartirProrata(eligibles, poste.code(), montantPoste);
+            } else {
+                repartirEquitable(eligibles, poste.code(), montantPoste);
             }
         }
         for (MembreLigne ligne : lignes) {

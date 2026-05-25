@@ -308,9 +308,6 @@
   }
 }
 
-.solde-hero-org {
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-}
 
 .sh-encours {
   background: var(--or3);
@@ -604,6 +601,10 @@
   gap: 10px;
 }
 
+.solde-hero.solde-hero-org {
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
 .sh-card {
   border-radius: 10px;
   padding: 12px 14px;
@@ -623,6 +624,9 @@
 }
 .sh-card:nth-child(4) {
   animation-delay: 0.4s;
+}
+.sh-card:nth-child(5) {
+  animation-delay: 0.5s;
 }
 
 .sh-card:hover {
@@ -677,6 +681,13 @@
   font-size: 10px;
   color: var(--md);
   margin-top: 3px;
+}
+
+.sh-card .shc-sub {
+  font-size: 9px;
+  color: var(--md);
+  margin-top: 2px;
+  opacity: 0.9;
 }
 
 .shc-trend {
@@ -972,6 +983,10 @@
 
   .solde-hero {
     grid-template-columns: repeat(2, 1fr);
+  }
+
+  .solde-hero.solde-hero-org {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 
   .releve-filters {

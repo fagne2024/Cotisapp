@@ -3,22 +3,18 @@ export interface SemaineOption {
   label: string;
 }
 
-/** Options des N dernières semaines ISO (semaine courante en premier). */
+/** Options des N dernières semaines (lundi → dimanche, numérotation ISO). */
 export function buildSemaineOptions(count = 8, refDate = new Date()): SemaineOption[] {
   const out: SemaineOption[] = [];
   const seen = new Set<string>();
-  const cursor = new Date(refDate);
-  for (let i = 0; i < count * 2 && out.length < count; i++) {
-    const { year, week, monday, sunday } = isoWeekBounds(cursor);
-    const value = `${year}-W${String(week).padStart(2, '0')}`;
-    if (!seen.has(value)) {
-      seen.add(value);
-      out.push({
-        value,
-        label: `Semaine ${week} — du ${fmtFr(monday)} au ${fmtFr(sunday)}`,
-      });
+  const monday = startOfWeekMonday(refDate);
+  for (let i = 0; i < count; i++) {
+    const cursor = addDays(monday, -7 * i);
+    const opt = semaineOptionForMonday(cursor);
+    if (!seen.has(opt.value)) {
+      seen.add(opt.value);
+      out.push(opt);
     }
-    cursor.setDate(cursor.getDate() - 7);
   }
   return out;
 }
@@ -29,12 +25,7 @@ export function semaineCouranteKey(refDate = new Date()): string {
 
 /** Libellé + clé ISO pour une date donnée. */
 export function semaineOptionForDate(refDate: Date): SemaineOption {
-  const { year, week, monday, sunday } = isoWeekBounds(refDate);
-  const value = `${year}-W${String(week).padStart(2, '0')}`;
-  return {
-    value,
-    label: `Semaine ${week} — du ${fmtFr(monday)} au ${fmtFr(sunday)}`,
-  };
+  return semaineOptionForMonday(startOfWeekMonday(refDate));
 }
 
 /** Liste des semaines récentes, en incluant toujours la semaine de la date choisie. */
@@ -81,18 +72,39 @@ export function montantDefaut(min: number, max: number, pas = 1000): number {
   return presets[milieu];
 }
 
-function isoWeekBounds(date: Date): { year: number; week: number; monday: Date; sunday: Date } {
+/** Lundi de la semaine calendaire contenant {@code date} (lun–dim). */
+function startOfWeekMonday(date: Date): Date {
+  const d = new Date(date.getFullYear(), date.getMonth(), date.getDate(), 12, 0, 0, 0);
+  const day = d.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  d.setDate(d.getDate() + diff);
+  return d;
+}
+
+function semaineOptionForMonday(monday: Date): SemaineOption {
+  const { year, week } = isoWeekYearAndNumber(addDays(monday, 3));
+  const sunday = addDays(monday, 6);
+  const value = `${year}-W${String(week).padStart(2, '0')}`;
+  return {
+    value,
+    label: `Semaine ${week} — du ${fmtFr(monday)} au ${fmtFr(sunday)}`,
+  };
+}
+
+/** Année et numéro de semaine ISO à partir d'une date (souvent le jeudi de la semaine). */
+function isoWeekYearAndNumber(date: Date): { year: number; week: number } {
   const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
-  const day = d.getUTCDay() || 7;
-  d.setUTCDate(d.getUTCDate() + 4 - day);
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
   const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
   const week = Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
-  const monday = new Date(date);
-  const dow = date.getDay() || 7;
-  monday.setDate(date.getDate() - dow + 1);
-  const sunday = new Date(monday);
-  sunday.setDate(monday.getDate() + 6);
-  return { year: d.getUTCFullYear(), week, monday, sunday };
+  return { year: d.getUTCFullYear(), week };
+}
+
+function addDays(date: Date, days: number): Date {
+  const d = new Date(date);
+  d.setDate(d.getDate() + days);
+  return d;
 }
 
 function fmtFr(d: Date): string {

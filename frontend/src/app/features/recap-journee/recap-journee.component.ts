@@ -541,7 +541,13 @@ export class RecapJourneeComponent implements OnInit {
 
 
 
-  impactCaisseLabel(op: { annulee: boolean; annulation: boolean; typeOperation: string; montantTotal: number }): string {
+  impactCaisseLabel(op: {
+    annulee: boolean;
+    annulation: boolean;
+    typeOperation: string;
+    montant: number;
+    montantTotal: number;
+  }): string {
 
     if (op.annulee || op.annulation) return '—';
 
@@ -553,12 +559,16 @@ export class RecapJourneeComponent implements OnInit {
 
     if (op.typeOperation === 'EMPRUNT') {
 
-      return this.formatMontantSigne(-op.montantTotal, false);
+      return this.formatMontantSigne(-(op.montant ?? 0), false);
 
     }
 
     return '—';
 
+  }
+
+  montantLigneRecap(op: { typeOperation: string; montant: number; montantTotal: number }): number {
+    return op.typeOperation === 'EMPRUNT' ? op.montant : op.montantTotal;
   }
 
 
@@ -584,24 +594,6 @@ export class RecapJourneeComponent implements OnInit {
         return '🏦';
 
     }
-
-  }
-
-
-
-  sousTitreEmprunts(): string {
-
-    const r = this.recap();
-
-    if (!r) return '';
-
-    const s = r.synthese;
-
-    if (s.sortiesCaisse > 0) return `−${formatFcfa(s.sortiesCaisse)} caisse`;
-
-    if (s.montantEmprunts > 0) return formatFcfa(s.montantEmprunts);
-
-    return '0 F';
 
   }
 

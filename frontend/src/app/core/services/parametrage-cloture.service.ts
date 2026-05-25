@@ -38,6 +38,8 @@ export interface PostePartageClotureDto {
   groupePartage?: number | null;
   /** En mode ADDITIONNER : inclure dans le pool additionné. */
   inclureDansPoolAdditionne?: boolean;
+  /** En mode PRORATA : appliquer parts / % sur ce poste. */
+  appliquerProrata?: boolean;
   montantPool?: number;
   montantDistribue?: number;
 }
@@ -125,6 +127,7 @@ export const POSTES_PARTAGE_DEFAUT: PostePartageClotureDto[] = [
     compteSourceOrg: 'INTERET',
     groupePartage: 1,
     inclureDansPoolAdditionne: true,
+    appliquerProrata: true,
   },
   {
     code: 'PENALITES',
@@ -135,6 +138,7 @@ export const POSTES_PARTAGE_DEFAUT: PostePartageClotureDto[] = [
     compteSourceOrg: 'CAISSE',
     groupePartage: 2,
     inclureDansPoolAdditionne: true,
+    appliquerProrata: true,
   },
   {
     code: 'AMENDES',
@@ -145,8 +149,14 @@ export const POSTES_PARTAGE_DEFAUT: PostePartageClotureDto[] = [
     compteSourceOrg: 'CAISSE',
     groupePartage: 2,
     inclureDansPoolAdditionne: true,
+    appliquerProrata: true,
   },
 ];
+
+export type PerimetrePartagePreset = 'INTERETS_SEUL' | 'SANCTIONS_SEUL' | 'TOUS';
+
+export const BUILTIN_POSTES_CLOTURE = ['INTERETS', 'PENALITES', 'AMENDES'] as const;
+export type BuiltinPosteCloture = (typeof BUILTIN_POSTES_CLOTURE)[number];
 
 @Injectable({ providedIn: 'root' })
 export class ParametrageClotureService {
@@ -168,6 +178,14 @@ export class ParametrageClotureService {
   previewRepartition(orgId: number) {
     return this.http.get<PreviewClotureExerciceDto>(
       `${environment.apiUrl}/organisations/${orgId}/exercices/courant/preview-repartition`
+    );
+  }
+
+  /** Aperçu selon le brouillon du formulaire (sans enregistrer). */
+  previewRepartitionAvecParametrage(orgId: number, body: ParametrageClotureDto) {
+    return this.http.post<PreviewClotureExerciceDto>(
+      `${environment.apiUrl}/organisations/${orgId}/parametrage-cloture/preview-repartition`,
+      body
     );
   }
 }

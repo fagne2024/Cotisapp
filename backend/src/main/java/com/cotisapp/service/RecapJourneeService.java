@@ -274,7 +274,10 @@ public class RecapJourneeService {
                     .build());
 
             if (!annulee && !annulation) {
-                accumulerSynthese(synthese, op.getTypeOperation(), total);
+                accumulerSynthese(
+                        synthese,
+                        op.getTypeOperation(),
+                        montantPourRecapSynthese(op.getTypeOperation(), montant, frais));
             }
         }
 
@@ -391,7 +394,10 @@ public class RecapJourneeService {
                     .build());
 
             if (!annulee && !annulation) {
-                accumulerSynthese(synthese, op.getTypeOperation(), total);
+                accumulerSynthese(
+                        synthese,
+                        op.getTypeOperation(),
+                        montantPourRecapSynthese(op.getTypeOperation(), montant, frais));
             }
         }
 
@@ -428,6 +434,14 @@ public class RecapJourneeService {
                 .membres(membres)
                 .operations(lignes)
                 .build();
+    }
+
+    /** Emprunt accordé = capital uniquement ; cotisations / remboursements incluent les frais le cas échéant. */
+    private static BigDecimal montantPourRecapSynthese(TypeOperation type, BigDecimal montant, BigDecimal frais) {
+        if (type == TypeOperation.EMPRUNT) {
+            return montant;
+        }
+        return montant.add(frais);
     }
 
     private void accumulerSynthese(RecapJourneeSyntheseResponse s, TypeOperation type, BigDecimal total) {
@@ -497,7 +511,7 @@ public class RecapJourneeService {
             if (TYPES_COTISATION.contains(op.getTypeOperation())) {
                 a.montantCotisations = a.montantCotisations.add(total);
             } else if (op.getTypeOperation() == TypeOperation.EMPRUNT) {
-                a.montantEmprunts = a.montantEmprunts.add(total);
+                a.montantEmprunts = a.montantEmprunts.add(montant);
             } else if (op.getTypeOperation() == TypeOperation.REMBOURSEMENT) {
                 a.montantRemboursements = a.montantRemboursements.add(total);
             }

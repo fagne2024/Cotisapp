@@ -121,4 +121,23 @@ public interface MouvementCompteRepository extends JpaRepository<MouvementCompte
             @Param("compteId") Long compteId,
             @Param("debut") LocalDate debut,
             @Param("fin") LocalDate fin);
+
+    @Query("""
+            SELECT COALESCE(SUM(CASE WHEN m.sens = com.cotisapp.domain.enums.SensMouvement.CREDIT
+                THEN m.montant ELSE 0 END), 0),
+                   COALESCE(SUM(CASE WHEN m.sens = com.cotisapp.domain.enums.SensMouvement.DEBIT
+                THEN m.montant ELSE 0 END), 0)
+            FROM MouvementCompte m
+            JOIN m.operation o
+            WHERE o.organisationId = :orgId
+              AND m.compteId IN :compteIds
+              AND o.dateOperation BETWEEN :debut AND :fin
+              AND o.annulee = false
+              AND o.operationOrigineId IS NULL
+            """)
+    Object[] sumEntreesSortiesComptesPeriode(
+            @Param("orgId") Long orgId,
+            @Param("compteIds") List<Long> compteIds,
+            @Param("debut") LocalDate debut,
+            @Param("fin") LocalDate fin);
 }

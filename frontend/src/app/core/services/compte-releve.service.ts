@@ -71,6 +71,15 @@ export interface ReleveTotauxDto {
   nbAnnulees: number;
 }
 
+export interface FluxCaisseSolidariteDto {
+  soldeCaisse: number;
+  soldeSolidarite: number;
+  entreesCaisseMois: number;
+  entreesSolidariteMois: number;
+  sortiesCaisseMois: number;
+  sortiesSolidariteMois: number;
+}
+
 export interface CompteReleveDto {
   scope: string;
   compteId?: number | null;
@@ -87,6 +96,7 @@ export interface CompteReleveDto {
   entreesMois: number;
   sortiesMois: number;
   variationMois: number;
+  fluxCaisseSolidarite?: FluxCaisseSolidariteDto | null;
   dateDebut: string;
   dateFin: string;
   groupes: ReleveGroupeDto[];

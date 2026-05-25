@@ -23,7 +23,6 @@ import org.springframework.transaction.annotation.Transactional;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalTime;
-import java.time.YearMonth;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -144,7 +143,6 @@ public class CompteReleveService {
 
         BigDecimal solde = nz(compte.getSolde());
         LocalDate today = LocalDate.now();
-        YearMonth mois = YearMonth.from(fin);
 
         Map<Long, Membre> membres = chargerMembresMap(orgId);
         BigDecimal soldeFinPeriode = soldeFinPeriodeOrg(orgId, compte.getId(), solde, fin);
@@ -154,9 +152,25 @@ public class CompteReleveService {
         List<ReleveLigneResponse> lignes =
                 construireLignes(raw, soldeFinPeriode, typeFiltre, statutFiltre, recherche, membres, false);
         ReleveTotauxResponse totaux = calculerTotaux(lignes);
-        BigDecimal[] fluxMois = entreesSortiesMois(orgId, compte.getId(), mois);
-        BigDecimal entreesMois = fluxMois[0];
-        BigDecimal sortiesMois = fluxMois[1];
+
+        FluxCaisseSolidariteResponse fluxDetail = null;
+        BigDecimal soldeAffiche = solde;
+        BigDecimal variationJourAffiche =
+                nz(mouvementCompteRepository.sumVariationComptePourDate(orgId, compte.getId(), today));
+        BigDecimal entreesMois;
+        BigDecimal sortiesMois;
+
+        if (compte.getTypeCompte() == TypeCompte.CAISSE || compte.getTypeCompte() == TypeCompte.SOLIDARITE) {
+            fluxDetail = construireFluxCaisseSolidarite(orgId, debut, fin);
+            soldeAffiche = nz(fluxDetail.getSoldeCaisse()).add(nz(fluxDetail.getSoldeSolidarite()));
+            variationJourAffiche = variationJourCaisseEtSolidarite(orgId, today);
+            entreesMois = nz(fluxDetail.getEntreesCaisseMois()).add(nz(fluxDetail.getEntreesSolidariteMois()));
+            sortiesMois = nz(fluxDetail.getSortiesCaisseMois()).add(nz(fluxDetail.getSortiesSolidariteMois()));
+        } else {
+            BigDecimal[] fluxMois = entreesSortiesPeriode(orgId, compte.getId(), debut, fin);
+            entreesMois = fluxMois[0];
+            sortiesMois = fluxMois[1];
+        }
 
         return CompteReleveResponse.builder()
                 .scope(compte.getTypeCompte().name().toLowerCase())
@@ -165,11 +179,12 @@ public class CompteReleveService {
                 .meta("Compte organisation · Mis à jour le " + formatDateFr(today))
                 .icone(iconeOrg(compte.getTypeCompte()))
                 .iconeBg(couleurFondOrg(compte.getTypeCompte()))
-                .soldeActuel(solde)
-                .variationJour(nz(mouvementCompteRepository.sumVariationComptePourDate(orgId, compte.getId(), today)))
+                .soldeActuel(soldeAffiche)
+                .variationJour(variationJourAffiche)
                 .entreesMois(entreesMois)
                 .sortiesMois(sortiesMois)
                 .variationMois(entreesMois.subtract(sortiesMois))
+                .fluxCaisseSolidarite(fluxDetail)
                 .dateDebut(debut)
                 .dateFin(fin)
                 .groupes(grouperParDate(lignes))
@@ -359,13 +374,75 @@ public class CompteReleveService {
         return nz(soldeRef).subtract(apresFin);
     }
 
-    private BigDecimal[] entreesSortiesMois(Long orgId, Long compteId, YearMonth mois) {
-        Object[] row = mouvementCompteRepository.sumEntreesSortiesComptePeriode(
-                orgId, compteId, mois.atDay(1), mois.atEndOfMonth());
-        if (row == null || row.length < 2) {
+    private FluxCaisseSolidariteResponse construireFluxCaisseSolidarite(
+            Long orgId, LocalDate fluxDebut, LocalDate fluxFin) {
+        Optional<Compte> caisseOpt = compteRepository.findByOrganisationIdAndTypeCompteAndProprietaire(
+                orgId, TypeCompte.CAISSE, ProprietaireCompte.ORGANISATION);
+        Optional<Compte> solOpt = compteRepository.findByOrganisationIdAndTypeCompteAndProprietaire(
+                orgId, TypeCompte.SOLIDARITE, ProprietaireCompte.ORGANISATION);
+
+        BigDecimal[] fluxCaisse = caisseOpt
+                .map(c -> entreesSortiesPeriode(orgId, c.getId(), fluxDebut, fluxFin))
+                .orElse(new BigDecimal[] {BigDecimal.ZERO, BigDecimal.ZERO});
+        BigDecimal[] fluxSol = solOpt
+                .map(c -> entreesSortiesPeriode(orgId, c.getId(), fluxDebut, fluxFin))
+                .orElse(new BigDecimal[] {BigDecimal.ZERO, BigDecimal.ZERO});
+
+        return FluxCaisseSolidariteResponse.builder()
+                .soldeCaisse(caisseOpt.map(c -> nz(c.getSolde())).orElse(BigDecimal.ZERO))
+                .soldeSolidarite(solOpt.map(c -> nz(c.getSolde())).orElse(BigDecimal.ZERO))
+                .entreesCaisseMois(fluxCaisse[0])
+                .sortiesCaisseMois(fluxCaisse[1])
+                .entreesSolidariteMois(fluxSol[0])
+                .sortiesSolidariteMois(fluxSol[1])
+                .build();
+    }
+
+    private BigDecimal variationJourCaisseEtSolidarite(Long orgId, LocalDate today) {
+        List<Long> ids = idsComptesCaisseEtSolidariteOrg(orgId);
+        if (ids.isEmpty()) {
+            return BigDecimal.ZERO;
+        }
+        return nz(mouvementCompteRepository.sumVariationComptesPourDate(orgId, ids, today));
+    }
+
+    private List<Long> idsComptesCaisseEtSolidariteOrg(Long orgId) {
+        List<Long> ids = new ArrayList<>();
+        for (TypeCompte type : List.of(TypeCompte.CAISSE, TypeCompte.SOLIDARITE)) {
+            compteRepository
+                    .findByOrganisationIdAndTypeCompteAndProprietaire(
+                            orgId, type, ProprietaireCompte.ORGANISATION)
+                    .map(Compte::getId)
+                    .ifPresent(ids::add);
+        }
+        return ids;
+    }
+
+    /** Agrège crédits / débits sur la période (même logique que le relevé, hors opérations annulées). */
+    private BigDecimal[] entreesSortiesPeriode(Long orgId, Long compteId, LocalDate debut, LocalDate fin) {
+        if (debut.isAfter(fin)) {
             return new BigDecimal[] {BigDecimal.ZERO, BigDecimal.ZERO};
         }
-        return new BigDecimal[] {nz((BigDecimal) row[0]), nz((BigDecimal) row[1])};
+        List<MouvementCompte> mouvements =
+                mouvementCompteRepository.findByOrganisationAndCompteBetween(orgId, compteId, debut, fin);
+        return entreesSortiesDepuisMouvements(mouvements);
+    }
+
+    private BigDecimal[] entreesSortiesDepuisMouvements(List<MouvementCompte> mouvements) {
+        BigDecimal entrees = BigDecimal.ZERO;
+        BigDecimal sorties = BigDecimal.ZERO;
+        for (MouvementCompte mc : mouvements) {
+            Operation op = mc.getOperation();
+            if (op == null || Boolean.TRUE.equals(op.getAnnulee()) || op.getOperationOrigineId() != null) {
+                continue;
+            }
+            if (mc.getSens() == SensMouvement.CREDIT) {
+                entrees = entrees.add(nz(mc.getMontant()));
+            } else {
+                sorties = sorties.add(nz(mc.getMontant()));
+            }
+        }
+        return new BigDecimal[] {entrees, sorties};
     }
 
     private List<ReleveLigneResponse> construireLignes(

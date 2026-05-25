@@ -203,25 +203,57 @@
               </div>
             } @else {
               <div class="solde-hero solde-hero-org">
-                <div class="sh-card sh-solde">
-                  <div class="shc-val">{{ formatFcfa(n(r.soldeActuel)) }}</div>
-                  <div class="shc-lbl">Solde actuel</div>
-                  <div class="shc-trend" [class]="trendClass(n(r.variationJour))">
-                    {{ variationJourLabel(n(r.variationJour)) }}
+                @if (r.fluxCaisseSolidarite; as flux) {
+                  <div class="sh-card sh-solde">
+                    <div class="shc-val">{{ formatFcfa(n(r.soldeActuel)) }}</div>
+                    <div class="shc-lbl">Solde actuel</div>
+                    <div class="shc-sub">
+                      💵 {{ formatFcfa(n(flux.soldeCaisse)) }} · 🤝 {{ formatFcfa(n(flux.soldeSolidarite)) }}
+                    </div>
+                    <div class="shc-trend" [class]="trendClass(n(r.variationJour))">
+                      {{ variationJourLabel(n(r.variationJour)) }}
+                    </div>
                   </div>
-                </div>
-                <div class="sh-card sh-entrees">
-                  <div class="shc-val">+{{ formatFcfa(n(r.entreesMois)) }}</div>
-                  <div class="shc-lbl">Entrées ce mois</div>
-                </div>
-                <div class="sh-card sh-sorties">
-                  <div class="shc-val">−{{ formatFcfa(n(r.sortiesMois)) }}</div>
-                  <div class="shc-lbl">Sorties ce mois</div>
-                </div>
-                <div class="sh-card sh-variation">
-                  <div class="shc-val">{{ formatFcfa(n(r.variationMois)) }}</div>
-                  <div class="shc-lbl">Variation nette du mois</div>
-                </div>
+                  <div class="sh-card sh-entrees">
+                    <div class="shc-val">+{{ formatFcfa(n(r.entreesMois)) }}</div>
+                    <div class="shc-lbl">Entrées ce mois</div>
+                    <div class="shc-sub">
+                      💵 +{{ formatFcfa(n(flux.entreesCaisseMois)) }} · 🤝 +{{ formatFcfa(n(flux.entreesSolidariteMois)) }}
+                    </div>
+                  </div>
+                  <div class="sh-card sh-sorties">
+                    <div class="shc-val">−{{ formatFcfa(n(r.sortiesMois)) }}</div>
+                    <div class="shc-lbl">Sorties ce mois</div>
+                    <div class="shc-sub">
+                      💵 −{{ formatFcfa(n(flux.sortiesCaisseMois)) }} · 🤝 −{{ formatFcfa(n(flux.sortiesSolidariteMois)) }}
+                    </div>
+                  </div>
+                  <div class="sh-card sh-variation">
+                    <div class="shc-val">{{ formatFcfa(n(r.variationMois)) }}</div>
+                    <div class="shc-lbl">Variation nette du mois</div>
+                    <div class="shc-sub">Entrées − sorties (caisse + solidarité)</div>
+                  </div>
+                } @else {
+                  <div class="sh-card sh-solde">
+                    <div class="shc-val">{{ formatFcfa(n(r.soldeActuel)) }}</div>
+                    <div class="shc-lbl">Solde actuel</div>
+                    <div class="shc-trend" [class]="trendClass(n(r.variationJour))">
+                      {{ variationJourLabel(n(r.variationJour)) }}
+                    </div>
+                  </div>
+                  <div class="sh-card sh-entrees">
+                    <div class="shc-val">+{{ formatFcfa(n(r.entreesMois)) }}</div>
+                    <div class="shc-lbl">Entrées ce mois</div>
+                  </div>
+                  <div class="sh-card sh-sorties">
+                    <div class="shc-val">−{{ formatFcfa(n(r.sortiesMois)) }}</div>
+                    <div class="shc-lbl">Sorties ce mois</div>
+                  </div>
+                  <div class="sh-card sh-variation">
+                    <div class="shc-val">{{ formatFcfa(n(r.variationMois)) }}</div>
+                    <div class="shc-lbl">Variation nette du mois</div>
+                  </div>
+                }
                 <a class="sh-card sh-encours" [routerLink]="lienEmpruntsSuivi()">
                   <div class="shc-val">{{ formatFcfa(encoursEmpruntsMontant()) }}</div>
                   <div class="shc-lbl">📋 Emprunts en cours</div>

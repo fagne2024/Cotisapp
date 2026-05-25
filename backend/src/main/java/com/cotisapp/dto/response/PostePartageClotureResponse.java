@@ -19,6 +19,7 @@ public class PostePartageClotureResponse {
     private TypeOperation typeOperation;
     private Integer groupePartage;
     private boolean inclureDansPoolAdditionne;
+    private boolean appliquerProrata;
     private BigDecimal montantPool;
     private BigDecimal montantDistribue;
 }

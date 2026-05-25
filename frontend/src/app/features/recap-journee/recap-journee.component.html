@@ -123,7 +123,10 @@
             <div class="kpi-cell">
               <div class="kc-val">{{ r.synthese.nbEmprunts }}</div>
               <div class="kc-lbl">Emprunts accordés</div>
-              <div class="kc-sub neg">{{ sousTitreEmprunts() }}</div>
+              <div class="kc-sub">{{ formatFcfa(r.synthese.montantEmprunts) }}</div>
+              @if (r.synthese.sortiesCaisse > 0) {
+                <div class="kc-sub neg">−{{ formatFcfa(r.synthese.sortiesCaisse) }} sortie caisse</div>
+              }
             </div>
             <div class="kpi-cell">
               <div class="kc-val">{{ r.synthese.nbRemboursements }}</div>
@@ -430,10 +433,16 @@
                         </td>
                         <td class="muted-sm">{{ op.observation || '—' }}</td>
                         <td class="ta-r fw" [class.cr-c]="!op.annulee && !op.annulation">
-                          {{ formatFcfa(op.montantTotal) }}
+                          {{ formatFcfa(montantLigneRecap(op)) }}
+                          @if (op.typeOperation === 'EMPRUNT' && op.montantFrais > 0) {
+                            <span class="muted-sm"> (+{{ formatFcfa(op.montantFrais) }} frais)</span>
+                          }
                         </td>
                         <td>
-                          <span class="variation-pill" [class]="variationPillClass(op.annulee || op.annulation ? 0 : op.montantTotal)">
+                          <span
+                            class="variation-pill"
+                            [class]="variationPillClass(op.annulee || op.annulation ? 0 : montantLigneRecap(op))"
+                          >
                             {{ impactCaisseLabel(op) }}
                           </span>
                         </td>
@@ -479,7 +488,7 @@
             <div class="rf-divider"></div>
             <div class="rf-item">
               <div class="rf-val">{{ formatFcfa(r.synthese.montantEmprunts) }}</div>
-              <div class="rf-lbl">Total emprunts</div>
+              <div class="rf-lbl">Total emprunts (capital)</div>
             </div>
             <div class="rf-divider"></div>
             <div class="rf-item">

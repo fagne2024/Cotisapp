@@ -1,9 +1,52 @@
+:host {
+  display: block;
+  width: 100%;
+}
+
 .param-cloture-page {
-  max-width: 960px;
+  width: 100%;
+  max-width: none;
+  box-sizing: border-box;
+}
+
+.param-cloture-form {
+  width: 100%;
+}
+
+.param-cloture-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 16px;
+  align-items: start;
+  width: 100%;
+
+  @media (min-width: 1100px) {
+    grid-template-columns: minmax(0, 1fr) minmax(380px, 42%);
+    gap: 20px;
+  }
+}
+
+.param-cloture-main {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  min-width: 0;
+}
+
+.param-cloture-aside {
+  min-width: 0;
+
+  @media (min-width: 1100px) {
+    position: sticky;
+    top: 12px;
+    max-height: calc(100vh - 24px);
+    overflow: auto;
+  }
 }
 
 .card-preview {
-  margin-top: 8px;
+  margin-top: 0;
+  height: 100%;
 }
 
 .page-head h1 {
@@ -37,8 +80,16 @@
 
 .grid-2 {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: 1fr;
   gap: 12px;
+
+  @media (min-width: 600px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (min-width: 1400px) {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
 }
 
 label {
@@ -63,10 +114,6 @@ label {
   align-items: center;
 }
 
-.actions {
-  margin-top: 8px;
-}
-
 .card-hint {
   margin: -4px 0 12px;
   font-size: 0.85rem;
@@ -76,6 +123,22 @@ label {
 
 .excl-pret {
   margin-top: 12px;
+}
+
+.pct-block {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid #e8ede9;
+}
+
+.pct-empty {
+  margin: 8px 0 0;
+  font-size: 0.85rem;
+  color: var(--md, #4a5568);
+}
+
+.pct-sum-invalid {
+  color: #b45309;
 }
 
 .pct-actions {
@@ -94,10 +157,21 @@ label {
 
 .pct-row {
   display: grid;
-  grid-template-columns: 1fr auto 80px auto;
+  grid-template-columns: 1fr auto 96px auto;
   gap: 8px;
   align-items: center;
   font-size: 0.88rem;
+
+  input[type='number'] {
+    width: 100%;
+    min-width: 72px;
+    padding: 6px 8px;
+    font-size: 0.9rem;
+  }
+
+  @media (min-width: 900px) {
+    grid-template-columns: 2fr 100px 100px auto;
+  }
 }
 
 .pct-nom {
@@ -131,9 +205,13 @@ label {
 }
 
 .mode-row {
-  display: flex;
-  flex-direction: column;
+  display: grid;
+  grid-template-columns: 1fr;
   gap: 10px;
+
+  @media (min-width: 720px) {
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  }
 }
 
 .mode-opt {
@@ -219,4 +297,117 @@ label {
 
 .frais-globaux {
   margin-bottom: 12px;
+}
+
+.preset-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.montant-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+
+  @media (min-width: 1100px) {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+.montant-tile {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #e8ede9;
+  border-radius: 10px;
+  cursor: pointer;
+  background: #fafbfc;
+  transition: border-color 0.15s, background 0.15s;
+
+  &.off {
+    opacity: 0.55;
+    background: #fff;
+  }
+
+  &.disabled {
+    pointer-events: none;
+    opacity: 0.4;
+  }
+
+  strong {
+    display: block;
+    font-size: 0.88rem;
+  }
+
+  small {
+    color: var(--md, #4a5568);
+    font-size: 0.78rem;
+  }
+
+  .mt-montant {
+    display: block;
+    margin-top: 4px;
+    font-size: 0.8rem;
+    color: #1a5c3a;
+    font-weight: 500;
+  }
+}
+
+.btn-s.on {
+  background: #1a5c3a;
+  color: #fff;
+  border-color: #1a5c3a;
+}
+
+.groupe-builtin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.groupe-builtin-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 10px;
+  border: 1px solid #e8ede9;
+  border-radius: 8px;
+  font-size: 0.88rem;
+
+  select {
+    max-width: 140px;
+  }
+}
+
+.muted-sm {
+  font-size: 0.82rem;
+  color: var(--md, #4a5568);
+}
+
+.sync-hint {
+  font-style: italic;
+
+  &.ok {
+    color: #1a5c3a;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid #e8ede9;
+}
+
+.actions-hint {
+  font-size: 0.82rem;
+  color: var(--md, #4a5568);
 }

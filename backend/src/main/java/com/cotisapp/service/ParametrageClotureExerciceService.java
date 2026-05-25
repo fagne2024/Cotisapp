@@ -59,6 +59,15 @@ public class ParametrageClotureExerciceService {
         return toResponse(repository.save(p));
     }
 
+    /** Paramétrage en mémoire (non persisté) pour prévisualisation de la répartition. */
+    @Transactional(readOnly = true)
+    public ParametrageClotureExercice simulerDepuisRequest(Long orgId, ParametrageClotureExerciceRequest request) {
+        validerRequest(request);
+        ParametrageClotureExercice p = ParametrageClotureExercice.builder().organisationId(orgId).build();
+        appliquerRequest(p, request);
+        return p;
+    }
+
     @Transactional(readOnly = true)
     public ParametrageClotureExercice assurerParametrage(Long orgId) {
         return repository.findByOrganisationId(orgId).orElseGet(() -> creerDepuisRegles(orgId));
@@ -67,7 +76,9 @@ public class ParametrageClotureExerciceService {
     public List<PostePartageClotureItem> lirePostes(ParametrageClotureExercice p) {
         if (p.getPostesPartageJson() != null && !p.getPostesPartageJson().isBlank()) {
             try {
-                return JSON.readValue(p.getPostesPartageJson(), new TypeReference<List<PostePartageClotureItem>>() {});
+                List<PostePartageClotureItem> raw =
+                        JSON.readValue(p.getPostesPartageJson(), new TypeReference<List<PostePartageClotureItem>>() {});
+                return raw.stream().map(PostePartageClotureItem::avecDefautProrata).toList();
             } catch (Exception e) {
                 throw new BusinessException("Configuration des postes de partage invalide");
             }
@@ -170,7 +181,8 @@ public class ParametrageClotureExerciceService {
                         r.getCompteSourceOrg(),
                         r.getTypeOperation(),
                         r.getGroupePartage(),
-                        r.isInclureDansPoolAdditionne()));
+                        r.isInclureDansPoolAdditionne(),
+                        r.isAppliquerProrata()));
             }
             return items;
         }
@@ -191,7 +203,8 @@ public class ParametrageClotureExerciceService {
                     item.compteSourceOrg(),
                     item.typeOperation(),
                     item.groupePartage(),
-                    item.inclureDansPoolAdditionne()));
+                    item.inclureDansPoolAdditionne(),
+                    item.appliquerProrata()));
         }
         return items;
     }
@@ -215,7 +228,8 @@ public class ParametrageClotureExerciceService {
                     item.compteSourceOrg(),
                     item.typeOperation(),
                     item.groupePartage(),
-                    item.inclureDansPoolAdditionne()));
+                    item.inclureDansPoolAdditionne(),
+                    item.appliquerProrata()));
         }
         return items;
     }
@@ -399,6 +413,7 @@ public class ParametrageClotureExerciceService {
                 .typeOperation(item.typeOperation())
                 .groupePartage(item.groupePartage())
                 .inclureDansPoolAdditionne(item.inclureDansPoolAdditionne())
+                .appliquerProrata(item.appliquerProrata())
                 .build();
     }
 }

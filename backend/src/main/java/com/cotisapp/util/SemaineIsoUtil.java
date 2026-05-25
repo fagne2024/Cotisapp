@@ -3,8 +3,6 @@ package com.cotisapp.util;
 import java.time.DayOfWeek;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.temporal.TemporalAdjusters;
-import java.time.temporal.WeekFields;
 import java.util.Locale;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -26,11 +24,10 @@ public final class SemaineIsoUtil {
         }
         int year = Integer.parseInt(m.group(1));
         int week = Integer.parseInt(m.group(2));
-        WeekFields wf = WeekFields.ISO;
-        LocalDate lundi = LocalDate.now()
-                .with(wf.weekBasedYear(), year)
-                .with(wf.weekOfWeekBasedYear(), week)
-                .with(TemporalAdjusters.previousOrSame(DayOfWeek.MONDAY));
+        // ISO : jour 1 = lundi, jour 7 = dimanche de la semaine
+        LocalDate lundi = LocalDate.parse(
+                String.format(Locale.ROOT, "%d-W%02d-1", year, week),
+                DateTimeFormatter.ISO_WEEK_DATE);
         LocalDate dimanche = lundi.plusDays(6);
         return new BornesSemaine(lundi, dimanche, week, year);
     }

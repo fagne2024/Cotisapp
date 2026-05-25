@@ -26,6 +26,8 @@ public class CompteReleveResponse {
     private BigDecimal entreesMois;
     private BigDecimal sortiesMois;
     private BigDecimal variationMois;
+    /** Détail par compte (relevé caisse ou solidarité organisation). */
+    private FluxCaisseSolidariteResponse fluxCaisseSolidarite;
     private LocalDate dateDebut;
     private LocalDate dateFin;
     private List<ReleveGroupeResponse> groupes;

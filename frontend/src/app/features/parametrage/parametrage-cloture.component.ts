@@ -1,13 +1,20 @@
 import { DecimalPipe } from '@angular/common';
-import { Component, computed, effect, inject, OnInit, signal, HostListener } from '@angular/core';
+import { Component, computed, DestroyRef, effect, inject, OnInit, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormArray, FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
+import { debounceTime, distinctUntilChanged, startWith } from 'rxjs';
 import { ActivatedRoute } from '@angular/router';
 import { AuthService } from '../../core/services/auth.service';
 import {
   MembrePourcentageRepartitionDto,
+  ModeCalculProrataCloture,
+  ModeRepartitionCloture,
   ParametrageClotureDto,
   ParametrageClotureService,
+  BUILTIN_POSTES_CLOTURE,
+  BuiltinPosteCloture,
   POSTES_PARTAGE_DEFAUT,
+  PerimetrePartagePreset,
   PostePartageClotureDto,
   PreviewClotureExerciceDto,
   TypeOperationCloture,
@@ -48,20 +55,34 @@ interface RetenueFormRow {
   ],
 })
 export class ParametrageClotureComponent implements OnInit {
+  readonly Math = Math;
   private readonly route = inject(ActivatedRoute);
   private readonly auth = inject(AuthService);
   private readonly fb = inject(FormBuilder);
   private readonly api = inject(ParametrageClotureService);
   private readonly membreService = inject(MembreService);
   private readonly notify = inject(NotificationService);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly formatFcfa = formatFcfa;
   readonly chargement = signal(true);
   readonly enregistrement = signal(false);
+  readonly autoSauvegarde = signal(false);
+  readonly sauvegardeAutoOk = signal(false);
   readonly previewRepartition = signal<PreviewClotureExerciceDto | null>(null);
   readonly previewLoading = signal(false);
+  private chargementInitial = true;
   readonly pctPageSize = 10;
   readonly pctPage = signal(1);
+  readonly modeRepartitionUi = signal<ModeRepartitionCloture>('PRORATA');
+  readonly modeCalculProrataUi = signal<ModeCalculProrataCloture>('PARTS');
+  readonly builtinPostes = BUILTIN_POSTES_CLOTURE;
+  readonly libellesBuiltin: Record<BuiltinPosteCloture, string> = {
+    INTERETS: "Intérêts / frais d'emprunt",
+    PENALITES: 'Pénalités de retard',
+    AMENDES: 'Amendes sur cotisations',
+  };
+
   readonly typesOperation: { value: TypeOperationCloture; label: string }[] = [
     { value: 'COTISATION', label: 'Cotisation hebdo' },
     { value: 'COTISATION_MOIS', label: 'Cotisation mois' },
@@ -117,13 +138,31 @@ export class ParametrageClotureComponent implements OnInit {
       next: (p) => {
         this.appliquer(p);
         this.chargement.set(false);
+        if (
+          p.modeCalculProrata === 'POURCENTAGE' &&
+          (!p.pourcentagesRepartition || p.pourcentagesRepartition.length === 0)
+        ) {
+          this.chargerPourcentagesMembres(orgId);
+        }
         this.chargerPreviewRepartition();
+        this.chargementInitial = false;
+        this.brancherSynchronisationFormulaire();
       },
       error: () => {
         this.chargement.set(false);
         this.notify.error('Impossible de charger le paramétrage de clôture.');
       },
     });
+  }
+
+  postesPersonnalises(): number[] {
+    return this.postesPartage.controls
+      .map((_, i) => i)
+      .filter((i) => !this.posteEstBuiltin(i));
+  }
+
+  posteCtrl(index: number) {
+    return this.postesPartage.at(index);
   }
 
   get postesPartage(): FormArray {
@@ -142,6 +181,93 @@ export class ParametrageClotureComponent implements OnInit {
     return this.postesPartage.at(index).get('builtIn')?.value === true;
   }
 
+  indexPosteBuiltin(code: BuiltinPosteCloture): number {
+    return this.postesPartage.controls.findIndex((c) => c.get('code')?.value === code);
+  }
+
+  posteBuiltinActif(code: BuiltinPosteCloture): boolean {
+    const i = this.indexPosteBuiltin(code);
+    return i >= 0 && !!this.postesPartage.at(i).get('actif')?.value;
+  }
+
+  posteBuiltinPool(code: BuiltinPosteCloture): boolean {
+    const i = this.indexPosteBuiltin(code);
+    return i >= 0 && !!this.postesPartage.at(i).get('inclureDansPoolAdditionne')?.value;
+  }
+
+  posteBuiltinProrata(code: BuiltinPosteCloture): boolean {
+    const i = this.indexPosteBuiltin(code);
+    return i >= 0 && !!this.postesPartage.at(i).get('appliquerProrata')?.value;
+  }
+
+  patchPosteBuiltin(
+    code: BuiltinPosteCloture,
+    patch: Partial<{
+      actif: boolean;
+      inclureDansPoolAdditionne: boolean;
+      appliquerProrata: boolean;
+      groupePartage: number;
+    }>
+  ): void {
+    const i = this.indexPosteBuiltin(code);
+    if (i >= 0) {
+      this.postesPartage.at(i).patchValue(patch);
+    }
+  }
+
+  onBuiltinActifChange(code: BuiltinPosteCloture, checked: boolean): void {
+    this.patchPosteBuiltin(code, { actif: checked });
+  }
+
+  onBuiltinPoolChange(code: BuiltinPosteCloture, checked: boolean): void {
+    this.patchPosteBuiltin(code, { inclureDansPoolAdditionne: checked });
+  }
+
+  onBuiltinProrataChange(code: BuiltinPosteCloture, checked: boolean): void {
+    this.patchPosteBuiltin(code, { appliquerProrata: checked });
+  }
+
+  perimetrePresetActuel(): PerimetrePartagePreset | 'CUSTOM' {
+    const i = this.posteBuiltinActif('INTERETS');
+    const p = this.posteBuiltinActif('PENALITES');
+    const a = this.posteBuiltinActif('AMENDES');
+    if (i && !p && !a) return 'INTERETS_SEUL';
+    if (!i && p && a) return 'SANCTIONS_SEUL';
+    if (i && p && a) return 'TOUS';
+    return 'CUSTOM';
+  }
+
+  appliquerPerimetre(preset: PerimetrePartagePreset): void {
+    switch (preset) {
+      case 'INTERETS_SEUL':
+        this.patchPosteBuiltin('INTERETS', { actif: true });
+        this.patchPosteBuiltin('PENALITES', { actif: false });
+        this.patchPosteBuiltin('AMENDES', { actif: false });
+        break;
+      case 'SANCTIONS_SEUL':
+        this.patchPosteBuiltin('INTERETS', { actif: false });
+        this.patchPosteBuiltin('PENALITES', { actif: true });
+        this.patchPosteBuiltin('AMENDES', { actif: true });
+        break;
+      case 'TOUS':
+        this.patchPosteBuiltin('INTERETS', { actif: true });
+        this.patchPosteBuiltin('PENALITES', { actif: true });
+        this.patchPosteBuiltin('AMENDES', { actif: true });
+        break;
+    }
+  }
+
+  montantPoolApercu(code: BuiltinPosteCloture): number | null {
+    const prev = this.previewRepartition();
+    if (!prev) return null;
+    const p = prev.postes?.find((x) => x.code === code);
+    if (p?.montantPool != null) return p.montantPool;
+    if (code === 'INTERETS') return prev.poolInterets ?? null;
+    if (code === 'PENALITES') return prev.poolPenalites ?? null;
+    if (code === 'AMENDES') return prev.poolAmendes ?? null;
+    return null;
+  }
+
   ajouterPostePersonnalise(): void {
     const code = `CUSTOM_${Date.now()}`;
     this.postesPartage.push(this.creerPosteGroupe({
@@ -154,19 +280,32 @@ export class ParametrageClotureComponent implements OnInit {
       typeOperation: 'DEPENSE',
       groupePartage: 1,
       inclureDansPoolAdditionne: true,
+      appliquerProrata: true,
     }));
   }
 
   toutAdditionnerAuPool(): void {
+    for (const code of BUILTIN_POSTES_CLOTURE) {
+      if (this.posteBuiltinActif(code)) {
+        this.patchPosteBuiltin(code, { inclureDansPoolAdditionne: true });
+      }
+    }
     this.postesPartage.controls.forEach((c) => {
-      if (c.get('actif')?.value) {
+      if (c.get('actif')?.value && !c.get('builtIn')?.value) {
         c.patchValue({ inclureDansPoolAdditionne: true });
       }
     });
   }
 
   rienAdditionnerAuPool(): void {
-    this.postesPartage.controls.forEach((c) => c.patchValue({ inclureDansPoolAdditionne: false }));
+    for (const code of BUILTIN_POSTES_CLOTURE) {
+      this.patchPosteBuiltin(code, { inclureDansPoolAdditionne: false });
+    }
+    this.postesPartage.controls.forEach((c) => {
+      if (!c.get('builtIn')?.value) {
+        c.patchValue({ inclureDansPoolAdditionne: false });
+      }
+    });
   }
 
   sommePourcentages(): number {
@@ -178,6 +317,14 @@ export class ParametrageClotureComponent implements OnInit {
 
   onPctPageChange(p: number): void {
     this.pctPage.set(p);
+  }
+
+  onModeCalculProrataChoisi(mode: ModeCalculProrataCloture): void {
+    this.modeCalculProrataUi.set(mode);
+    if (mode === 'POURCENTAGE' && this.pourcentages.length === 0) {
+      const orgId = this.orgCourante();
+      if (orgId) this.chargerPourcentagesMembres(orgId);
+    }
   }
 
   repartirPourcentagesEquitablement(): void {
@@ -237,28 +384,128 @@ export class ParametrageClotureComponent implements OnInit {
     this.retenues.removeAt(i);
   }
 
-  enregistrer(): void {
-    if (this.form.invalid) {
-      this.form.markAllAsTouched();
+  enregistrer(manuel = true): void {
+    const body = this.construireCorps();
+    if (!body) {
+      if (manuel) {
+        this.form.markAllAsTouched();
+        if (this.form.invalid) return;
+        this.notify.error('Corrigez le formulaire avant enregistrement.');
+      }
       return;
     }
     const orgId = organisationCouranteId(this.route, this.auth) ?? 0;
     if (orgId < 1) return;
-    const raw = this.form.getRawValue();
-    const postes = raw.postesPartage as PostePartageClotureDto[];
-    if (!postes.some((p) => p.actif)) {
-      this.notify.error('Activez au moins un montant à partager.');
+    if (manuel) {
+      this.enregistrement.set(true);
+    } else {
+      this.autoSauvegarde.set(true);
+    }
+    this.api.enregistrer(orgId, body).subscribe({
+      next: () => {
+        this.enregistrement.set(false);
+        this.autoSauvegarde.set(false);
+        this.sauvegardeAutoOk.set(true);
+        if (manuel) {
+          this.notify.success('Paramétrage de clôture enregistré.');
+        }
+      },
+      error: (err) => {
+        this.enregistrement.set(false);
+        this.autoSauvegarde.set(false);
+        this.sauvegardeAutoOk.set(false);
+        if (manuel) {
+          this.notify.error(err?.error?.message ?? 'Enregistrement impossible.');
+        }
+      },
+    });
+  }
+
+  chargerPreviewRepartition(): void {
+    const orgId = organisationCouranteId(this.route, this.auth) ?? 0;
+    if (orgId < 1) return;
+    const body = this.construireCorps();
+    if (!body) {
+      this.previewRepartition.set(null);
       return;
     }
+    this.previewLoading.set(true);
+    this.api.previewRepartitionAvecParametrage(orgId, body).subscribe({
+      next: (p) => {
+        this.previewRepartition.set(p);
+        this.previewLoading.set(false);
+      },
+      error: (err) => {
+        this.previewRepartition.set(null);
+        this.previewLoading.set(false);
+        if (!this.chargementInitial) {
+          const msg = err?.error?.message;
+          if (msg) this.notify.error(msg);
+        }
+      },
+    });
+  }
+
+  private brancherSynchronisationFormulaire(): void {
+    this.form.controls.modeRepartition.valueChanges
+      .pipe(startWith(this.form.controls.modeRepartition.value), takeUntilDestroyed(this.destroyRef))
+      .subscribe((v) => this.modeRepartitionUi.set(v ?? 'PRORATA'));
+
+    this.form.controls.modeCalculProrata.valueChanges
+      .pipe(startWith(this.form.controls.modeCalculProrata.value), takeUntilDestroyed(this.destroyRef))
+      .subscribe((v) => {
+        const mode = v ?? 'PARTS';
+        this.modeCalculProrataUi.set(mode);
+        if (mode === 'POURCENTAGE' && this.pourcentages.length === 0) {
+          const orgId = this.orgCourante();
+          if (orgId) this.chargerPourcentagesMembres(orgId);
+        }
+      });
+
+    this.form.valueChanges
+      .pipe(
+        debounceTime(450),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => {
+        if (this.chargementInitial) return;
+        this.chargerPreviewRepartition();
+      });
+
+    this.form.valueChanges
+      .pipe(
+        debounceTime(1400),
+        distinctUntilChanged((a, b) => JSON.stringify(a) === JSON.stringify(b)),
+        takeUntilDestroyed(this.destroyRef)
+      )
+      .subscribe(() => {
+        if (this.chargementInitial || this.form.invalid) return;
+        if (!this.construireCorps()) return;
+        this.enregistrer(false);
+      });
+  }
+
+  private construireCorps(): ParametrageClotureDto | null {
+    if (this.form.invalid) return null;
+    const orgId = organisationCouranteId(this.route, this.auth) ?? 0;
+    if (orgId < 1) return null;
+    const raw = this.form.getRawValue();
+    const postes = raw.postesPartage as PostePartageClotureDto[];
+    if (!postes.some((p) => p.actif)) return null;
     if (
       raw.modeRepartition === 'PRORATA' &&
       raw.modeCalculProrata === 'POURCENTAGE' &&
       Math.abs(this.sommePourcentages() - 100) > 0.01
     ) {
-      this.notify.error('La somme des pourcentages doit être égale à 100 %.');
-      return;
+      return null;
     }
-    const body: ParametrageClotureDto = {
+    if (
+      raw.modeAgregationPostes === 'ADDITIONNER' &&
+      !postes.some((p) => p.actif && p.inclureDansPoolAdditionne)
+    ) {
+      return null;
+    }
+    return {
       organisationId: orgId,
       cotisationMontantMin: Number(raw.cotisationMontantMin),
       cotisationMontantMax: Number(raw.cotisationMontantMax),
@@ -286,6 +533,8 @@ export class ParametrageClotureComponent implements OnInit {
           raw.modeAgregationPostes === 'GROUPES' ? Number(p.groupePartage) || 1 : undefined,
         inclureDansPoolAdditionne:
           raw.modeAgregationPostes === 'ADDITIONNER' ? !!p.inclureDansPoolAdditionne : false,
+        appliquerProrata:
+          raw.modeRepartition === 'PRORATA' ? p.appliquerProrata !== false : true,
       })),
       fraisClotureType: raw.fraisClotureType,
       fraisClotureValeur: Number(raw.fraisClotureValeur),
@@ -298,35 +547,6 @@ export class ParametrageClotureComponent implements OnInit {
       compteVersementMembre: 'EPARGNE_HEBDO',
       compteSourceOrg: 'CAISSE',
     };
-    this.enregistrement.set(true);
-    this.api.enregistrer(orgId, body).subscribe({
-      next: () => {
-        this.enregistrement.set(false);
-        this.notify.success('Paramétrage de clôture enregistré.');
-        this.chargerPreviewRepartition();
-      },
-      error: (err) => {
-        this.enregistrement.set(false);
-        this.notify.error(err?.error?.message ?? 'Enregistrement impossible.');
-      },
-    });
-  }
-
-  chargerPreviewRepartition(): void {
-    const orgId = organisationCouranteId(this.route, this.auth) ?? 0;
-    if (orgId < 1) return;
-    this.previewLoading.set(true);
-    this.api.previewRepartition(orgId).subscribe({
-      next: (p) => {
-        this.previewRepartition.set(p);
-        this.previewLoading.set(false);
-      },
-      error: (err) => {
-        this.previewRepartition.set(null);
-        this.previewLoading.set(false);
-        this.notify.error(err?.error?.message ?? 'Prévisualisation impossible (exercice courant requis).');
-      },
-    });
   }
 
   orgCourante(): number | null {
@@ -358,6 +578,7 @@ export class ParametrageClotureComponent implements OnInit {
       typeOperation: [p.typeOperation ?? null],
       groupePartage: [p.groupePartage ?? 1],
       inclureDansPoolAdditionne: [p.inclureDansPoolAdditionne ?? false],
+      appliquerProrata: [p.appliquerProrata !== false],
     });
   }
 
@@ -402,5 +623,7 @@ export class ParametrageClotureComponent implements OnInit {
       fraisClotureType: p.fraisClotureType,
       fraisClotureValeur: p.fraisClotureValeur,
     });
+    this.modeRepartitionUi.set(p.modeRepartition ?? 'PRORATA');
+    this.modeCalculProrataUi.set(p.modeCalculProrata ?? 'PARTS');
   }
 }
