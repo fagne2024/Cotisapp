@@ -18,12 +18,19 @@ body {
 
 app-root {
   display: block;
+  height: 100%;
+}
+
+app-shell,
+app-superadmin-shell {
+  display: block;
+  height: 100vh;
+  overflow: hidden;
 }
 
 /* Composant chargé par le routeur (frère de router-outlet) */
 router-outlet + * {
   display: block;
-  min-height: 100%;
 }
 
 app-notification-popup,
@@ -37,3 +44,4 @@ app-modal-confirm {
 }
 
 @import 'app/shared/styles/action-grisee.scss';
+@import 'app/shared/styles/sticky-page-chrome.scss';

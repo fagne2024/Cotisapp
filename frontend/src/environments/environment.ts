@@ -1,4 +1,5 @@
 export const environment = {
   production: false,
-  apiUrl: 'http://localhost:8084/api',
+  // IP locale pour tester l'APK sur téléphone (même réseau WiFi)
+  apiUrl: 'http://10.0.0.4:8084/api',
 };

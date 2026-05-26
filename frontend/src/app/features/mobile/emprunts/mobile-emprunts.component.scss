@@ -1,0 +1,243 @@
+:host { display: block; }
+
+.page-header {
+  background: #1a5c3a;
+  padding: 52px 20px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.page-header__title {
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+}
+
+.page-header__badge {
+  background: #c9922a;
+  color: #fff;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 4px 12px;
+  border-radius: 20px;
+}
+
+.content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.section-label {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5568;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 0 4px;
+}
+
+.section-total {
+  font-size: 13px;
+  font-weight: 700;
+  color: #c0392b;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+/* ── Carte emprunt actif ── */
+.emprunt-card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 18px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.07);
+  border: 1.5px solid #e5e7eb;
+
+  &.retard {
+    border-color: #fca5a5;
+    background: #fff9f9;
+  }
+}
+
+.emprunt-card__top {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.emprunt-card__info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.emprunt-card__type {
+  font-size: 15px;
+  font-weight: 700;
+  color: #1c1c1e;
+}
+
+.emprunt-card__pct {
+  font-size: 20px;
+  font-weight: 800;
+  color: #1a5c3a;
+}
+
+/* ── Barre de progression ── */
+.emprunt-card__progress {
+  height: 8px;
+  background: #e8f5ee;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 16px;
+}
+
+.emprunt-card__progress-bar {
+  height: 100%;
+  background: #1a5c3a;
+  border-radius: 4px;
+  transition: width 0.5s ease;
+  min-width: 4px;
+
+  &.retard { background: #c0392b; }
+}
+
+/* ── Montants ── */
+.emprunt-card__amounts {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.emprunt-card__amount-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.emprunt-card__amount-lbl {
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.emprunt-card__amount-val {
+  font-size: 13px;
+  font-weight: 700;
+  color: #1c1c1e;
+
+  &.green { color: #1a5c3a; }
+  &.red   { color: #c0392b; }
+}
+
+.emprunt-card__date {
+  font-size: 12px;
+  color: #94a3b8;
+  margin: 0;
+}
+
+/* ── Badges ── */
+.badge {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 20px;
+
+  &--green { background: #e8f5ee; color: #1a5c3a; }
+  &--red   { background: #fdeaea; color: #c0392b; }
+}
+
+/* ── Historique ── */
+.emprunt-clos {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: #fff;
+  border-radius: 14px;
+  padding: 14px;
+  box-shadow: 0 1px 6px rgba(0,0,0,0.05);
+}
+
+.emprunt-clos__icon {
+  font-size: 22px;
+  width: 40px;
+  height: 40px;
+  background: #e8f5ee;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.emprunt-clos__info {
+  flex: 1;
+  min-width: 0;
+}
+
+.emprunt-clos__type {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: #1c1c1e;
+}
+
+.emprunt-clos__total {
+  display: block;
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 2px;
+}
+
+.emprunt-clos__date {
+  font-size: 12px;
+  color: #94a3b8;
+  flex-shrink: 0;
+}
+
+/* ── Empty state ── */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 20px;
+  gap: 12px;
+  text-align: center;
+
+  &__icon { font-size: 56px; }
+
+  h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: #1c1c1e;
+    margin: 0;
+  }
+
+  p {
+    font-size: 14px;
+    color: #94a3b8;
+    margin: 0;
+  }
+}
+
+/* ── Skeleton ── */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+
+  &--card { height: 160px; border-radius: 18px; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

@@ -1,0 +1,42 @@
+/**
+ * En-têtes figés au défilement (topbar shell + titres de page dans shell-content).
+ */
+
+.shell-content {
+  --sticky-page-head-h: 4.75rem;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.shell-content .page-header {
+  position: sticky;
+  top: 0;
+  z-index: 51;
+  background: #f7f9f7;
+  padding-top: 4px;
+  margin-top: -4px;
+  padding-bottom: 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 1px 0 #e8ede9;
+}
+
+.shell-content .page-header + .type-tabs,
+.shell-content .page-header + .type-tabs-3,
+.shell-content .page-header + .type-tabs-4 {
+  position: sticky;
+  top: var(--sticky-page-head-h);
+  z-index: 50;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+/* Onglets seuls (sans .page-header au-dessus) */
+.shell-content > .type-tabs:first-child,
+.shell-content > .type-tabs-3:first-child,
+.shell-content > .type-tabs-4:first-child {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}

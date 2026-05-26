@@ -34,6 +34,7 @@
 :host {
   display: block;
   min-height: 100vh;
+  overflow-y: auto;
   font-family: 'DM Sans', sans-serif;
 }
 
@@ -54,11 +55,13 @@
   animation: fadeIn 0.6s cubic-bezier(0.4, 0, 0.2, 1);
   background: var(--g1);
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: center;
   position: relative;
-  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: auto;
   padding: 1.5rem;
+  box-sizing: border-box;
 }
 
 .bg-deco {
@@ -111,12 +114,14 @@
   grid-template-columns: 1fr 1fr;
   width: 100%;
   max-width: 1000px;
-  min-height: 600px;
+  min-height: min(600px, calc(100vh - 3rem));
   border-radius: 24px;
-  overflow: hidden;
+  overflow: visible;
   box-shadow: var(--sh);
   position: relative;
   z-index: 1;
+  margin: auto;
+  flex-shrink: 0;
 }
 
 .login-left {
@@ -236,7 +241,14 @@
   padding: 52px 48px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
+  min-height: 0;
+  overflow: visible;
+}
+
+.login-form {
+  flex: 0 0 auto;
+  width: 100%;
 }
 
 .login-right h2 {
@@ -262,6 +274,8 @@
   padding: 4px;
   border-radius: 12px;
   transition: outline-color 0.2s;
+  position: relative;
+  z-index: 1;
 
   &--required {
     outline: 2px solid var(--re);
@@ -313,7 +327,7 @@
 }
 
 .role-chip {
-  padding: 5px 12px;
+  padding: 8px 14px;
   border-radius: 20px;
   font-size: 11px;
   font-weight: 600;
@@ -431,6 +445,20 @@
   line-height: 1.4;
 }
 
+.mode-badge {
+  display: inline-block;
+  margin: 0 0 12px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.mode-badge--tel {
+  background: #e8f5ee;
+  color: var(--g1, #1a5c3a);
+}
+
 .field-error {
   font-size: 11px;
   color: var(--re);
@@ -467,9 +495,20 @@
   }
 }
 
+.login-actions {
+  margin-top: 8px;
+  position: relative;
+  z-index: 10;
+}
+
 .btn-login {
   width: 100%;
   padding: 14px;
+  margin-top: 4px;
+  position: relative;
+  z-index: 10;
+  flex-shrink: 0;
+  pointer-events: auto;
   background: linear-gradient(135deg, var(--g2), var(--g1));
   color: #fff;
   border: none;
@@ -505,9 +544,9 @@
     transform: translateY(0);
   }
 
-  &:disabled {
-    opacity: 0.75;
-    cursor: not-allowed;
+  &--waiting {
+    opacity: 0.7;
+    cursor: wait;
   }
 }
 
@@ -588,14 +627,23 @@
 
 .login-footer {
   margin: 24px 0 0;
+  padding-top: 8px;
+  flex-shrink: 0;
   text-align: center;
   font-size: 12px;
   color: var(--lt);
 
-  a {
+  a,
+  .login-footer-link {
     color: var(--g2);
     text-decoration: none;
     font-weight: 600;
+    font-family: inherit;
+    font-size: inherit;
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
 
     &:hover {
       text-decoration: underline;

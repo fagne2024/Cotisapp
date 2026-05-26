@@ -20,10 +20,18 @@ import { MembreRecapJourneeComponent } from './membre-recap-journee.component';
 import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
 import { MonCompteOperationsComponent } from './mon-compte-operations.component';
 import { downloadCsv } from '../../shared/util/csv-download.util';
+import { ListPaginationComponent } from '../../shared/components/list-pagination/list-pagination.component';
+import {
+  clampPage,
+  paginateSlice,
+  paginationTotalPages,
+} from '../../shared/util/pagination.util';
 import {
   alerteCotisationManquee,
   buildCarteEmprunts,
+  buildCarteRemboursements,
   buildComptesCartes,
+  operationsRecentesParTypes,
   formatMontantCompte,
   formatMontantSolde,
   calculerSoldeMembreLocal,
@@ -44,9 +52,15 @@ const AV_COLORS = ['#7c3aed', '#1e6fa8', '#1a5c3a', '#c9922a', '#c0392b', '#2d7a
 @Component({
   selector: 'app-membre-fiche',
   standalone: true,
-  imports: [RouterLink, MembreRecapJourneeComponent, MonCompteOperationsComponent, ...DROIT_ACTION_IMPORTS],
+  imports: [
+    RouterLink,
+    MembreRecapJourneeComponent,
+    MonCompteOperationsComponent,
+    ListPaginationComponent,
+    ...DROIT_ACTION_IMPORTS,
+  ],
   templateUrl: './membre-fiche.component.html',
-  styleUrl: './membre-fiche.component.scss',
+  styleUrls: ['./membre-fiche.component.scss', '../../shared/styles/pagination.scss'],
 })
 export class MembreFicheComponent implements OnInit, OnDestroy {
   readonly Math = Math;
@@ -123,6 +137,44 @@ export class MembreFicheComponent implements OnInit, OnDestroy {
     return rows.filter((op) => op.type === t);
   });
 
+  readonly opsPage = signal(1);
+  readonly opsPageSize = 10;
+  readonly operationsPaged = computed(() =>
+    paginateSlice(this.operationsFiltres(), this.opsPage(), this.opsPageSize)
+  );
+
+  readonly remboursementsRecents = computed(() =>
+    operationsRecentesParTypes(this.operations(), ['REMBOURSEMENT']).map((op) =>
+      operationVersLigne(op)
+    )
+  );
+
+  readonly penalitesRecentes = computed(() =>
+    operationsRecentesParTypes(this.operations(), ['PENALITE']).map((op) => operationVersLigne(op))
+  );
+
+  readonly amendesRecentes = computed(() =>
+    operationsRecentesParTypes(this.operations(), ['AMENDE']).map((op) => operationVersLigne(op))
+  );
+
+  readonly totalRemboursements = computed(() =>
+    this.operations()
+      .filter((o) => o.typeOperation === 'REMBOURSEMENT')
+      .reduce((s, o) => s + Number(o.montant) + Number(o.montantFrais ?? 0), 0)
+  );
+
+  readonly totalPenalites = computed(() =>
+    this.operations()
+      .filter((o) => o.typeOperation === 'PENALITE')
+      .reduce((s, o) => s + Number(o.montant), 0)
+  );
+
+  readonly totalAmendes = computed(() =>
+    this.operations()
+      .filter((o) => o.typeOperation === 'AMENDE')
+      .reduce((s, o) => s + Number(o.montant), 0)
+  );
+
   readonly cotisationsMoisCourant = computed(() => {
     const mois = this.moisCourant();
     return this.operations().filter(
@@ -160,10 +212,16 @@ export class MembreFicheComponent implements OnInit, OnDestroy {
   readonly formatMontantSolde = formatMontantSolde;
   readonly formatMontantCompte = formatMontantCompte;
 
-  readonly comptesCartes = computed(() => [
-    ...buildComptesCartes(this.comptes(), this.operations(), this.emprunts()),
-    buildCarteEmprunts(this.empruntsEnCours()),
-  ]);
+  readonly comptesCartes = computed(() => {
+    const cartes = [
+      ...buildComptesCartes(this.comptes(), this.operations(), this.emprunts()),
+      buildCarteEmprunts(this.empruntsEnCours()),
+    ];
+    if (this.vueMonCompte()) {
+      cartes.push(buildCarteRemboursements(this.operations()));
+    }
+    return cartes;
+  });
 
   readonly semainesCotis = computed(() =>
     semainesCotisationMois(this.operations(), this.moisCourant())
@@ -236,7 +294,7 @@ export class MembreFicheComponent implements OnInit, OnDestroy {
       this.route.queryParamMap.subscribe((pm) => {
         this.queryNav.runSync(() => {
           this.filtreHistType.set(
-            qpEnum(pm, 'hist', ['tous', 'cotis', 'mois', 'remb', 'pen'] as const, 'tous')
+            qpEnum(pm, 'hist', ['tous', 'cotis', 'mois', 'remb', 'pen', 'amende'] as const, 'tous')
           );
         });
       })
@@ -423,9 +481,14 @@ export class MembreFicheComponent implements OnInit, OnDestroy {
 
   onFiltreHistType(ev: Event): void {
     const v = (ev.target as HTMLSelectElement).value;
-    const allowed: (HistFiltreType | 'tous')[] = ['tous', 'cotis', 'mois', 'remb', 'pen'];
+    const allowed: (HistFiltreType | 'tous')[] = ['tous', 'cotis', 'mois', 'remb', 'pen', 'amende'];
     this.filtreHistType.set(allowed.includes(v as HistFiltreType | 'tous') ? (v as HistFiltreType | 'tous') : 'tous');
+    this.opsPage.set(1);
     this.queryNav.push(this.router, this.route, { hist: this.filtreHistType() }, this.queryDefaults);
+  }
+
+  goOpsPage(p: number): void {
+    this.opsPage.set(clampPage(p, paginationTotalPages(this.operationsFiltres().length, this.opsPageSize)));
   }
 
   orgCourante(): number | null {

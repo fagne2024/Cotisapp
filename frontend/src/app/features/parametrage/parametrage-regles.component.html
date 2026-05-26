@@ -21,7 +21,7 @@
   } @else {
     <div class="param-layout">
       <div class="rules-list">
-        @for (r of regles(); track r.id) {
+        @for (r of reglesPaged(); track r.id) {
           <button
             type="button"
             class="rule-item"
@@ -129,6 +129,13 @@
             }
           </button>
         }
+        <app-list-pagination
+          [page]="reglesPage()"
+          [total]="regles().length"
+          [pageSize]="reglesPageSize"
+          unit="règle(s)"
+          (pageChange)="goReglesPage($event)"
+        />
       </div>
 
       @if (selectedRegle(); as regle) {

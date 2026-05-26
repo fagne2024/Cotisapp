@@ -136,7 +136,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  @for (org of filteredAdminsGie(); track org.id) {
+                  @for (org of filteredAdminsGiePaged(); track org.id) {
                     <tr [class.row-muted]="!org.actif">
                       <td>
                         <div class="cell-main">{{ org.nom }}</div>
@@ -205,6 +205,13 @@
                 </tbody>
               </table>
             </div>
+            <app-list-pagination
+              [page]="adminsPage()"
+              [total]="filteredAdminsGie().length"
+              [pageSize]="adminsPageSize"
+              unit="administrateur(s)"
+              (pageChange)="goAdminsPage($event)"
+            />
           </div>
         </div>
 
@@ -233,7 +240,7 @@
                   </tr>
                 </thead>
                 <tbody>
-                  @for (org of filteredOrgs(); track org.id; let i = $index) {
+                  @for (org of filteredOrgsPaged(); track org.id; let i = $index) {
                     <tr [class.row-muted]="!org.actif">
                       <td>
                         <div class="org-cell">
@@ -302,6 +309,13 @@
                 </tbody>
               </table>
             </div>
+            <app-list-pagination
+              [page]="orgsPage()"
+              [total]="filteredOrgs().length"
+              [pageSize]="orgsPageSize"
+              unit="organisation(s)"
+              (pageChange)="goOrgsPage($event)"
+            />
           </div>
         </div>
       }

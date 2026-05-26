@@ -143,6 +143,12 @@ export class AuthService {
     if (res.role === 'SUPERADMIN') {
       this.router.navigate(['/superadmin']);
     } else if (res.organisationId) {
+      // Les membres simples (non-bureau) sont redirigés vers l'espace mobile
+      if (res.role === 'MEMBRE' && !res.compteBureau) {
+        this.router.navigate(['/m/organisations', res.organisationId, 'accueil']);
+        return;
+      }
+      // Les membres bureau et les admins chargent leurs droits et vont vers le dashboard web
       if (res.role === 'MEMBRE' && res.compteBureau) {
         this.droits.chargerEtMemoriser(res.organisationId).subscribe({
           next: (d) => this.droits.setDroits(d),

@@ -61,13 +61,17 @@ function classeIco(type: TypeOperationApi): string {
   }
 }
 
-export function operationDashboardVersLigne(op: OperationMembreDto): DashboardOpRow {
+export function operationDashboardVersLigne(
+  op: OperationMembreDto,
+  opts?: { masquerNomMembre?: boolean }
+): DashboardOpRow {
   const montant = Number(op.montant) + Number(op.montantFrais ?? 0);
   const credit = estCreditOrg(op.typeOperation);
   const sign = credit ? '+' : '−';
   const libelle = libelleOperation(op.typeOperation);
   const membre = op.membreNom?.trim();
-  const name = membre ? `${libelle} — ${membre}` : libelle;
+  const name =
+    membre && !opts?.masquerNomMembre ? `${libelle} — ${membre}` : libelle;
   const dateStr = op.dateOperation
     ? new Intl.DateTimeFormat('fr-FR', {
         day: 'numeric',

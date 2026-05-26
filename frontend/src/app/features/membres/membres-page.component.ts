@@ -1,9 +1,22 @@
-import { Component, computed, inject, OnDestroy, OnInit, signal, HostListener } from '@angular/core';
+import {
+  Component,
+  computed,
+  effect,
+  ElementRef,
+  inject,
+  OnDestroy,
+  OnInit,
+  signal,
+  HostListener,
+  viewChild,
+} from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { forkJoin, Subscription } from 'rxjs';
 import { FilterQueryNav, qpEnum, qpString } from '../../shared/util/filter-query.util';
 import { AuthService } from '../../core/services/auth.service';
+import { ConfirmDialogService } from '../../core/services/confirm-dialog.service';
+import { NotificationService } from '../../core/services/notification.service';
 import { organisationCouranteId } from '../../core/util/org-route.util';
 import {
   CompteModeleMembreDto,
@@ -70,6 +83,10 @@ export class MembresPageComponent implements OnInit, OnDestroy {
   private readonly membreService = inject(MembreService);
   private readonly empruntService = inject(EmpruntService);
   private readonly compteModeleService = inject(CompteModeleMembreService);
+  private readonly confirmDialog = inject(ConfirmDialogService);
+  private readonly notify = inject(NotificationService);
+
+  private readonly selectAllCheckbox = viewChild<ElementRef<HTMLInputElement>>('selectAllCheckbox');
 
   readonly loading = signal(true);
   readonly loadError = signal<string | null>(null);
@@ -288,9 +305,23 @@ export class MembresPageComponent implements OnInit, OnDestroy {
 
   readonly selectedCount = computed(() => this.selectedMembreIds().size);
 
-  readonly allSelectedOnPage = computed(() => {
+  readonly filteredMembreIds = computed(() => this.filteredRows().map((r) => r.raw.id));
+
+  /** Tous les membres du filtre actuel (toutes pages), pas seulement la page affichée. */
+  readonly allSelectedInFilter = computed(() => {
+    const ids = this.filteredMembreIds();
+    if (ids.length === 0) {
+      return false;
+    }
     const selected = this.selectedMembreIds();
-    return this.pagedRows().length > 0 && this.pagedRows().every((r) => selected.has(r.raw.id));
+    return ids.every((id) => selected.has(id));
+  });
+
+  readonly someSelectedInFilter = computed(() => {
+    const ids = this.filteredMembreIds();
+    const selected = this.selectedMembreIds();
+    const n = ids.filter((id) => selected.has(id)).length;
+    return n > 0 && n < ids.length;
   });
 
   readonly stats = computed(() => {
@@ -332,6 +363,19 @@ export class MembresPageComponent implements OnInit, OnDestroy {
   readonly bureauCarouselNeedsNav = computed(
     () => this.bureauCards().length > BUREAU_CAROUSEL_VISIBLE
   );
+
+  constructor() {
+    effect(() => {
+      const el = this.selectAllCheckbox()?.nativeElement;
+      if (!el) {
+        return;
+      }
+      const all = this.allSelectedInFilter();
+      const some = this.someSelectedInFilter();
+      el.checked = all;
+      el.indeterminate = some && !all;
+    });
+  }
 
   readonly tabCounts = computed(() => {
     const all = this.rowsAll();
@@ -440,20 +484,23 @@ export class MembresPageComponent implements OnInit, OnDestroy {
     });
   }
 
-  toggleAllOnPage(): void {
-    if (this.allSelectedOnPage()) {
-      // Deselect all on page
+  /** Sélectionne ou désélectionne tous les membres du filtre courant (toutes les pages). */
+  toggleAllFiltered(): void {
+    const ids = this.filteredMembreIds();
+    if (ids.length === 0) {
+      return;
+    }
+    if (this.allSelectedInFilter()) {
       this.selectedMembreIds.update((set) => {
-        const newSet = new Set(set);
-        this.pagedRows().forEach((r) => newSet.delete(r.raw.id));
-        return newSet;
+        const next = new Set(set);
+        ids.forEach((id) => next.delete(id));
+        return next;
       });
     } else {
-      // Select all on page
       this.selectedMembreIds.update((set) => {
-        const newSet = new Set(set);
-        this.pagedRows().forEach((r) => newSet.add(r.raw.id));
-        return newSet;
+        const next = new Set(set);
+        ids.forEach((id) => next.add(id));
+        return next;
       });
     }
   }
@@ -471,22 +518,46 @@ export class MembresPageComponent implements OnInit, OnDestroy {
     if (org == null || !this.peutConfigurerPaiementMobile()) return;
     const ids = [...this.selectedMembreIds()];
     if (ids.length === 0) return;
-    const action = actif ? 'activer' : 'désactiver';
-    if (!confirm(`${action.charAt(0).toUpperCase() + action.slice(1)} le mobile money pour ${ids.length} membre(s) ?`)) {
-      return;
-    }
+    const n = ids.length;
+    const libelle = n > 1 ? `${n} membres sélectionnés` : '1 membre sélectionné';
+    void this.confirmDialog
+      .confirm({
+        title: actif ? 'Activer le mobile money' : 'Désactiver le mobile money',
+        message:
+          (actif
+            ? `Activer le paiement mobile money (Mon compte) pour ${libelle} ?`
+            : `Désactiver le paiement mobile money (Mon compte) pour ${libelle} ?`) +
+          '\n\nLes membres concernés pourront (ou ne pourront plus) régler cotisations et remboursements via mobile money.',
+        confirmLabel: actif ? 'Activer' : 'Désactiver',
+        cancelLabel: 'Annuler',
+        variant: actif ? 'default' : 'danger',
+      })
+      .then((ok) => {
+        if (!ok) {
+          return;
+        }
+        this.executerBulkPaiementMobile(org, ids, actif);
+      });
+  }
+
+  private executerBulkPaiementMobile(org: number, ids: number[], actif: boolean): void {
     this.bulkMobileSaving.set(true);
     this.membreService.bulkPaiementMobile(org, ids, actif).subscribe({
       next: (res) => {
         this.bulkMobileSaving.set(false);
         this.clearSelection();
         this.chargerMembres(org);
-        window.alert(res.message);
+        const msg = res.message?.trim() || 'Action terminée.';
+        if (res.nombreMisAJour > 0) {
+          this.notify.success(msg);
+        } else {
+          this.notify.info(msg, 'Information');
+        }
       },
       error: (err) => {
         this.bulkMobileSaving.set(false);
         const msg = err?.error?.message ?? 'Action groupée impossible.';
-        window.alert(typeof msg === 'string' ? msg : 'Action groupée impossible.');
+        this.notify.error(typeof msg === 'string' ? msg : 'Action groupée impossible.');
       },
     });
   }

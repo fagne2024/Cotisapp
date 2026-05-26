@@ -527,6 +527,10 @@
   background: #fff5f5;
   border-color: #f5c6c6;
 }
+.cc-remboursement {
+  background: #eef6ff;
+  border-color: #b8d4f0;
+}
 .cc-penalite,
 .cc-amende {
   background: var(--re2);
@@ -565,6 +569,9 @@
 .cc-emprunt .cc-val,
 .cc-val.neg {
   color: var(--re);
+}
+.cc-remboursement .cc-val {
+  color: #1e6fa8;
 }
 .cc-penalite .cc-val,
 .cc-amende .cc-val {
@@ -838,6 +845,17 @@ a.card-action {
   display: flex;
   flex-direction: column;
   gap: 7px;
+}
+
+.op-list-compact {
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.muted-action {
+  font-size: 0.8rem;
+  color: var(--md, #4a5568);
+  font-weight: 500;
 }
 
 .op-row {

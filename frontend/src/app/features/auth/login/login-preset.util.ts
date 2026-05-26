@@ -46,3 +46,6 @@ export function libelleSousTypeAttendu(groupe: LoginGroupe | null): string {
   if (groupe === 'membre') return 'Membre simple ou Membre de bureau';
   return 'un sous-type';
 }
+
+/** Rôles proposés lorsque l'identifiant est une adresse email. */
+export const PRESETS_CONNEXION_EMAIL: LoginPreset[] = ['membreBureau', 'adminGie', 'super'];

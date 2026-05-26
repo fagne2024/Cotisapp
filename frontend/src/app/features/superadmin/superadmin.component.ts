@@ -15,15 +15,21 @@ import {
 } from '../../core/services/superadmin.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { formatFcfa } from '../../core/utils/currency.util';
+import { ListPaginationComponent } from '../../shared/components/list-pagination/list-pagination.component';
+import {
+  clampPage,
+  paginateSlice,
+  paginationTotalPages,
+} from '../../shared/util/pagination.util';
 
 type ModalKind = 'create' | 'edit' | 'delete' | 'resetMdp' | 'reset2fa';
 
 @Component({
   selector: 'app-superadmin-dashboard',
   standalone: true,
-  imports: [ReactiveFormsModule, NgStyle, RouterLink],
+  imports: [ReactiveFormsModule, NgStyle, RouterLink, ListPaginationComponent],
   templateUrl: './superadmin.component.html',
-  styleUrl: './superadmin.component.scss',
+  styleUrls: ['./superadmin.component.scss', '../../shared/styles/pagination.scss'],
 })
 export class SuperadminComponent implements OnInit, OnDestroy {
   private readonly orgService = inject(OrganisationService);
@@ -57,6 +63,17 @@ export class SuperadminComponent implements OnInit, OnDestroy {
 
   /** Liste des organisations avec filtre recherche (vue admins GIE). */
   readonly filteredAdminsGie = computed(() => this.filterOrganisations(this.vue()?.organisations ?? []));
+
+  readonly orgsPage = signal(1);
+  readonly adminsPage = signal(1);
+  readonly orgsPageSize = 10;
+  readonly adminsPageSize = 10;
+  readonly filteredOrgsPaged = computed(() =>
+    paginateSlice(this.filteredOrgs(), this.orgsPage(), this.orgsPageSize)
+  );
+  readonly filteredAdminsGiePaged = computed(() =>
+    paginateSlice(this.filteredAdminsGie(), this.adminsPage(), this.adminsPageSize)
+  );
 
   private filterOrganisations(list: OrganisationResumeDto[]): OrganisationResumeDto[] {
     const q = this.searchQuery().trim().toLowerCase();
@@ -302,6 +319,18 @@ export class SuperadminComponent implements OnInit, OnDestroy {
 
   onSearch(event: Event): void {
     this.searchQuery.set((event.target as HTMLInputElement).value);
+    this.orgsPage.set(1);
+    this.adminsPage.set(1);
+  }
+
+  goOrgsPage(p: number): void {
+    this.orgsPage.set(clampPage(p, paginationTotalPages(this.filteredOrgs().length, this.orgsPageSize)));
+  }
+
+  goAdminsPage(p: number): void {
+    this.adminsPage.set(
+      clampPage(p, paginationTotalPages(this.filteredAdminsGie().length, this.adminsPageSize))
+    );
   }
 
   selectedComptesRecap(): { label: string; warn?: boolean; muted?: boolean }[] {

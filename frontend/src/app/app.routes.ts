@@ -5,6 +5,7 @@ import { mustSetupTwoFactorGuard } from './core/guards/must-setup-two-factor.gua
 import { orgGuard } from './core/guards/org.guard';
 import { roleGuard } from './core/guards/role.guard';
 import { orgWorkspaceRoutes } from './core/routes/org-workspace.routes';
+import { mobileRoutes } from './features/mobile/mobile.routes';
 
 export const routes: Routes = [
   { path: '', redirectTo: 'login', pathMatch: 'full' },
@@ -57,6 +58,17 @@ export const routes: Routes = [
     canActivate: [authGuard, mustChangePasswordGuard, mustSetupTwoFactorGuard, orgGuard],
     loadComponent: () => import('./layout/app-shell/app-shell.component').then((m) => m.AppShellComponent),
     children: orgWorkspaceRoutes,
+  },
+  // ── Espace mobile membre ──
+  {
+    path: 'm/organisations/:orgId',
+    canActivate: [authGuard, mustChangePasswordGuard, orgGuard],
+    data: { roles: ['MEMBRE'] },
+    loadComponent: () =>
+      import('./features/mobile/mobile-shell/mobile-shell.component').then(
+        (m) => m.MobileShellComponent,
+      ),
+    children: mobileRoutes,
   },
   { path: '**', redirectTo: 'login' },
 ];

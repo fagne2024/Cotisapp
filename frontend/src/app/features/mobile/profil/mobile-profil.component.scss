@@ -1,0 +1,197 @@
+:host { display: block; }
+
+/* ── Hero avatar ── */
+.hero {
+  background: linear-gradient(145deg, #1a5c3a, #2d7a52);
+  padding: 52px 20px 32px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: var(--av-color);
+  color: #fff;
+  font-size: 28px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 3px solid rgba(255,255,255,0.4);
+  margin-bottom: 8px;
+}
+
+.hero__name {
+  color: #fff;
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  text-align: center;
+}
+
+.hero__role {
+  color: rgba(255,255,255,0.8);
+  font-size: 13px;
+  margin: 0;
+  background: rgba(255,255,255,0.12);
+  padding: 3px 12px;
+  border-radius: 20px;
+}
+
+.hero__org {
+  color: rgba(255,255,255,0.7);
+  font-size: 13px;
+  margin: 0;
+}
+
+/* ── Contenu ── */
+.content {
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+/* ── Cartes ── */
+.card {
+  background: #fff;
+  border-radius: 18px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.06);
+}
+
+.card__title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #94a3b8;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin: 0 0 16px;
+}
+
+/* ── Lignes info ── */
+.info-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f3f4f6;
+
+  &:last-child { border-bottom: none; }
+
+  div {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+}
+
+.info-row__icon {
+  font-size: 20px;
+  width: 36px;
+  height: 36px;
+  background: #f3f4f6;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.info-row__label {
+  font-size: 12px;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+.info-row__val {
+  font-size: 15px;
+  font-weight: 600;
+  color: #1c1c1e;
+
+  &.code {
+    font-family: monospace;
+    font-size: 16px;
+    letter-spacing: 0.05em;
+    color: #1a5c3a;
+  }
+}
+
+/* ── Statut ── */
+.status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+
+  &:not(:last-child) { border-bottom: 1px solid #f3f4f6; }
+}
+
+.status-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #c0392b;
+  flex-shrink: 0;
+
+  &.actif { background: #1a5c3a; }
+}
+
+.status-text {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1c1c1e;
+}
+
+.status-badge {
+  font-size: 13px;
+  font-weight: 600;
+  padding: 5px 12px;
+  border-radius: 20px;
+
+  &--green { background: #e8f5ee; color: #1a5c3a; }
+}
+
+/* ── Déconnexion ── */
+.logout-btn {
+  width: 100%;
+  padding: 16px;
+  border: 2px solid #fdeaea;
+  border-radius: 14px;
+  background: #fff;
+  color: #c0392b;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: background 0.15s, transform 0.15s;
+
+  svg {
+    width: 20px;
+    height: 20px;
+    stroke: #c0392b;
+  }
+
+  &:active { transform: scale(0.98); background: #fdeaea; }
+}
+
+/* ── Skeleton ── */
+.skeleton {
+  background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s infinite;
+
+  &--card { height: 220px; border-radius: 18px; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}

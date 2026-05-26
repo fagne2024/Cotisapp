@@ -40,3 +40,8 @@ testem.log
 # System files
 .DS_Store
 Thumbs.db
+
+# Keystore APK - NE JAMAIS COMMITER
+*.keystore
+*.jks
+android/local.properties

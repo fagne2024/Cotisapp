@@ -1,0 +1,157 @@
+<div class="cotiser">
+
+  <header class="page-header">
+    <h1 class="page-header__title">Opérations</h1>
+  </header>
+
+  <!-- ── Onglets principaux ── -->
+  <div class="onglets">
+    <button class="onglet-btn" [class.active]="onglet() === 'cotiser'"
+            (click)="setOnglet('cotiser')">
+      💳 Cotiser
+    </button>
+    <button class="onglet-btn" [class.active]="onglet() === 'rembourser'"
+            (click)="setOnglet('rembourser')">
+      ✅ Rembourser
+    </button>
+  </div>
+
+  <!-- ── Feedback ── -->
+  @if (succes()) {
+    <div class="alert alert--success">
+      <span>✅</span>
+      <p>{{ succes() }}</p>
+    </div>
+  }
+  @if (erreur()) {
+    <div class="alert alert--error">
+      <span>⚠️</span>
+      <p>{{ erreur() }}</p>
+    </div>
+  }
+
+  <!-- ══════════════════════════ COTISER ══════════════════════════ -->
+  @if (onglet() === 'cotiser') {
+    <div class="card">
+      <!-- Sous-onglets -->
+      <div class="sous-onglets">
+        <button [class.active]="sousOnglet() === 'hebdo'" (click)="setSousOnglet('hebdo')">
+          📅 Hebdomadaire
+        </button>
+        <button [class.active]="sousOnglet() === 'mois'" (click)="setSousOnglet('mois')">
+          📆 Mensuelle
+        </button>
+      </div>
+
+      <form [formGroup]="formCotisation" (ngSubmit)="soumettreCotisation()">
+        <div class="field">
+          <label class="field__label">Montant (FCFA)</label>
+          <input class="field__input field__input--big"
+                 type="number"
+                 inputmode="numeric"
+                 placeholder="0"
+                 formControlName="montant"
+                 min="1"/>
+          @if (formCotisation.get('montant')?.invalid && formCotisation.get('montant')?.touched) {
+            <span class="field__error">Montant requis (minimum 1 F)</span>
+          }
+        </div>
+
+        <div class="field">
+          <label class="field__label">Mode de paiement</label>
+          <select class="field__select" formControlName="modePaiement">
+            <option value="MOBILE_MONEY">📱 Mobile Money</option>
+            <option value="ESPECES">💵 Espèces</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label class="field__label">Référence (optionnel)</label>
+          <input class="field__input"
+                 type="text"
+                 placeholder="ex : TX-2026-XXXX"
+                 formControlName="referencePaiement"/>
+        </div>
+
+        <button class="submit-btn" type="submit"
+                [disabled]="formCotisation.invalid || loading()">
+          @if (loading()) {
+            <span class="spinner"></span> Envoi en cours…
+          } @else {
+            Soumettre la cotisation {{ sousOnglet() === 'hebdo' ? 'hebdo' : 'mensuelle' }}
+          }
+        </button>
+      </form>
+    </div>
+  }
+
+  <!-- ══════════════════════════ REMBOURSER ══════════════════════════ -->
+  @if (onglet() === 'rembourser') {
+    <div class="card">
+      @if (empruntsActifs().length === 0) {
+        <div class="empty">
+          <span>✅</span>
+          <p>Aucun emprunt actif à rembourser</p>
+        </div>
+      } @else {
+        <form [formGroup]="formRemboursement" (ngSubmit)="soumettreRemboursement()">
+
+          <div class="field">
+            <label class="field__label">Choisir l'emprunt</label>
+            <select class="field__select" formControlName="empruntId">
+              <option [value]="null">-- Sélectionner --</option>
+              @for (e of empruntsActifs(); track e.id) {
+                <option [value]="e.id">
+                  {{ typeLabel(e.typeEmprunt) }} — {{ fmt(e.montantRestant) }} restant
+                  @if (e.statut === 'RETARD') { ⚠️ }
+                </option>
+              }
+            </select>
+            @if (formRemboursement.get('empruntId')?.invalid && formRemboursement.get('empruntId')?.touched) {
+              <span class="field__error">Veuillez sélectionner un emprunt</span>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field__label">Montant à rembourser (FCFA)</label>
+            <input class="field__input field__input--big"
+                   type="number"
+                   inputmode="numeric"
+                   placeholder="0"
+                   formControlName="montant"
+                   min="1"/>
+            @if (formRemboursement.get('montant')?.invalid && formRemboursement.get('montant')?.touched) {
+              <span class="field__error">Montant requis (minimum 1 F)</span>
+            }
+          </div>
+
+          <div class="field">
+            <label class="field__label">Mode de paiement</label>
+            <select class="field__select" formControlName="modePaiement">
+              <option value="MOBILE_MONEY">📱 Mobile Money</option>
+              <option value="ESPECES">💵 Espèces</option>
+            </select>
+          </div>
+
+          <div class="field">
+            <label class="field__label">Référence (optionnel)</label>
+            <input class="field__input"
+                   type="text"
+                   placeholder="ex : TX-2026-XXXX"
+                   formControlName="referencePaiement"/>
+          </div>
+
+          <button class="submit-btn submit-btn--green" type="submit"
+                  [disabled]="formRemboursement.invalid || loading()">
+            @if (loading()) {
+              <span class="spinner"></span> Envoi en cours…
+            } @else {
+              Soumettre le remboursement
+            }
+          </button>
+        </form>
+      }
+    </div>
+  }
+
+</div>

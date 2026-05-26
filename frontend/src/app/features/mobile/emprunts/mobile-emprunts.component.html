@@ -1,0 +1,101 @@
+<div class="emprunts">
+
+  <header class="page-header">
+    <h1 class="page-header__title">Mes Emprunts</h1>
+    @if (empruntsEnCours().length > 0) {
+      <span class="page-header__badge">{{ empruntsEnCours().length }} actif(s)</span>
+    }
+  </header>
+
+  @if (data.loading()) {
+    <div class="content">
+      @for (_ of [1, 2]; track $index) {
+        <div class="skeleton skeleton--card"></div>
+      }
+    </div>
+  } @else {
+
+    <!-- ── Emprunts actifs ── -->
+    <div class="content">
+      @if (empruntsEnCours().length === 0) {
+        <div class="empty-state">
+          <div class="empty-state__icon">✅</div>
+          <h3>Aucun emprunt en cours</h3>
+          <p>Vous n'avez pas d'emprunt actif pour le moment.</p>
+        </div>
+      } @else {
+        <div class="section-label">
+          <span>En cours</span>
+          <span class="section-total">Total restant : {{ fmt(totalRestant()) }}</span>
+        </div>
+
+        @for (e of empruntsEnCours(); track e.id) {
+          <div class="emprunt-card" [class.retard]="enRetard(e)">
+            <div class="emprunt-card__top">
+              <div class="emprunt-card__info">
+                <span class="emprunt-card__type">{{ typeLabel(e) }}</span>
+                @if (enRetard(e)) {
+                  <span class="badge badge--red">⚠️ Retard</span>
+                } @else {
+                  <span class="badge badge--green">En cours</span>
+                }
+              </div>
+              <span class="emprunt-card__pct">{{ pct(e) }}%</span>
+            </div>
+
+            <div class="emprunt-card__progress">
+              <div class="emprunt-card__progress-bar"
+                   [style.width.%]="pct(e)"
+                   [class.retard]="enRetard(e)">
+              </div>
+            </div>
+
+            <div class="emprunt-card__amounts">
+              <div class="emprunt-card__amount-item">
+                <span class="emprunt-card__amount-lbl">Remboursé</span>
+                <span class="emprunt-card__amount-val green">{{ fmt(e.montantRembourse) }}</span>
+              </div>
+              <div class="emprunt-card__amount-item">
+                <span class="emprunt-card__amount-lbl">Restant</span>
+                <span class="emprunt-card__amount-val red">{{ fmt(e.montantRestant) }}</span>
+              </div>
+              <div class="emprunt-card__amount-item">
+                <span class="emprunt-card__amount-lbl">Total</span>
+                <span class="emprunt-card__amount-val">{{ fmt(e.montantTotal) }}</span>
+              </div>
+            </div>
+
+            @if (e.dateCreation) {
+              <p class="emprunt-card__date">
+                Accordé le {{ e.dateCreation | date:'dd MMM yyyy':'':'fr' }}
+              </p>
+            }
+          </div>
+        }
+      }
+
+      <!-- ── Historique ── -->
+      @if (empruntsClos().length > 0) {
+        <div class="section-label" style="margin-top: 8px;">
+          <span>Historique</span>
+          <span class="section-total">{{ empruntsClos().length }} clôturé(s)</span>
+        </div>
+
+        @for (e of empruntsClos(); track e.id) {
+          <div class="emprunt-clos">
+            <div class="emprunt-clos__icon">✅</div>
+            <div class="emprunt-clos__info">
+              <span class="emprunt-clos__type">{{ typeLabel(e) }}</span>
+              <span class="emprunt-clos__total">{{ fmt(e.montantTotal) }} · Remboursé intégralement</span>
+            </div>
+            @if (e.dateCreation) {
+              <span class="emprunt-clos__date">
+                {{ e.dateCreation | date:'MMM yy':'':'fr' }}
+              </span>
+            }
+          </div>
+        }
+      }
+    </div>
+  }
+</div>

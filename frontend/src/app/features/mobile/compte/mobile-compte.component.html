@@ -1,0 +1,119 @@
+<div class="compte">
+
+  <!-- ── Header ── -->
+  <header class="page-header">
+    <h1 class="page-header__title">Mon Compte</h1>
+    @if (data.membre(); as m) {
+      <span class="page-header__code">{{ m.codeMembre }}</span>
+    }
+  </header>
+
+  <!-- ── Résumé solde ── -->
+  @if (!data.loading() && data.solde(); as s) {
+    <div class="solde-banner">
+      <div class="solde-banner__item">
+        <span class="solde-banner__val">{{ fmt(s.epargne) }}</span>
+        <span class="solde-banner__lbl">Épargne</span>
+      </div>
+      <div class="solde-banner__sep"></div>
+      <div class="solde-banner__item">
+        <span class="solde-banner__val">{{ fmt(s.solidarite) }}</span>
+        <span class="solde-banner__lbl">Solidarité</span>
+      </div>
+      <div class="solde-banner__sep"></div>
+      <div class="solde-banner__item">
+        <span class="solde-banner__val"
+              [class.negatif]="s.solde < 0">{{ fmt(s.solde) }}</span>
+        <span class="solde-banner__lbl">Solde net</span>
+      </div>
+    </div>
+  } @else if (data.loading()) {
+    <div class="skeleton skeleton--banner"></div>
+  }
+
+  <!-- ── Cartes comptes ── -->
+  <section class="section">
+    <h2 class="section__title">Mes comptes</h2>
+    @if (data.loading()) {
+      <div class="comptes-scroll">
+        @for (_ of [1,2,3]; track $index) {
+          <div class="skeleton skeleton--carte"></div>
+        }
+      </div>
+    } @else {
+      <div class="comptes-scroll">
+        @for (c of cartes(); track c.label) {
+          <div class="compte-carte" [style.--accent]="c.color" [style.--bg]="c.bg">
+            <span class="compte-carte__icon">{{ c.icon }}</span>
+            <span class="compte-carte__label">{{ c.label }}</span>
+            <span class="compte-carte__solde">{{ fmt(c.solde) }}</span>
+          </div>
+        }
+      </div>
+    }
+  </section>
+
+  <!-- ── Historique des opérations ── -->
+  <section class="section card">
+    <div class="section__header">
+      <h2 class="section__title">Historique</h2>
+      <span class="section__count">{{ opsFiltrees().length }} op.</span>
+    </div>
+
+    <!-- Filtres -->
+    <div class="filtres-scroll">
+      @for (f of filtres; track f.val) {
+        <button class="filtre-btn"
+                [class.active]="filtre() === f.val"
+                (click)="setFiltre(f.val)">
+          {{ f.label }}
+        </button>
+      }
+    </div>
+
+    <!-- Liste -->
+    @if (data.loading()) {
+      @for (_ of [1,2,3,4,5]; track $index) {
+        <div class="skeleton skeleton--row"></div>
+      }
+    } @else if (opsPage().length === 0) {
+      <div class="empty">
+        <span>📋</span>
+        <p>Aucune opération</p>
+      </div>
+    } @else {
+      <ul class="op-list">
+        @for (op of opsPage(); track op.id) {
+          <li class="op-row">
+            <span class="op-row__icon">{{ opIcon(op) }}</span>
+            <div class="op-row__info">
+              <span class="op-row__label">{{ opLabel(op) }}</span>
+              <span class="op-row__date">
+                {{ op.dateOperation | date:'dd MMM yyyy':'':'fr' }}
+                @if (op.moisAnnee) { · {{ op.moisAnnee }} }
+              </span>
+            </div>
+            <span class="op-row__amount"
+                  [class.positif]="opPositif(op)"
+                  [class.negatif]="!opPositif(op)">
+              {{ opPositif(op) ? '+' : '-' }}{{ fmt(op.montant) }}
+            </span>
+          </li>
+        }
+      </ul>
+
+      <!-- Pagination -->
+      @if (totalPages() > 1) {
+        <div class="pagination">
+          <button [disabled]="page() === 0" (click)="page.set(page() - 1)">
+            ‹ Préc.
+          </button>
+          <span>{{ page() + 1 }} / {{ totalPages() }}</span>
+          <button [disabled]="page() === totalPages() - 1" (click)="page.set(page() + 1)">
+            Suiv. ›
+          </button>
+        </div>
+      }
+    }
+  </section>
+</div>

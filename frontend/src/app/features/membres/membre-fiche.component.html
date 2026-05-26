@@ -162,7 +162,8 @@
                     <option value="cotis">Cotisation</option>
                     <option value="mois">Type Mois</option>
                     <option value="remb">Remboursement</option>
-                    <option value="pen">Pénalité / Amende</option>
+                    <option value="pen">Pénalité</option>
+                    <option value="amende">Amende</option>
                   </select>
                   <button class="card-action-btn" (click)="exportOperations()" title="Exporter les opérations (Ctrl+Shift+E)">
                     📥 Exporter
@@ -173,7 +174,7 @@
                 @if (operationsFiltres().length === 0) {
                   <p class="op-empty">Aucune opération enregistrée.</p>
                 } @else {
-                  @for (op of operationsFiltres().slice(0, 8); track op.name + op.meta) {
+                  @for (op of operationsPaged(); track op.name + op.meta) {
                     <div class="op-row">
                       <div
                         class="op-ico"
@@ -191,11 +192,13 @@
                   }
                 }
               </div>
-              @if (operationsFiltres().length > 8) {
-                <div class="hist-more">
-                  <span class="card-action">Voir tout mon historique →</span>
-                </div>
-              }
+              <app-list-pagination
+                [page]="opsPage()"
+                [total]="operationsFiltres().length"
+                [pageSize]="opsPageSize"
+                unit="opération(s)"
+                (pageChange)="goOpsPage($event)"
+              />
             </div>
           </div>
 
@@ -331,6 +334,95 @@
               }
             </div>
           </div>
+
+          @if (vueMonCompte()) {
+            <div class="card">
+              <div class="card-inner">
+                <div class="card-h">
+                  <span class="card-title">🔄 Mes remboursements</span>
+                  <span class="card-action muted-action">{{ formatFcfa(totalRemboursements()) }} F cumulés</span>
+                </div>
+                @if (remboursementsRecents().length === 0) {
+                  <div class="emp-empty">
+                    <div class="emp-empty-ico">✅</div>
+                    <div class="emp-empty-title">Aucun remboursement</div>
+                    <div class="emp-empty-sub">Vos remboursements d'emprunt apparaîtront ici.</div>
+                  </div>
+                } @else {
+                  <div class="op-list op-list-compact">
+                    @for (op of remboursementsRecents(); track op.meta + op.name) {
+                      <div class="op-row">
+                        <div class="op-ico g3">{{ op.icon }}</div>
+                        <div class="op-info">
+                          <div class="op-name">{{ op.name }}</div>
+                          <div class="op-meta">{{ op.meta }}</div>
+                        </div>
+                        <div class="op-amt" [class]="op.amtClass">{{ op.amt }}</div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-inner">
+                <div class="card-h">
+                  <span class="card-title">⚠ Mes pénalités</span>
+                  <span class="card-action muted-action">{{ formatFcfa(totalPenalites()) }} F</span>
+                </div>
+                @if (penalitesRecentes().length === 0) {
+                  <div class="emp-empty">
+                    <div class="emp-empty-ico">✅</div>
+                    <div class="emp-empty-title">Aucune pénalité</div>
+                    <div class="emp-empty-sub">Pénalités de retard sur cotisations ou remboursements.</div>
+                  </div>
+                } @else {
+                  <div class="op-list op-list-compact">
+                    @for (op of penalitesRecentes(); track op.meta + op.name) {
+                      <div class="op-row">
+                        <div class="op-ico re2">{{ op.icon }}</div>
+                        <div class="op-info">
+                          <div class="op-name">{{ op.name }}</div>
+                          <div class="op-meta">{{ op.meta }}</div>
+                        </div>
+                        <div class="op-amt" [class]="op.amtClass">{{ op.amt }}</div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+
+            <div class="card">
+              <div class="card-inner">
+                <div class="card-h">
+                  <span class="card-title">🚫 Mes amendes</span>
+                  <span class="card-action muted-action">{{ formatFcfa(totalAmendes()) }} F</span>
+                </div>
+                @if (amendesRecentes().length === 0) {
+                  <div class="emp-empty">
+                    <div class="emp-empty-ico">✅</div>
+                    <div class="emp-empty-title">Aucune amende</div>
+                    <div class="emp-empty-sub">Amendes liées aux cotisations.</div>
+                  </div>
+                } @else {
+                  <div class="op-list op-list-compact">
+                    @for (op of amendesRecentes(); track op.meta + op.name) {
+                      <div class="op-row">
+                        <div class="op-ico re2">{{ op.icon }}</div>
+                        <div class="op-info">
+                          <div class="op-name">{{ op.name }}</div>
+                          <div class="op-meta">{{ op.meta }}</div>
+                        </div>
+                        <div class="op-amt" [class]="op.amtClass">{{ op.amt }}</div>
+                      </div>
+                    }
+                  </div>
+                }
+              </div>
+            </div>
+          }
 
           <div class="card">
             <div class="card-inner">

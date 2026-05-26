@@ -6,9 +6,12 @@ import com.cotisapp.domain.entity.Emprunt;
 import com.cotisapp.domain.entity.Membre;
 import com.cotisapp.domain.enums.PosteMembre;
 import com.cotisapp.domain.enums.ProprietaireCompte;
+import com.cotisapp.domain.enums.Role;
 import com.cotisapp.domain.enums.StatutEcheance;
 import com.cotisapp.domain.enums.StatutEmprunt;
 import com.cotisapp.domain.enums.TypeCompte;
+import com.cotisapp.security.OrganisationContext;
+import com.cotisapp.security.OrgSecurityService;
 import com.cotisapp.dto.response.CotisationMoisStatResponse;
 import com.cotisapp.dto.response.DashboardResponse;
 import com.cotisapp.dto.response.MembreResponse;
@@ -57,6 +60,7 @@ public class DashboardService {
     private final MembreService membreService;
     private final OperationMapperService operationMapperService;
     private final ExerciceService exerciceService;
+    private final OrgSecurityService orgSecurityService;
 
     @Transactional(readOnly = true)
     public DashboardResponse getDashboard(Long orgId) {
@@ -82,12 +86,7 @@ public class DashboardService {
                 .map(membreService::toResponse)
                 .toList();
 
-        List<OperationResponse> operations = operationRepository
-                .findByOrganisationIdAndExerciceIdOrderByDateCreationDesc(orgId, exerciceId)
-                .stream()
-                .limit(OPERATIONS_RECENTES_MAX)
-                .map(operationMapperService::toResponse)
-                .toList();
+        List<OperationResponse> operations = chargerOperationsRecentes(orgId, exerciceId);
 
         int annee = LocalDate.now().getYear();
         List<CotisationMoisStatResponse> evolutionCotisations =
@@ -107,6 +106,32 @@ public class DashboardService {
                 .evolutionCotisations(evolutionCotisations)
                 .evolutionAnnee(annee)
                 .build();
+    }
+
+    private List<OperationResponse> chargerOperationsRecentes(Long orgId, Long exerciceId) {
+        if (OrganisationContext.getRole() == Role.MEMBRE && !orgSecurityService.estMembreBureauCourant(orgId)) {
+            Long membreId = OrganisationContext.getMembreId();
+            if (membreId == null) {
+                return List.of();
+            }
+            Long compteSolidariteId = compteRepository
+                    .findByMembreIdAndTypeCompte(membreId, TypeCompte.SOLIDARITE)
+                    .map(Compte::getId)
+                    .orElse(null);
+            return operationRepository
+                    .findByMembreIdWithMouvementsOrderByDateCreationDesc(membreId)
+                    .stream()
+                    .filter(op -> !Boolean.TRUE.equals(op.getAnnulee()))
+                    .limit(OPERATIONS_RECENTES_MAX)
+                    .map(op -> operationMapperService.toResponse(op, compteSolidariteId))
+                    .toList();
+        }
+        return operationRepository
+                .findByOrganisationIdAndExerciceIdOrderByDateCreationDesc(orgId, exerciceId)
+                .stream()
+                .limit(OPERATIONS_RECENTES_MAX)
+                .map(operationMapperService::toResponse)
+                .toList();
     }
 
     private List<CotisationMoisStatResponse> buildEvolutionCotisations(Long orgId, Long exerciceId, int annee) {

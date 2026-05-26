@@ -220,7 +220,7 @@
 
     <div class="card card-ops">
       <div class="card-h">
-        <span class="card-title">🕐 Opérations récentes</span>
+        <span class="card-title">🕐 {{ isMembreSimple() ? 'Mes opérations récentes' : 'Opérations récentes' }}</span>
         <div class="card-actions">
           @if (!isMembreSimple()) {
             <a class="card-action" [routerLink]="['/organisations', auth.currentOrgId()!, 'recap-journee']" title="Voir toutes les opérations">
@@ -236,7 +236,13 @@
       </div>
       <div class="op-list op-list--scroll">
         @if (operationsRecentes().length === 0) {
-          <p class="emp-empty">Aucune opération enregistrée pour le moment.</p>
+          <p class="emp-empty">
+            @if (isMembreSimple()) {
+              Aucune opération sur votre compte membre.
+            } @else {
+              Aucune opération enregistrée pour le moment.
+            }
+          </p>
         }
         @for (op of operationsRecentes(); track $index) {
           <div class="op-row">

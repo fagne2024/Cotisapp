@@ -7,7 +7,7 @@ import {
 } from '../../core/services/membre.service';
 import { EmpruntDto } from '../../core/services/emprunt.service';
 
-export type HistFiltreType = 'tous' | 'cotis' | 'mois' | 'remb' | 'pen';
+export type HistFiltreType = 'tous' | 'cotis' | 'mois' | 'remb' | 'pen' | 'amende';
 
 export interface HistOpRow {
   type: HistFiltreType;
@@ -68,8 +68,9 @@ export function filtrePourOperation(type: TypeOperationApi): HistFiltreType {
     case 'EMPRUNT':
       return 'remb';
     case 'PENALITE':
-    case 'AMENDE':
       return 'pen';
+    case 'AMENDE':
+      return 'amende';
     default:
       return 'tous';
   }
@@ -119,9 +120,11 @@ export function operationVersLigne(op: OperationMembreDto): HistOpRow {
         ? '📅'
         : op.typeOperation === 'REMBOURSEMENT'
           ? '🔄'
-          : op.typeOperation === 'PENALITE'
-            ? '⚠'
-            : '💰',
+          : op.typeOperation === 'AMENDE'
+            ? '🚫'
+            : op.typeOperation === 'PENALITE'
+              ? '⚠'
+              : '💰',
     icoClass: op.typeOperation === 'COTISATION_MOIS' ? 'or3' : 'g3',
     name: libelleOperation(op.typeOperation),
     meta: metaParts.join(' · '),
@@ -326,6 +329,30 @@ export function formatMontantCompte(montant: number): string {
 /** Épargne = somme des soldes épargne hebdomadaire + mensuelle (hors solidarité). */
 export function sommeEpargneHebdoEtMois(comptes: CompteMembreDto[]): number {
   return soldeComptes(comptes, ['EPARGNE_HEBDO', 'EPARGNE_MOIS']);
+}
+
+const LIMITE_OPS_RECENTES = 5;
+
+/** Dernières opérations du membre pour un ou plusieurs types. */
+export function operationsRecentesParTypes(
+  operations: OperationMembreDto[],
+  types: TypeOperationApi[],
+  limite = LIMITE_OPS_RECENTES
+): OperationMembreDto[] {
+  return operations.filter((o) => types.includes(o.typeOperation)).slice(0, limite);
+}
+
+/** Carte cumul remboursements (compte membre). */
+export function buildCarteRemboursements(operations: OperationMembreDto[]): CompteCarteAffichage {
+  const remb = operations.filter((o) => o.typeOperation === 'REMBOURSEMENT');
+  const total = remb.reduce((s, o) => s + montantOperationCumul(o), 0);
+  return {
+    icon: '🔄',
+    label: 'Remboursements',
+    valeur: total,
+    sousTitre: remb.length ? `${remb.length} remboursement${remb.length > 1 ? 's' : ''}` : 'Aucun remboursement',
+    classe: 'cc-remboursement',
+  };
 }
 
 /** Carte encours : somme des restes à payer (capital + frais) sur emprunts en cours. */

@@ -5,7 +5,7 @@ import { DashboardDto, DashboardService } from '../../core/services/dashboard.se
 import { EmpruntService, EmpruntDto } from '../../core/services/emprunt.service';
 import { EmpruntsReglesDto, RegleOperationService } from '../../core/services/regle-operation.service';
 import { joursAlertePourTypeEmprunt } from '../../core/util/regle-emprunt.util';
-import { MembreDto, MembreService } from '../../core/services/membre.service';
+import { MembreDto, MembreService, OperationMembreDto } from '../../core/services/membre.service';
 import { SuiviMensuelDto } from '../../core/services/suivi-mensuel.service';
 
 export interface MesSoldeDashboard {
@@ -42,6 +42,8 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly reglesEmprunt = signal<EmpruntsReglesDto | null>(null);
   readonly mesSolde = signal<MesSoldeDashboard | null>(null);
   readonly mesSuiviMensuel = signal<SuiviMensuelDto | null>(null);
+  /** Opérations du compte membre (source Mon compte, hors cloison exercice). */
+  readonly mesOperations = signal<OperationMembreDto[]>([]);
 
   readonly selectedYear = signal(new Date().getFullYear());
   readonly selectedMonth = signal(new Date().getMonth() + 1);
@@ -94,8 +96,12 @@ export class DashboardComponent implements OnInit, OnDestroy {
   readonly topEmpruntsForCard = computed(() => this.enCours().slice(0, 2));
 
   readonly operationsRecentes = computed(() => {
-    const ops = this.dashboard()?.operationsRecentes ?? [];
-    return ops.map(operationDashboardVersLigne);
+    const ops = this.isMembreSimple()
+      ? this.mesOperations()
+      : (this.dashboard()?.operationsRecentes ?? []);
+    return ops.map((o) =>
+      operationDashboardVersLigne(o, { masquerNomMembre: this.isMembreSimple() })
+    );
   });
 
   readonly greetingName = computed(() => {
@@ -177,6 +183,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
             emprunts: Number(s?.emprunts ?? 0),
           });
           this.mesSuiviMensuel.set(monCompte.suiviMensuel ?? null);
+          this.mesOperations.set((monCompte.operations ?? []).slice(0, 8));
           this.loading.set(false);
         },
         error: () => {
@@ -189,6 +196,7 @@ export class DashboardComponent implements OnInit, OnDestroy {
 
     this.mesSolde.set(null);
     this.mesSuiviMensuel.set(null);
+    this.mesOperations.set([]);
     forkJoin({
       dashboard: this.dashboardService.obtenir(id),
       emprunts: this.empruntService.lister(id),

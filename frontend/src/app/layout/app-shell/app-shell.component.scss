@@ -238,6 +238,9 @@
   flex-shrink: 0;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04);
   flex-wrap: wrap;
+  position: sticky;
+  top: 0;
+  z-index: 200;
 }
 
 .tb-title {

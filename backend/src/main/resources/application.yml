@@ -31,7 +31,8 @@ server:
 
 cotisapp:
   cors:
-    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200,http://127.0.0.1:4200,http://localhost:4284,http://127.0.0.1:4284}
+    # En prod, ajouter l'URL du frontend web + https://localhost (requis pour l'APK Capacitor)
+    allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:4200,http://127.0.0.1:4200,http://localhost:4284,http://127.0.0.1:4284,https://localhost}
   storage:
     upload-dir: ${UPLOAD_DIR:./uploads}
     max-file-size: ${UPLOAD_MAX_BYTES:10485760}

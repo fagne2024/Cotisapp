@@ -29,6 +29,12 @@ import {
 import { libelleFraisEmprunt } from '../../core/util/regle-emprunt.util';
 import { ParametrageTabsComponent } from './parametrage-tabs.component';
 import { DROIT_ACTION_IMPORTS } from '../../shared/imports/droit-action.imports';
+import { ListPaginationComponent } from '../../shared/components/list-pagination/list-pagination.component';
+import {
+  clampPage,
+  paginateSlice,
+  paginationTotalPages,
+} from '../../shared/util/pagination.util';
 
 export const COMPTES_MOUVEMENT = [
   'MEMBRE.EPARGNE_HEBDO',
@@ -69,9 +75,9 @@ const ICON_BG: Partial<Record<TypeOperation, string>> = {
 @Component({
   selector: 'app-parametrage-regles',
   standalone: true,
-  imports: [ReactiveFormsModule, ParametrageTabsComponent, ...DROIT_ACTION_IMPORTS],
+  imports: [ReactiveFormsModule, ParametrageTabsComponent, ListPaginationComponent, ...DROIT_ACTION_IMPORTS],
   templateUrl: './parametrage-regles.component.html',
-  styleUrl: './parametrage-regles.component.scss',
+  styleUrls: ['./parametrage-regles.component.scss', '../../shared/styles/pagination.scss'],
 })
 export class ParametrageReglesComponent implements OnInit {
   readonly auth = inject(AuthService);
@@ -96,6 +102,11 @@ export class ParametrageReglesComponent implements OnInit {
   readonly loading = signal(true);
   readonly saving = signal(false);
   readonly regles = signal<RegleOperationDto[]>([]);
+  readonly reglesPage = signal(1);
+  readonly reglesPageSize = 8;
+  readonly reglesPaged = computed(() =>
+    paginateSlice(this.regles(), this.reglesPage(), this.reglesPageSize)
+  );
   readonly selectedId = signal<number | null>(null);
   readonly selectedRegle = computed(() => {
     const id = this.selectedId();
@@ -414,6 +425,10 @@ export class ParametrageReglesComponent implements OnInit {
     });
   }
 
+  goReglesPage(p: number): void {
+    this.reglesPage.set(clampPage(p, paginationTotalPages(this.regles().length, this.reglesPageSize)));
+  }
+
   selectRegle(r: RegleOperationDto): void {
     this.selectedId.set(r.id);
     this.patchForm(r);
@@ -576,6 +591,7 @@ export class ParametrageReglesComponent implements OnInit {
         this.regleService.reinitialiser(orgId).subscribe({
           next: (list) => {
             this.regles.set(list);
+            this.reglesPage.set(1);
             if (list.length) {
               this.selectRegle(list[0]);
             }
@@ -607,6 +623,7 @@ export class ParametrageReglesComponent implements OnInit {
     this.regleService.lister(orgId).subscribe({
       next: (list) => {
         this.regles.set(list);
+        this.reglesPage.set(1);
         if (list.length && !this.selectedId()) {
           const hebdo =
             list.find((r) => r.typeOperation === 'COTISATION') ??

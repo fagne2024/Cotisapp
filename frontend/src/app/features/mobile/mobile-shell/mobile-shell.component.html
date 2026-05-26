@@ -1,0 +1,62 @@
+<div class="app-wrapper">
+  <!-- ── Zone de contenu scrollable ── -->
+  <main class="page-content">
+    <router-outlet />
+  </main>
+
+  <!-- ── Barre de navigation du bas ── -->
+  <nav class="bottom-nav">
+    <a class="nav-item"
+       [routerLink]="navBase + '/accueil'"
+       routerLinkActive="active">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1V9.5z"/>
+        <path d="M9 21V12h6v9"/>
+      </svg>
+      <span>Accueil</span>
+    </a>
+
+    <a class="nav-item"
+       [routerLink]="navBase + '/compte'"
+       routerLinkActive="active">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <rect x="2" y="5" width="20" height="14" rx="2"/>
+        <path d="M2 10h20"/>
+        <path d="M6 15h4"/>
+      </svg>
+      <span>Compte</span>
+    </a>
+
+    <a class="nav-item nav-item--center"
+       [routerLink]="navBase + '/cotiser'"
+       routerLinkActive="active">
+      <div class="center-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <circle cx="12" cy="12" r="9"/>
+          <path d="M12 8v8M8 12h8"/>
+        </svg>
+      </div>
+      <span>Cotiser</span>
+    </a>
+
+    <a class="nav-item"
+       [routerLink]="navBase + '/emprunts'"
+       routerLinkActive="active">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/>
+        <path d="M12 6v6l4 2"/>
+      </svg>
+      <span>Emprunts</span>
+    </a>
+
+    <a class="nav-item"
+       [routerLink]="navBase + '/profil'"
+       routerLinkActive="active">
+      <svg class="nav-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <circle cx="12" cy="8" r="4"/>
+        <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+      <span>Profil</span>
+    </a>
+  </nav>
+</div>

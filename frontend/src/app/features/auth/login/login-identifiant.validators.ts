@@ -27,13 +27,61 @@ export function validateurTelephone(): ValidatorFn {
   };
 }
 
-export const validateursEmailLogin = [Validators.required, Validators.email];
+const EMAIL_LOGIN_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
+
+export function validateurEmailLogin(): ValidatorFn {
+  return (control: AbstractControl): ValidationErrors | null => {
+    const v = (control.value ?? '').toString().trim();
+    if (!v) return null;
+    return EMAIL_LOGIN_PATTERN.test(v) ? null : { email: true };
+  };
+}
+
+export const validateursEmailLogin = [Validators.required, validateurEmailLogin()];
 export const validateursTelephoneLogin = [Validators.required, validateurTelephone()];
 
 export type LoginPresetValidator = 'membre' | 'membreSimple' | 'membreBureau' | 'adminGie' | 'super' | null;
 
 export function estConnexionParTelephone(role: LoginPresetValidator): boolean {
   return role === 'membre' || role === 'membreSimple';
+}
+
+export type ModeIdentifiantLogin = 'vide' | 'telephone' | 'email';
+
+/** Saisie orientée email (lettres ou @), pas un numéro de téléphone seul. */
+export function estSaisieEmailProbable(raw: string): boolean {
+  const v = raw.trim();
+  if (!v) return false;
+  if (v.includes('@')) return true;
+  return /[a-zA-ZÀ-ÿ]/.test(v);
+}
+
+/** Déduit le mode de connexion à partir de la saisie (téléphone vs email). */
+export function detecteModeIdentifiant(raw: string): ModeIdentifiantLogin {
+  const v = raw.trim();
+  if (!v) return 'vide';
+  if (v.includes('@')) return 'email';
+  if (estSaisieEmailProbable(v)) return 'vide';
+  const digits = v.replace(/\D/g, '');
+  if (digits.length >= 9 && /^[\d\s+().-]+$/.test(v)) return 'telephone';
+  return 'vide';
+}
+
+/** Mode effectif : verrouille l'email dès qu'un @ est présent. */
+export function resoutModeIdentifiant(
+  raw: string,
+  modeActuel: ModeIdentifiantLogin,
+  roleEmailSelectionne: boolean
+): ModeIdentifiantLogin {
+  const v = raw.trim();
+  if (!v) return 'vide';
+  if (v.includes('@')) return 'email';
+  if (roleEmailSelectionne && estSaisieEmailProbable(v)) return 'email';
+  const detecte = detecteModeIdentifiant(raw);
+  if (modeActuel === 'email' && detecte === 'telephone') {
+    return 'email';
+  }
+  return detecte;
 }
 
 export function messageErreurIdentifiant(

@@ -1,0 +1,208 @@
+:host { display: block; }
+
+.page-header {
+  background: linear-gradient(135deg, #1a5c3a, #2d7a52);
+  padding: 52px 20px 20px;
+}
+
+.page-header__title {
+  color: #fff;
+  font-size: 22px;
+  font-weight: 700;
+  margin: 0;
+}
+
+/* ── Onglets principaux ── */
+.onglets {
+  display: flex;
+  gap: 0;
+  background: #fff;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.onglet-btn {
+  flex: 1;
+  padding: 14px;
+  border: none;
+  background: transparent;
+  font-size: 14px;
+  font-weight: 600;
+  color: #94a3b8;
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  transition: all 0.2s;
+
+  &.active {
+    color: #1a5c3a;
+    border-bottom-color: #1a5c3a;
+  }
+}
+
+/* ── Alertes ── */
+.alert {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 12px 16px 0;
+  padding: 14px;
+  border-radius: 12px;
+  font-size: 14px;
+
+  span { flex-shrink: 0; font-size: 18px; }
+  p    { margin: 0; line-height: 1.5; }
+
+  &--success { background: #e8f5ee; color: #1a5c3a; }
+  &--error   { background: #fdeaea; color: #c0392b; }
+}
+
+/* ── Carte formulaire ── */
+.card {
+  background: #fff;
+  border-radius: 20px;
+  margin: 16px;
+  padding: 24px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06);
+}
+
+/* ── Sous-onglets ── */
+.sous-onglets {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 24px;
+
+  button {
+    flex: 1;
+    padding: 10px 12px;
+    border-radius: 12px;
+    border: 2px solid #e5e7eb;
+    background: #f9fafb;
+    font-size: 13px;
+    font-weight: 600;
+    color: #4a5568;
+    cursor: pointer;
+    transition: all 0.15s;
+
+    &.active {
+      background: #e8f5ee;
+      border-color: #1a5c3a;
+      color: #1a5c3a;
+    }
+  }
+}
+
+/* ── Champs ── */
+.field {
+  margin-bottom: 20px;
+}
+
+.field__label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: #4a5568;
+  margin-bottom: 8px;
+}
+
+.field__input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 16px;
+  color: #1c1c1e;
+  background: #f9fafb;
+  box-sizing: border-box;
+  transition: border-color 0.15s;
+  -webkit-appearance: none;
+
+  &:focus {
+    outline: none;
+    border-color: #1a5c3a;
+    background: #fff;
+  }
+
+  &--big {
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+    padding: 16px;
+    letter-spacing: -1px;
+  }
+}
+
+.field__select {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid #e5e7eb;
+  border-radius: 12px;
+  font-size: 15px;
+  color: #1c1c1e;
+  background: #f9fafb;
+  box-sizing: border-box;
+  -webkit-appearance: none;
+  appearance: none;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: #1a5c3a;
+  }
+}
+
+.field__error {
+  display: block;
+  margin-top: 6px;
+  font-size: 12px;
+  color: #c0392b;
+}
+
+/* ── Bouton submit ── */
+.submit-btn {
+  width: 100%;
+  padding: 16px;
+  border: none;
+  border-radius: 14px;
+  background: #c9922a;
+  color: #fff;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 8px;
+  transition: opacity 0.2s, transform 0.15s;
+
+  &:active:not(:disabled) { transform: scale(0.98); }
+  &:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  &--green { background: #1a5c3a; }
+}
+
+/* ── Spinner ── */
+.spinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Empty ── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 40px 0;
+  gap: 10px;
+  color: #94a3b8;
+  font-size: 14px;
+  span { font-size: 40px; }
+}

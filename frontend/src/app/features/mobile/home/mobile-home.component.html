@@ -1,0 +1,97 @@
+<div class="home">
+
+  <!-- ── Header dégradé ── -->
+  <header class="hero">
+    <div class="hero__top">
+      <div class="hero__greet">
+        <p class="hero__sub">{{ heureJour() }},</p>
+        <h1 class="hero__name">{{ prenom() }} 👋</h1>
+        <p class="hero__org">{{ auth.currentOrgNom() }}</p>
+      </div>
+      <button class="refresh-btn" (click)="rafraichir()" title="Rafraîchir">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+          <path d="M4 12a8 8 0 0 1 14.93-4M20 4v4h-4"/>
+          <path d="M20 12a8 8 0 0 1-14.93 4M4 20v-4h4"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Carte solde principal -->
+    <div class="balance-card">
+      @if (data.loading()) {
+        <div class="skeleton skeleton--balance"></div>
+      } @else {
+        <p class="balance-card__label">Solde net</p>
+        <p class="balance-card__amount" [class.negative]="!soldePositif()">
+          {{ fmt(soldeMembre()) }}
+        </p>
+        <p class="balance-card__hint">Épargne totale : {{ fmt(epargne()) }}</p>
+      }
+    </div>
+  </header>
+
+  <!-- ── Tuiles rapides ── -->
+  <section class="tiles">
+    <button class="tile" (click)="allerVers('compte')">
+      <span class="tile__icon tile__icon--green">💰</span>
+      <span class="tile__label">Épargne</span>
+      <span class="tile__value">{{ fmt(epargne()) }}</span>
+    </button>
+
+    <button class="tile" (click)="allerVers('compte')">
+      <span class="tile__icon tile__icon--blue">🤝</span>
+      <span class="tile__label">Solidarité</span>
+      <span class="tile__value">{{ fmt(solidarite()) }}</span>
+    </button>
+
+    <button class="tile" [class.tile--warn]="nbEmpruntsEnCours() > 0" (click)="allerVers('emprunts')">
+      <span class="tile__icon tile__icon--orange">💳</span>
+      <span class="tile__label">Emprunts</span>
+      <span class="tile__value">{{ fmt(empruntsTotal()) }}</span>
+      @if (nbEmpruntsEnCours() > 0) {
+        <span class="tile__badge">{{ nbEmpruntsEnCours() }}</span>
+      }
+    </button>
+
+    <button class="tile" (click)="allerVers('cotiser')">
+      <span class="tile__icon tile__icon--purple">➕</span>
+      <span class="tile__label">Cotiser</span>
+      <span class="tile__value">Maintenant</span>
+    </button>
+  </section>
+
+  <!-- ── Transactions récentes ── -->
+  <section class="card">
+    <div class="card__header">
+      <h2 class="card__title">Activité récente</h2>
+      <button class="card__link" (click)="allerVers('compte')">Voir tout</button>
+    </div>
+
+    @if (data.loading()) {
+      @for (_ of [1,2,3,4]; track $index) {
+        <div class="skeleton skeleton--row"></div>
+      }
+    } @else if (opsRecentes().length === 0) {
+      <div class="empty">
+        <span class="empty__icon">📋</span>
+        <p>Aucune opération pour l'instant</p>
+      </div>
+    } @else {
+      <ul class="op-list">
+        @for (op of opsRecentes(); track op.date + op.montant) {
+          <li class="op-row">
+            <span class="op-row__icon">{{ op.icon }}</span>
+            <div class="op-row__info">
+              <span class="op-row__label">{{ op.libelle }}</span>
+              <span class="op-row__date">{{ op.date | date:'dd MMM yyyy':'':'fr' }}</span>
+            </div>
+            <span class="op-row__amount" [class.positif]="op.positif" [class.negatif]="!op.positif">
+              {{ op.positif ? '+' : '-' }}{{ fmt(op.montant) }}
+            </span>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+
+</div>

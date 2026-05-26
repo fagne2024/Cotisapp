@@ -1,10 +1,14 @@
-import { Component, computed, inject, signal, HostListener } from '@angular/core';
+import { Component, computed, DestroyRef, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
 import { CompteMembreLogin, Role } from '../../../core/models/role.model';
 import {
+  estSaisieEmailProbable,
   messageErreurIdentifiant,
+  ModeIdentifiantLogin,
+  resoutModeIdentifiant,
   validateursEmailLogin,
   validateursTelephoneLogin,
 } from './login-identifiant.validators';
@@ -13,19 +17,13 @@ import {
   estMembreBureau,
   estMembreSimple,
   groupePourPreset,
-  libelleLoginGroupe,
   libelleLoginPreset,
-  libelleSousTypeAttendu,
   LoginGroupe,
   LoginPreset,
+  PRESETS_CONNEXION_EMAIL,
 } from './login-preset.util';
 type EtapeMembre = 'telephone' | 'choix' | 'motdepasse';
 type EtapeConnexion = 'identifiants' | 'twoFactor';
-
-const DEMO_SUPERADMIN = {
-  identifiant: 'superadmin@cotisapp.sn',
-  motDePasse: 'Admin@2026',
-};
 
 @Component({
   selector: 'app-login',
@@ -36,15 +34,19 @@ const DEMO_SUPERADMIN = {
 })
 export class LoginComponent {
   readonly Math = Math;
+  readonly libelleLoginPreset = libelleLoginPreset;
   private readonly fb = inject(FormBuilder);
   private readonly auth = inject(AuthService);
   private readonly router = inject(Router);
+  private readonly destroyRef = inject(DestroyRef);
 
   readonly error = signal(false);
   readonly errorMessage = signal('');
   readonly loading = signal(false);
   readonly lookupLoading = signal(false);
   readonly showPassword = signal(false);
+  readonly modeIdentifiant = signal<ModeIdentifiantLogin>('vide');
+  readonly presetsEmail = PRESETS_CONNEXION_EMAIL;
   readonly selectedGroupe = signal<LoginGroupe | null>(null);
   readonly selectedRole = signal<LoginPreset | null>(null);
   readonly roleRequis = signal(false);
@@ -63,69 +65,76 @@ export class LoginComponent {
   ];
 
   readonly form = this.fb.nonNullable.group({
-    identifiant: [{ value: '', disabled: true }, Validators.required],
-    motDePasse: ['', Validators.required],
+    identifiant: ['', Validators.required],
+    motDePasse: [''],
   });
 
-  readonly groupeSelectionne = computed(() => this.selectedGroupe() != null);
   readonly roleSelectionne = computed(() => this.selectedRole() != null);
+  readonly modeTelephone = computed(() => this.modeIdentifiant() === 'telephone');
+  readonly modeEmail = computed(() => this.modeIdentifiant() === 'email');
 
   readonly identifiantLabel = computed(() => {
-    const role = this.selectedRole();
-    if (estMembreSimple(role)) return 'Numéro de téléphone';
-    if (role == null) return 'Identifiant';
-    return 'Adresse email';
+    if (this.modeTelephone()) return 'Numéro de téléphone';
+    if (this.modeEmail()) return 'Adresse email';
+    return 'Téléphone ou email';
   });
 
   readonly identifiantPlaceholder = computed(() => {
-    const role = this.selectedRole();
-    if (role == null) return 'Choisissez d’abord un type de compte ci-dessus';
-    if (role === 'super') return 'superadmin@cotisapp.sn';
-    if (estMembreSimple(role)) return '+221 77 000 00 00';
-    if (estMembreBureau(role)) return 'sg@mon-gie.sn';
-    return 'votre.email@exemple.sn';
+    if (this.modeTelephone()) return '+221 77 000 00 00';
+    if (this.modeEmail()) return 'votre.email@exemple.sn';
+    return '+221 77 … ou admin@mon-gie.sn';
   });
 
   readonly identifiantInputType = computed(() =>
-    estMembreSimple(this.selectedRole()) ? 'tel' : 'email'
+    this.modeTelephone() ? 'tel' : 'text'
   );
 
   readonly identifiantAutocomplete = computed(() =>
-    estMembreSimple(this.selectedRole()) ? 'tel' : 'email'
+    this.modeTelephone() ? 'tel' : 'username'
   );
 
   readonly roleHint = computed(() => {
+    const mode = this.modeIdentifiant();
+    if (mode === 'vide') {
+      return 'Saisissez votre numéro de téléphone (membre simple) ou votre email (bureau, admin, superadmin).';
+    }
+    if (mode === 'telephone') {
+      return 'Connexion membre simple — numéro au format international (ex. +221 77 …).';
+    }
     if (!this.roleSelectionne()) {
-      return 'Choisissez un type de compte ci-dessus avant de continuer.';
+      return 'Choisissez votre type de compte ci-dessous pour continuer.';
     }
     const role = this.selectedRole();
     if (role === 'super') {
       return 'Accès plateforme : gestion de toutes les organisations.';
     }
-    if (estMembreSimple(role)) {
-      return 'Numéro de téléphone obligatoire (format international accepté, ex. +221 77 …).';
-    }
     if (estMembreBureau(role)) {
-      return 'Email de votre compte bureau (SG, trésorier, superviseur…). Mot de passe initial : Passer123.';
+      return 'Compte bureau (SG, trésorier, superviseur…).';
     }
-    return 'Adresse email obligatoire pour la connexion administrateur.';
+    return 'Administrateur de votre organisation GIE.';
   });
 
   readonly erreurIdentifiant = computed(() => {
     const ctrl = this.form.controls.identifiant;
     if (!ctrl.touched && !ctrl.dirty) return null;
-    return messageErreurIdentifiant(ctrl.errors, this.selectedRole());
+    return messageErreurIdentifiant(ctrl.errors, this.rolePourErreurIdentifiant());
   });
 
-  readonly afficherChampsIdentifiants = computed(
-    () => this.roleSelectionne() && this.etapeConnexion() === 'identifiants'
-  );
+  readonly afficherChampsIdentifiants = computed(() => this.etapeConnexion() === 'identifiants');
 
-  readonly afficherMotDePasse = computed(
-    () =>
-      this.etapeConnexion() === 'identifiants' &&
-      (estConnexionEmail(this.selectedRole()) || this.etapeMembre() === 'motdepasse')
-  );
+  readonly afficherChoixRoleEmail = computed(() => {
+    if (this.etapeConnexion() !== 'identifiants' || this.modeTelephone()) {
+      return false;
+    }
+    const v = (this.form.controls.identifiant.value ?? '').trim();
+    return this.modeEmail() || estSaisieEmailProbable(v);
+  });
+
+  readonly afficherMotDePasse = computed(() => {
+    if (this.etapeConnexion() !== 'identifiants') return false;
+    if (this.modeTelephone()) return this.etapeMembre() === 'motdepasse';
+    return this.modeEmail() && this.roleSelectionne();
+  });
 
   readonly afficherEtape2fa = computed(() => this.etapeConnexion() === 'twoFactor');
 
@@ -133,7 +142,7 @@ export class LoginComponent {
 
   /** Liste à cocher : étape dédiée ou changement sur l’écran mot de passe. */
   readonly afficherListeComptes = computed(() => {
-    if (!estMembreSimple(this.selectedRole()) || this.comptesMembre().length <= 1) {
+    if (!this.modeTelephone() || this.comptesMembre().length <= 1) {
       return false;
     }
     return this.etapeMembre() === 'choix' || this.etapeMembre() === 'motdepasse';
@@ -141,7 +150,7 @@ export class LoginComponent {
 
   readonly afficherCompteUnique = computed(
     () =>
-      estMembreSimple(this.selectedRole()) &&
+      this.modeTelephone() &&
       this.comptesMembre().length === 1 &&
       this.etapeMembre() === 'motdepasse' &&
       this.compteSelectionne() != null
@@ -149,28 +158,40 @@ export class LoginComponent {
 
   readonly afficherBoutonContinuer = computed(
     () =>
-      this.roleSelectionne() &&
+      this.modeTelephone() &&
       this.etapeConnexion() === 'identifiants' &&
-      estMembreSimple(this.selectedRole()) &&
       this.etapeMembre() === 'telephone'
   );
 
   readonly afficherBoutonContinuerChoix = computed(
     () =>
-      this.roleSelectionne() &&
+      this.modeTelephone() &&
       this.etapeConnexion() === 'identifiants' &&
-      estMembreSimple(this.selectedRole()) &&
       this.etapeMembre() === 'choix'
   );
 
-  readonly afficherBoutonConnexion = computed(
-    () =>
-      this.roleSelectionne() &&
-      this.etapeConnexion() === 'identifiants' &&
-      (estConnexionEmail(this.selectedRole()) || this.etapeMembre() === 'motdepasse')
-  );
+  readonly afficherBoutonConnexion = computed(() => {
+    if (this.etapeConnexion() !== 'identifiants') return false;
+    if (this.modeTelephone()) return this.etapeMembre() === 'motdepasse';
+    return this.modeEmail() && this.roleSelectionne();
+  });
 
   readonly afficherBouton2fa = computed(() => this.etapeConnexion() === 'twoFactor');
+
+  readonly identifiantRenseigne = computed(
+    () => (this.form.controls.identifiant.value ?? '').trim().length > 0
+  );
+
+  /** Bouton principal toujours visible sur l’écran de connexion. */
+  readonly afficherBoutonAction = computed(() => {
+    if (this.afficherEtape2fa()) {
+      return this.afficherBouton2fa();
+    }
+    return this.etapeConnexion() === 'identifiants';
+  });
+
+  /** Indication visuelle seulement — le bouton reste cliquable (validation au clic). */
+  readonly boutonActionDesactive = computed(() => this.loading() || this.lookupLoading());
 
   readonly libelleBoutonPrincipal = computed(() => {
     if (this.loading()) return 'Connexion en cours…';
@@ -178,67 +199,45 @@ export class LoginComponent {
     if (this.afficherBouton2fa()) return 'Valider le code →';
     if (this.afficherBoutonContinuer()) return 'Continuer →';
     if (this.afficherBoutonContinuerChoix()) return 'Continuer →';
-    return 'Se connecter →';
+    if (this.afficherBoutonConnexion()) return 'Se connecter →';
+    if (this.modeEmail() && !this.roleSelectionne()) return 'Continuer →';
+    if (this.identifiantRenseigne()) return 'Continuer →';
+    return 'Continuer →';
   });
-
-  readonly boutonChoixDesactive = computed(
-    () => this.afficherBoutonContinuerChoix() && this.compteSelectionne() == null
-  );
 
   readonly code2faValide = computed(() => /^\d{6}$/.test(this.code2fa().replace(/\s/g, '')));
 
-  setGroupe(groupe: LoginGroupe): void {
-    if (this.selectedGroupe() === groupe) {
-      return;
+  constructor() {
+    this.form.controls.identifiant.valueChanges
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((v) => this.appliquerModeDepuisSaisie(v ?? ''));
+    const initial = this.form.controls.identifiant.value ?? '';
+    if (initial.trim()) {
+      this.appliquerModeDepuisSaisie(initial);
     }
-    this.selectedGroupe.set(groupe);
-    this.selectedRole.set(null);
-    this.roleRequis.set(false);
-    this.reinitialiserFluxMembre();
-    this.form.controls.identifiant.disable({ emitEvent: false });
-    this.form.patchValue({ identifiant: '', motDePasse: '' });
-    this.error.set(false);
-    this.errorMessage.set('');
+    this.synchroniserValidateurMotDePasse();
   }
 
   setRole(role: LoginPreset): void {
+    if (!PRESETS_CONNEXION_EMAIL.includes(role)) {
+      return;
+    }
+    const identifiant = (this.form.controls.identifiant.value ?? '').trim();
+    if (!estSaisieEmailProbable(identifiant)) {
+      return;
+    }
+    this.modeIdentifiant.set('email');
+    this.appliquerValidateursIdentifiant('email');
     this.selectedGroupe.set(groupePourPreset(role));
     this.selectedRole.set(role);
     this.roleRequis.set(false);
-    this.reinitialiserFluxMembre();
-    this.form.controls.identifiant.enable({ emitEvent: false });
-    this.appliquerValidateursIdentifiant(role);
-    if (role === 'super') {
-      this.form.patchValue({
-        identifiant: DEMO_SUPERADMIN.identifiant,
-        motDePasse: DEMO_SUPERADMIN.motDePasse,
-      });
-    } else {
-      this.form.patchValue({ identifiant: '', motDePasse: '' });
-    }
-    this.form.controls.identifiant.markAsUntouched();
     this.error.set(false);
     this.errorMessage.set('');
-  }
-
-  isGroupeActive(groupe: LoginGroupe): boolean {
-    return this.selectedGroupe() === groupe;
+    this.synchroniserValidateurMotDePasse();
   }
 
   isRoleActive(role: LoginPreset): boolean {
     return this.selectedRole() === role;
-  }
-
-  libelleRoleSelectionne(): string {
-    const role = this.selectedRole();
-    if (role) {
-      return libelleLoginPreset(role);
-    }
-    const g = this.selectedGroupe();
-    if (g) {
-      return `${libelleLoginGroupe(g)} — choisir : ${libelleSousTypeAttendu(g)}`;
-    }
-    return '';
   }
 
   togglePassword(): void {
@@ -269,6 +268,7 @@ export class LoginComponent {
     this.etapeMembre.set('motdepasse');
     this.error.set(false);
     this.errorMessage.set('');
+    this.synchroniserValidateurMotDePasse();
   }
 
   retourChoixCompte(): void {
@@ -279,6 +279,7 @@ export class LoginComponent {
     }
     this.compteSelectionne.set(null);
     this.form.controls.motDePasse.setValue('');
+    this.synchroniserValidateurMotDePasse();
   }
 
   retourTelephone(): void {
@@ -288,22 +289,34 @@ export class LoginComponent {
     this.form.controls.motDePasse.setValue('');
     this.error.set(false);
     this.errorMessage.set('');
+    this.synchroniserValidateurMotDePasse();
   }
 
   submit(): void {
+    if (this.loading() || this.lookupLoading()) {
+      return;
+    }
     if (this.etapeConnexion() === 'twoFactor') {
+      if (!this.code2faValide()) {
+        this.error.set(true);
+        this.errorMessage.set('Saisissez le code à 6 chiffres affiché dans Google Authenticator.');
+        return;
+      }
       this.verifierCode2fa();
       return;
     }
     if (!this.exigerTypeCompte()) {
       return;
     }
-    if (estMembreSimple(this.selectedRole()) && this.etapeMembre() === 'choix') {
+    if (this.modeTelephone() && this.etapeMembre() === 'telephone') {
+      this.continuerMembre();
+      return;
+    }
+    if (this.modeTelephone() && this.etapeMembre() === 'choix') {
       this.confirmerChoixCompte();
       return;
     }
-    if (estMembreSimple(this.selectedRole()) && this.etapeMembre() === 'telephone') {
-      this.continuerMembre();
+    if (!this.validerAvantConnexion()) {
       return;
     }
     if (!this.validerFormulaireConnexion()) {
@@ -346,9 +359,11 @@ export class LoginComponent {
         if (comptes.length === 1) {
           this.selectionnerCompte(comptes[0]);
           this.etapeMembre.set('motdepasse');
+          this.synchroniserValidateurMotDePasse();
         } else {
           this.compteSelectionne.set(null);
           this.etapeMembre.set('choix');
+          this.synchroniserValidateurMotDePasse();
         }
       },
       error: (err) => {
@@ -364,7 +379,7 @@ export class LoginComponent {
     this.error.set(false);
     this.errorMessage.set('');
     const { identifiant, motDePasse } = this.form.getRawValue();
-    const preset = this.selectedRole()!;
+    const preset = this.modeTelephone() ? 'membreSimple' : this.selectedRole()!;
     const roleSouhaite: Role | undefined =
       preset === 'super'
         ? 'SUPERADMIN'
@@ -434,28 +449,127 @@ export class LoginComponent {
     this.code2fa.set('');
   }
 
+  private appliquerModeDepuisSaisie(raw: string): void {
+    const roleEmail = estConnexionEmail(this.selectedRole());
+    const mode = resoutModeIdentifiant(raw, this.modeIdentifiant(), roleEmail);
+    const prev = this.modeIdentifiant();
+
+    if (mode === 'telephone' && prev !== 'telephone') {
+      this.modeIdentifiant.set('telephone');
+      this.roleRequis.set(false);
+      this.error.set(false);
+      this.errorMessage.set('');
+      this.form.controls.motDePasse.setValue('');
+      this.selectedGroupe.set('membre');
+      this.selectedRole.set('membreSimple');
+      this.reinitialiserFluxMembre();
+      this.appliquerValidateursIdentifiant('telephone');
+      this.synchroniserValidateurMotDePasse();
+      return;
+    }
+
+    if (mode === 'email' && prev !== 'email') {
+      this.forcerModeEmail();
+      return;
+    }
+
+    if (mode === 'vide' && prev !== 'vide') {
+      this.modeIdentifiant.set('vide');
+      this.roleRequis.set(false);
+      this.error.set(false);
+      this.errorMessage.set('');
+      this.form.controls.motDePasse.setValue('');
+      this.selectedRole.set(null);
+      this.selectedGroupe.set(null);
+      this.reinitialiserFluxMembre();
+      this.appliquerValidateursIdentifiant('vide');
+      this.synchroniserValidateurMotDePasse();
+    }
+  }
+
+  private forcerModeEmail(): void {
+    this.modeIdentifiant.set('email');
+    this.roleRequis.set(false);
+    this.error.set(false);
+    this.errorMessage.set('');
+    if (estMembreSimple(this.selectedRole())) {
+      this.selectedRole.set(null);
+      this.selectedGroupe.set(null);
+    }
+    this.reinitialiserFluxMembre();
+    this.appliquerValidateursIdentifiant('email');
+    this.synchroniserValidateurMotDePasse();
+  }
+
+  private validerAvantConnexion(): boolean {
+    if (this.afficherMotDePasse() && !this.form.controls.motDePasse.value.trim()) {
+      this.error.set(true);
+      this.errorMessage.set('Le mot de passe est obligatoire.');
+      this.form.controls.motDePasse.markAsTouched();
+      return false;
+    }
+    if (this.modeTelephone() && this.etapeMembre() === 'choix' && this.compteSelectionne() == null) {
+      this.error.set(true);
+      this.errorMessage.set('Sélectionnez le compte membre à ouvrir.');
+      return false;
+    }
+    return true;
+  }
+
+  private synchroniserValidateurMotDePasse(): void {
+    const ctrl = this.form.controls.motDePasse;
+    const requis = this.afficherMotDePasse();
+    if (requis) {
+      ctrl.setValidators([Validators.required]);
+    } else {
+      ctrl.clearValidators();
+      ctrl.setValue('', { emitEvent: false });
+    }
+    ctrl.updateValueAndValidity({ emitEvent: false });
+  }
+
   private exigerTypeCompte(): boolean {
-    if (this.selectedRole() != null) {
+    if (this.modeTelephone()) {
       return true;
     }
-    this.roleRequis.set(true);
-    this.error.set(true);
-    if (this.selectedGroupe() != null) {
-      this.errorMessage.set(`Choisissez ${libelleSousTypeAttendu(this.selectedGroupe())}.`);
-    } else {
-      this.errorMessage.set('Choisissez ADMIN ou MEMBRE, puis le sous-type de compte.');
+    const identifiant = (this.form.controls.identifiant.value ?? '').trim();
+    if (estSaisieEmailProbable(identifiant) && !this.modeEmail()) {
+      this.forcerModeEmail();
     }
+    if (this.modeEmail() && this.selectedRole() != null && !estMembreSimple(this.selectedRole())) {
+      return true;
+    }
+    if (!identifiant) {
+      this.error.set(true);
+      this.errorMessage.set('Saisissez votre numéro de téléphone ou votre adresse email.');
+      return false;
+    }
+    if (estSaisieEmailProbable(identifiant)) {
+      this.roleRequis.set(true);
+      this.error.set(true);
+      this.errorMessage.set('Choisissez Membre de bureau, Admin GIE ou Superadmin.');
+      return false;
+    }
+    this.error.set(true);
+    this.errorMessage.set('Saisissez un numéro de téléphone ou une adresse email valide.');
     return false;
   }
 
-  private appliquerValidateursIdentifiant(role: LoginPreset): void {
+  private appliquerValidateursIdentifiant(mode: 'telephone' | 'email' | 'vide'): void {
     const ctrl = this.form.controls.identifiant;
-    if (estMembreSimple(role)) {
+    if (mode === 'telephone') {
       ctrl.setValidators(validateursTelephoneLogin);
-    } else {
+    } else if (mode === 'email') {
       ctrl.setValidators(validateursEmailLogin);
+    } else {
+      ctrl.setValidators([Validators.required]);
     }
     ctrl.updateValueAndValidity({ emitEvent: false });
+  }
+
+  private rolePourErreurIdentifiant(): LoginPreset | null {
+    if (this.modeTelephone()) return 'membreSimple';
+    return this.selectedRole();
   }
 
   private validerIdentifiantSeul(): boolean {
@@ -467,19 +581,20 @@ export class LoginComponent {
     }
     this.error.set(true);
     this.errorMessage.set(
-      messageErreurIdentifiant(ctrl.errors, this.selectedRole()) ??
+      messageErreurIdentifiant(ctrl.errors, this.rolePourErreurIdentifiant()) ??
         'Identifiant invalide.'
     );
     return false;
   }
 
   private validerFormulaireConnexion(): boolean {
+    this.synchroniserValidateurMotDePasse();
     this.form.controls.identifiant.markAsTouched();
     if (this.afficherMotDePasse()) {
       this.form.controls.motDePasse.markAsTouched();
     }
     if (
-      estMembreSimple(this.selectedRole()) &&
+      this.modeTelephone() &&
       this.etapeMembre() === 'motdepasse' &&
       this.plusieursComptes() &&
       this.compteSelectionne() == null
@@ -494,7 +609,7 @@ export class LoginComponent {
     }
     const msgId = messageErreurIdentifiant(
       this.form.controls.identifiant.errors,
-      this.selectedRole()
+      this.rolePourErreurIdentifiant()
     );
     if (msgId) {
       this.error.set(true);

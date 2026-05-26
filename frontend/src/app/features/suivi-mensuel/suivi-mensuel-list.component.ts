@@ -12,6 +12,12 @@ import { AuthService } from '../../core/services/auth.service';
 import { StatutSuivi, SuiviMensuelDto, SuiviMensuelService } from '../../core/services/suivi-mensuel.service';
 import { formatFcfa } from '../../core/utils/currency.util';
 import { matchTextQuery } from '../../shared/util/filter.util';
+import { ListPaginationComponent } from '../../shared/components/list-pagination/list-pagination.component';
+import {
+  clampPage,
+  paginateSlice,
+  paginationTotalPages,
+} from '../../shared/util/pagination.util';
 
 @Component({
   selector: 'app-suivi-mensuel-list',
@@ -23,9 +29,10 @@ import { matchTextQuery } from '../../shared/util/filter.util';
     MatButtonModule,
     MatTableModule,
     NgClass,
+    ListPaginationComponent,
   ],
   templateUrl: './suivi-mensuel-list.component.html',
-  styleUrl: './suivi-mensuel-list.component.scss',
+  styleUrls: ['./suivi-mensuel-list.component.scss', '../../shared/styles/pagination.scss'],
 })
 export class SuiviMensuelListComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
@@ -61,6 +68,12 @@ export class SuiviMensuelListComponent implements OnInit, OnDestroy {
       return matchTextQuery(q, s.membreNom, s.codeMembre);
     });
   });
+
+  readonly page = signal(1);
+  readonly pageSize = 15;
+  readonly suivisPaged = computed(() =>
+    paginateSlice(this.suivisFiltres(), this.page(), this.pageSize)
+  );
 
   private orgId = 0;
 
@@ -120,6 +133,7 @@ export class SuiviMensuelListComponent implements OnInit, OnDestroy {
     this.suiviService.lister(this.orgId, this.moisCtrl.value).subscribe({
       next: (data) => {
         this.suivis.set(data);
+        this.page.set(1);
         this.loading.set(false);
       },
       error: () => {
@@ -155,12 +169,18 @@ export class SuiviMensuelListComponent implements OnInit, OnDestroy {
     this.filtreStatut.set(
       v === 'PAYE' || v === 'PARTIEL' || v === 'NON_PAYE' ? (v as StatutSuivi) : 'tous'
     );
+    this.page.set(1);
     this.pushFiltersToUrl();
   }
 
   onFiltreRecherche(ev: Event): void {
     this.filtreRecherche.set((ev.target as HTMLInputElement).value);
+    this.page.set(1);
     this.pushFiltersToUrl(true);
+  }
+
+  goPage(p: number): void {
+    this.page.set(clampPage(p, paginationTotalPages(this.suivisFiltres().length, this.pageSize)));
   }
 
   statutLabel(statut: StatutSuivi): string {

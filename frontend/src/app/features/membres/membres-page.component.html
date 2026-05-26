@@ -168,7 +168,12 @@
 
     @if (peutConfigurerPaiementMobile() && selectedCount() > 0) {
       <div class="bulk-bar" role="toolbar" aria-label="Actions sur la sélection">
-        <span class="bulk-bar-count">{{ selectedCount() }} membre(s) sélectionné(s)</span>
+        <span class="bulk-bar-count">
+          {{ selectedCount() }} membre(s) sélectionné(s)
+          @if (allSelectedInFilter() && filteredRows().length > pageSize()) {
+            <span class="bulk-bar-scope">— tous les résultats filtrés ({{ filteredRows().length }})</span>
+          }
+        </span>
         <button type="button" class="btn-s" (click)="bulkPaiementMobile(true)" [disabled]="bulkMobileSaving()">
           📱 Activer mobile money
         </button>
@@ -188,12 +193,14 @@
                 @if (peutConfigurerPaiementMobile()) {
                   <th class="col-check">
                     <input
+                      #selectAllCheckbox
                       type="checkbox"
                       class="row-check"
-                      [checked]="allSelectedOnPage()"
                       (click)="$event.stopPropagation()"
-                      (change)="toggleAllOnPage()"
-                      aria-label="Sélectionner tous les membres de la page"
+                      (change)="toggleAllFiltered()"
+                      [attr.aria-label]="
+                        'Sélectionner tous les membres du filtre (' + filteredRows().length + ' résultats, toutes pages)'
+                      "
                     />
                   </th>
                 }

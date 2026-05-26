@@ -205,6 +205,9 @@ public interface OperationRepository extends JpaRepository<Operation, Long> {
     List<Operation> findByOrganisationIdAndExerciceIdOrderByDateCreationDesc(
             Long organisationId, Long exerciceId);
 
+    List<Operation> findTop8ByOrganisationIdAndExerciceIdAndMembreIdOrderByDateCreationDesc(
+            Long organisationId, Long exerciceId, Long membreId);
+
     @Query("""
             SELECT COALESCE(SUM(COALESCE(o.montantFrais, 0)), 0)
             FROM Operation o

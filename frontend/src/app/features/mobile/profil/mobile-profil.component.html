@@ -1,0 +1,98 @@
+<div class="profil">
+
+  <!-- ── Header avatar ── -->
+  <header class="hero" [style.--av-color]="avatarColor()">
+    <div class="avatar">{{ initiales() }}</div>
+    <h1 class="hero__name">{{ auth.nomComplet() }}</h1>
+    <p class="hero__role">{{ poste() }}</p>
+    <p class="hero__org">{{ auth.currentOrgNom() }}</p>
+  </header>
+
+  @if (data.loading()) {
+    <div class="content">
+      <div class="skeleton skeleton--card"></div>
+    </div>
+  }
+
+  @if (!data.loading() && membre()) {
+    <div class="content">
+
+      <!-- ── Infos membre ── -->
+      <div class="card">
+        <h2 class="card__title">Informations</h2>
+
+        <div class="info-row">
+          <span class="info-row__icon">🪪</span>
+          <div>
+            <span class="info-row__label">Numéro de membre</span>
+            <span class="info-row__val code">{{ membre()!.codeMembre }}</span>
+          </div>
+        </div>
+
+        @if (membre()!.telephone) {
+          <div class="info-row">
+            <span class="info-row__icon">📞</span>
+            <div>
+              <span class="info-row__label">Téléphone</span>
+              <span class="info-row__val">{{ membre()!.telephone }}</span>
+            </div>
+          </div>
+        }
+
+        @if (membre()!.email) {
+          <div class="info-row">
+            <span class="info-row__icon">✉️</span>
+            <div>
+              <span class="info-row__label">Email</span>
+              <span class="info-row__val">{{ membre()!.email }}</span>
+            </div>
+          </div>
+        }
+
+        @if (membre()!.dateAdhesion) {
+          <div class="info-row">
+            <span class="info-row__icon">📅</span>
+            <div>
+              <span class="info-row__label">Membre depuis</span>
+              <span class="info-row__val">{{ membre()!.dateAdhesion | date:'MMMM yyyy':'':'fr' }}</span>
+            </div>
+          </div>
+        }
+
+        <div class="info-row">
+          <span class="info-row__icon">🏛️</span>
+          <div>
+            <span class="info-row__label">Organisation</span>
+            <span class="info-row__val">{{ auth.currentOrgNom() }}</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Statut du compte ── -->
+      <div class="card">
+        <h2 class="card__title">Statut</h2>
+        <div class="status-row">
+          <div class="status-dot" [class.actif]="membre()!.actif"></div>
+          <span class="status-text">{{ membre()!.actif ? 'Compte actif' : 'Compte inactif' }}</span>
+        </div>
+
+        @if (membre()!.paiementMobileActif) {
+          <div class="status-row">
+            <span class="status-badge status-badge--green">📱 Mobile Money activé</span>
+          </div>
+        }
+      </div>
+
+      <!-- ── Déconnexion ── -->
+      <button class="logout-btn" (click)="deconnecter()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+          <polyline points="16 17 21 12 16 7"/>
+          <line x1="21" y1="12" x2="9" y2="12"/>
+        </svg>
+        Se déconnecter
+      </button>
+
+    </div>
+  }
+</div>
